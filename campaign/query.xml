@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<root version="3.0">
+	<windowclass name="prone_query">
+		<frame>utilitybox</frame>
+		<!--
+		<placement>
+			<size width="250" height="50" />
+		</placement>
+		<sizelimits>
+			<minimum width="250" height="50" />
+			<dynamic />
+		</sizelimits>
+		-->
+		<sheetdata>
+			<windowtitlebar_utilitybox name="title">
+				<resource>prone_standup</resource>
+			</windowtitlebar_utilitybox>
+			<windowmenubar_utilitybox name="menubar" />
+			<anchor_content_utilitybox_top />
+			<anchor_content_utilitybox_bottom />
+
+			<sub_content_buttons_groupbox_bottom name="sub_buttons">
+				<class>prone_query_bottom</class>
+			</sub_content_buttons_groupbox_bottom>
+			<area_content_framed_groupbox name="contentframe" />
+			<subwindow name="pronequerymsg">
+				<anchored to="contentframe" position="over" />
+				<class>prone_query_msg</class>
+				<fastinit />
+				<activate />
+			</subwindow>
+			<resize_utilitybox />
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="prone_query_small">
+		<frame>charsheethelper</frame>
+		<!--
+		<placement>
+			<size width="300" height="200" />
+		</placement>
+		<nodelete />
+		<playercontrol />
+		-->
+		<sheetdata>
+			<windowtitlebar_charselect name="title" >
+				<resource>prone_standup</resource>
+			</windowtitlebar_charselect>
+			<windowmenubar_charsheethelper name="menubar" />
+			<anchor_title_charsheethelper name="contentanchor" />
+			<anchor_content_charsheethelper_top />
+			<anchor_content_charsheethelper_bottom />
+
+			<sub_content_buttons_groupbox_bottom name="sub_buttons">
+				<class>prone_query_bottom</class>
+			</sub_content_buttons_groupbox_bottom>
+			<area_content_framed_groupbox name="contentframe" />
+			<subwindow name="pronequerymsg">
+				<anchored to="contentframe" position="over" />
+				<class>prone_query_msg</class>
+				<fastinit />
+				<activate />
+			</subwindow>
+
+			<resize_charsheethelper />
+		<!--
+			<close_charsheethelper />
+		-->
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="prone_query_bottom">
+		<sheetdata>
+			<anchor_content_top />
+			<button_affirm name="affirm" />
+			<button_deny name="deny" />
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="prone_query_msg">
+		<sheetdata>
+			<anchor_content_top />
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<static textres="query_msg_1" />
+			</stringc_content_noframe_noscroll_static_top>
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<static textres="query_msg_2" />
+			</stringc_content_noframe_noscroll_static_top>
+		</sheetdata>
+	</windowclass>
+
+	<template name="button_affirm">
+		<button_boolean>
+			<anchored>
+				<right anchor="center" offset="-15" />
+			</anchored>
+			<text>Yes</text>
+			<script>
+				function onButtonPress()
+				    CombatManagerWtW.standUp();
+				    -- if super and super.onButtonPress() then
+				    --     super.onButtonPress();
+				    -- end
+                    -- CombatManagerWtW.closeProneWindow();
+					-- window.close();
+					CombatManagerWtW.closeProneWindow();
+				end
+			</script>
+		</button_boolean>
+	</template>
+
+	<template name="button_deny">
+		<button_boolean>
+			<anchored>
+				<left anchor="center" offset="15" />
+			</anchored>
+			<text>No</text>
+			<script>
+				function onButtonPress()
+				    -- if super and super.onButtonPress() then
+				    --     super.onButtonPress();
+				    -- end
+                    -- CombatManagerWtW.closeProneWindow();
+					-- window.close();
+					CombatManagerWtW.closeProneWindow();
+				end
+			</script>
+		</button_boolean>
+	</template>
+	
+	<template name="button_boolean">
+		<buttoncontrol>
+			<anchored width="100" height="20">
+				<bottom offset="-5" />
+			</anchored>
+			<frame name="buttonup" offset="5,5,5,5" />
+			<stateframe>
+				<pressed name="buttondown" offset="5,5,5,5" />
+			</stateframe>
+			<font>button-white</font>
+		</buttoncontrol>
+	</template>
+</root>
