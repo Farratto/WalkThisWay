@@ -27,7 +27,7 @@ SOFTWARE.
 <root release="3.0" version="3">
 	<properties>
 		<name>Feature: Walk This Way</name>
-		<version>dev_version</version>
+		<version>1.0.0</version>
 		<loadorder>15</loadorder>
 		<author>Farratto</author>
 		<description>Reminders for prone condition and movement.</description>
@@ -50,7 +50,7 @@ SOFTWARE.
 			function onInit()
 				if PowerUp then
 					PowerUp.registerExtension("Walk this Way", "dev_version", {
-                        ['message'] = "v0.1.0\Checks for prone condition.  Asks if want to stand up."
+                        ['message'] = "v1.0.0\Checks for prone condition.  Asks if want to stand up."
                     });
 				end
 			end
