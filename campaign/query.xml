@@ -35,10 +35,10 @@
 
 	<windowclass name="prone_query_small">
 		<frame>charsheethelper</frame>
-		<!--
 		<placement>
 			<size width="300" height="200" />
 		</placement>
+		<!--
 		<nodelete />
 		<playercontrol />
 		-->
