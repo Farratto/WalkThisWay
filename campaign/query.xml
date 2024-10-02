@@ -103,8 +103,6 @@
 				    -- if super and super.onButtonPress() then
 				    --     super.onButtonPress();
 				    -- end
-                    -- CombatManagerWtW.closeProneWindow();
-					-- window.close();
 					CombatManagerWtW.closeProneWindow();
 				end
 			</script>
@@ -122,8 +120,6 @@
 				    -- if super and super.onButtonPress() then
 				    --     super.onButtonPress();
 				    -- end
-                    -- CombatManagerWtW.closeProneWindow();
-					-- window.close();
 					CombatManagerWtW.closeProneWindow();
 				end
 			</script>

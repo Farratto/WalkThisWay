@@ -1,9 +1,10 @@
--- 
--- Please see the license.html file included with this distribution for 
+--
+-- Please see the license.html file included with this distribution for
 -- attribution and copyright information.
 --
 
-OOB_MSGTYPE_APPLYHCMDS = "applyhcmds"; -- OOB identifier for source local processing that supports commands that need host privilege to execute
+-- OOB identifier for source local processing that supports commands that need host privilege to execute
+OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 OOB_MSGTYPE_PRONEQUERY = "oobpronequery";
 OOB_MSGTYPE_CLOSEQUERY = "oobclosequery";
 
@@ -31,28 +32,57 @@ end
 
 function checkProne(sourceNodeCT)
     if not sourceNodeCT then
-    	Debug.console("WtW Debug - sourceNodeCT is nil")
         return;
     end
 
-    local rSource = ActorManager.resolveActor(sourceNodeCT);
-    if not EffectManager.hasCondition(rSource, "Prone") then
+    local rCurrent = ActorManager.resolveActor(sourceNodeCT);
+    -- local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
+    local rSource = ActorManager.getCTNode(rCurrent)
+
+    if not EffectManager5E.hasEffectCondition(rSource, "Prone") then
 	    return false
-	elseif EffectManager.hasCondition(rSource, "Grappled") then
+		-- have it only remove the prone and not the rest of the effect
+	elseif EffectManager5E.hasEffectCondition(rSource, "Grappled") then
 	    return false
-	elseif EffectManager.hasCondition(rSource, "Paralyzed") then
+	elseif EffectManager5E.hasEffectCondition(rSource, "Paralyzed") then
 	    return false
-	elseif EffectManager.hasCondition(rSource, "Petrified") then
+	elseif EffectManager5E.hasEffectCondition(rSource, "Petrified") then
 	    return false
-	elseif EffectManager.hasCondition(rSource, "Restrained") then
+	elseif EffectManager5E.hasEffectCondition(rSource, "Restrained") then
 	    return false
-	elseif EffectManager.hasCondition(rSource, "Unconscious") then
+	elseif EffectManager5E.hasEffectCondition(rSource, "Unconscious") then
 	    return false
-	elseif EffectManager5E.hasEffect(rSource, "SPEED: 0") then
+	elseif EffectManager5E.hasEffect(rSource, "SPEED: none") then
+	    return false
+	elseif EffectManager5E.hasEffect(rSource, "SPEED:none") then
+	    return false
+	elseif EffectManager5E.hasEffect(rSource, "Tasha's Hideous Laughter") then
+	    return false
+	elseif containsTextInEffect(rSource, "Unable to Stand") then
+	    return false
+	elseif EffectManager5E.hasEffect(rSource, "NOSTAND") then
 	    return false
     else
 	    return true
     end
+end
+
+function containsTextInEffect(rActor, sText)
+    if not rActor or not sText then
+	    return;
+	end
+	local sLText = string.lower(sText)
+	local rSource = ActorManager.getCTNode(rActor)
+    local sEffectString = EffectManager.getEffectsString(rSource)
+	if not sEffectString then
+	    return;
+	end
+	local sLEffectString = string.lower(sEffectString)
+	if string.find(sLEffectString, sLText) then
+	    return true;
+	else
+	    return false;
+	end
 end
 
 function proneWindow(sourceNodeCT)
@@ -62,12 +92,11 @@ function proneWindow(sourceNodeCT)
 
     local rSource = ActorManager.resolveActor(sourceNodeCT);
 	local sOwner = getControllingClient(rSource);
-	
+
     if not checkProne(rSource) then
 	    return;
 	end
 
-	local rCurrent = nil;
     if sOwner then
         queryClient(rSource)
         return;
@@ -85,33 +114,57 @@ function closeAllProneWindows(sourceNodeCT)
 end
 
 function openProneWindow()
-	-- Interface.openWindow('prone_query', "");
-	Interface.openWindow('prone_query_small', "");
+	local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
+    local rSource = ActorManager.getCTNode(rCurrent)
+    local datasource = ""
+	-- Interface.openWindow('prone_query', datasource);
+	Interface.openWindow('prone_query_small', datasource);
 end
 
 function closeProneWindow()
-	-- local wChar = Interface.findWindow("prone_query", "");
-	local wChar = Interface.findWindow("prone_query_small", "");
+	local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
+    local rSource = ActorManager.getCTNode(rCurrent)
+    local datasource = ""
+	-- local wChar = Interface.findWindow("prone_query", datasource);
+	local wChar = Interface.findWindow("prone_query_small", datasource);
 	if wChar then
 		wChar.close();
 	end
 end
 
 function standUp()
-	local rCurrent = nil;
-	rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
-   	local rSource = ActorManager.getCTNode(rCurrent)
+    local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
+    local rSource = ActorManager.getCTNode(rCurrent)
 
 	if Session.IsHost then
-        EffectManager.removeCondition(rCurrent, "Prone");
-	    EffectManager.addEffect("", "", rSource, { sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts" }, "");
+        -- EffectManager.removeCondition(rCurrent, "Prone");
+        -- EffectManager.removeEffect(rSource, "Prone");
+        removeEffectCaseInsensitive(rSource, "Prone");
+		-- EffectManager5E.removeEffectByType(rSource, "Prone");
+	    EffectManager.addEffect("", "", rSource, {
+		    sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
+		}, "");
 	else
-		-- local sIdentity = User.getCurrentIdentity();
-		-- if sIdentity then
-		--  	rCurrent = ActorManager.resolveActor(CombatManager.getCTFromNode("charsheet." .. sIdentity));
-		-- end
 		notifyApplyHostCommands(rSource, 1, "Prone");
-		notifyApplyHostCommands(rSource, 0, { sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts" });
+		notifyApplyHostCommands(rSource, 0, {
+		    sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
+		});
+	end
+end
+
+function removeEffectCaseInsensitive(nodeCTEntry, sEffPatternToRemove)
+	if not nodeCTEntry or ((sEffPatternToRemove or "") == "") then
+		return;
+	end
+
+    local sLEffPatternToRemove = string.lower(sEffPatternToRemove)
+
+	for _,nodeEffect in ipairs(DB.getChildList(nodeCTEntry, "effects")) do
+	    local sLgetValue = string.lower(DB.getValue(nodeEffect, "label", ""))
+		if sLgetValue:match(sLEffPatternToRemove) then
+			DB.deleteNode(nodeEffect);
+			return;
+		end
 	end
 end
 
@@ -141,43 +194,46 @@ function sendCloseWindowCmd(rSource)
 end
 
 function handleProneQueryClient(msgOOB)
-	local sCTNodeID = msgOOB.sCTNodeID;
-	-- local bMakeRoll = msgOOB.bMakeRoll == "true";
-	local wMain = openProneWindow();
-	-- local bActioned = false;
+	-- local sCTNodeID = msgOOB.sCTNodeID;
+	-- local wMain = openProneWindow();
+	openProneWindow();
 end
 function handleCloseProneQuery(msgOOB)
-	local sCTNodeID = msgOOB.sCTNodeID;
-	-- local bMakeRoll = msgOOB.bMakeRoll == "true";
+	-- local sCTNodeID = msgOOB.sCTNodeID;
 	closeProneWindow()
 end
 
--- OOB message triggered command to do anything we need to execute at the host for the first source die rolls (which are run locally). 
+-- OOB message triggered command to do anything we need to execute at the host for the first source die rolls
+    -- (which are run locally).
 -- msgOOB.type
 --		OOB_MSGTYPE_APPLYHGACMDS
 -- msgOOB.sNodeCT - combat tracker entry to have the iAction applied - ex. combattracker.list.id-00010
 -- msgOOB.iAction
--- 		0 - EffectManager.addEffect - add an effect (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
+-- 		0 - EffectManager.addEffect - add an effect
+    -- (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
 --				 msgOOB[*] type,value - list of aEffectVarMap effects to add
 --		1 - EffectManager.removeEffect
 --				msgOOB.sEffect - text of effect to remove
 function handleApplyHostCommands(msgOOB)
-	--Debug.console("manager_combat_wtw:handleApplyHostCommands called");	
-	--Debug.console("manager_combat_wtw:handleApplyHostCommands; msgOOB = " .. tostring(msgOOB.type) .. "," .. tostring(msgOOB.iAction) .. "," .. tostring(msgOOB.sNodeCT));	
-	
+	-- Debug.console("manager_combat_wtw:handleApplyHostCommands called");
+	-- Debug.console("manager_combat_wtw:handleApplyHostCommands; msgOOB = "
+	--     .. tostring(msgOOB.type) .. "," .. tostring(msgOOB.iAction) .. "," .. tostring(msgOOB.sNodeCT)
+	-- );
+
 	-- get the combat tracker reference - ex. userdata for combattracker.list.id-00010
 	local rNodeCT = DB.findNode(msgOOB.sNodeCT);
 	--Debug.console(msgOOB.iAction .. " and " .. tostring(rNodeCT));
-	
-	-- OOB messages basically turn everything into text even when they are entered as numeric - this is translating it back to a number
+
+	-- OOB messages basically turn everything into text even when they are entered as numeric
+	    -- this is translating it back to a number
 	local iAction = tonumber(msgOOB.iAction);
-	
+
 	-- Requesting the add effect action on host
 	if iAction == 0 then
 		-- add an effect (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
 		local rEffect = {};
 		for k,v in pairs(msgOOB) do
-			--Debug.console("manager_combat_wtw:handleApplyHostCommands; type = " .. tostring(k) .. ", value = " .. tostring(v));	
+			--Debug.console("manager_combat_wtw:handleApplyHostCommands; type = " .. tostring(k) .. ", value = " .. tostring(v));
 			if aEffectVarMap[k] then
 				if aEffectVarMap[k].sDBType == "number" then
 					rEffect[k] = tonumber(msgOOB[k]) or 0;
@@ -187,14 +243,17 @@ function handleApplyHostCommands(msgOOB)
 			end
 		end
 		EffectManager.addEffect("", "", rNodeCT, rEffect, true);
-		
+
 	-- Requesting the remove effect action on host
 	elseif iAction == 1 then
 		-- remove an effect
-		EffectManager.removeEffect(rNodeCT, msgOOB.sEffect);
+		-- EffectManager.removeEffect(rNodeCT, msgOOB.sEffect);
+		removeEffectCaseInsensitive(rNodeCT, msgOOB.sEffect);
 	else
-		ChatManager.SystemMessage("[ERROR] manager_combat_wtw:handleApplyHostCommands; Unsupported iAction(" .. tostring(iAction) .. ")");	
-		--Debug.console("manager_combat_wtw:handleApplyHostCommands; Unsupported iAction(" .. tostring(iAction) .. ")");	
+		ChatManager.SystemMessage("[ERROR] manager_combat_wtw:handleApplyHostCommands; Unsupported iAction("
+		    .. tostring(iAction) .. ")"
+		);
+		--Debug.console("manager_combat_wtw:handleApplyHostCommands; Unsupported iAction(" .. tostring(iAction) .. ")");
 	end
 end
 
@@ -202,30 +261,34 @@ end
 -- (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
 	-- nodeCT - combat tracker entry to have the iAction applied - ex. combattracker.list.id-00010
 	-- iAction
-	-- 		0 - EffectManager.addEffect - add an effect (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
+	-- 		0 - EffectManager.addEffect - add an effect
+	            -- (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
 	--				 rValues type,value - list of aEffectVarMap effects to add
 	--		1 - EffectManager.removeEffect
 	--				 rValue string - text of effect to remove
 function notifyApplyHostCommands(nodeCT, iAction, rValues)
-	--Debug.console("manager_generic_actions:notifyApplyHostCommands called");	
+	--Debug.console("manager_generic_actions:notifyApplyHostCommands called");
 
 	local msgOOB = {};
 	-- msgOOB.type
 	--		OOB_MSGTYPE_APPLYHGACMDS
 	-- msgOOB.sNodeCT - combat tracker entry to have the iAction applied - ex. combattracker.list.id-00010
 	-- msgOOB.iAction
-	-- 		0 - EffectManager.addEffect - add an effect (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
+	-- 		0 - EffectManager.addEffect - add an effect
+	            -- (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
 	--				 msgOOB[*] type,value - list of aEffectVarMap effects to add
 	--		1 - EffectManager.removeEffect
 	--				msgOOB.sEffect - text of effect to remove
 	msgOOB.type = OOB_MSGTYPE_APPLYHCMDS;
-	
+
 	msgOOB.iAction = iAction;
 	msgOOB.sNodeCT = DB.getPath(nodeCT);
-	--Debug.console("manager_combat_wtw:notifyApplyHostCommands; msgOOB = " .. tostring(msgOOB.type) .. "," .. tostring(msgOOB.iAction) .. "," .. tostring(msgOOB.sNodeCT));	
+	-- Debug.console("manager_combat_wtw:notifyApplyHostCommands; msgOOB = "
+	--     .. tostring(msgOOB.type) .. "," .. tostring(msgOOB.iAction) .. "," .. tostring(msgOOB.sNodeCT)
+	-- );
 	if msgOOB.iAction == 0 then
 		for k,v in pairs(rValues) do
-			--Debug.console("manager_combat_wtw:notifyApplyHostCommands; type = " .. tostring(k) .. ", value = " .. tostring(v));	
+			--Debug.console("manager_combat_wtw:notifyApplyHostCommands; type = " .. tostring(k) .. ", value = " .. tostring(v));
 			if aEffectVarMap[k] then
 				if aEffectVarMap[k].sDBType == "number" then
 					msgOOB[k] = rValues[k] or aEffectVarMap[k].vDBDefault or 0;
@@ -241,7 +304,8 @@ function notifyApplyHostCommands(nodeCT, iAction, rValues)
 	Comm.deliverOOBMessage(msgOOB, "");
 end
 
----For a given actor, determines who the owning client is and if they are connected. Returns nil for inactive identities and those owned by the GM
+---For a given actor, determines who the owning client is and if they are connected.
+    ---Returns nil for inactive identities and those owned by the GM
 ---@param rActor table the actor who the owner needs to be determined for
 ---@return string|nil sOwner the controlling client if they are connected. otherwise returns nil
 function getControllingClient(rActor)
@@ -264,10 +328,10 @@ function getControllingClient(rActor)
 			isControlled = true;
 		end
 	end
-	
+
 	if isControlled then
 		return DB.getOwner(sNode);
 	else
 		return nil;
-	end	
+	end
 end
