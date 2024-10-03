@@ -27,8 +27,8 @@ SOFTWARE.
 <root release="3.0" version="3">
 	<properties>
 		<name>Feature: Walk This Way</name>
-		<version>1.1.0</version>
-		<loadorder>15</loadorder>
+		<version>1.2.0</version>
+		<loadorder>400</loadorder>
 		<author>Farratto</author>
 		<description>Reminders for prone condition and movement.</description>
 
@@ -50,7 +50,7 @@ SOFTWARE.
 			function onInit()
 				if PowerUp then
 					PowerUp.registerExtension("Walk this Way", "dev_version", {
-                        ['message'] = "v1.1.0\More Ways that it recognizes a character cannot stand up."
+                        ['message'] = "v1.2.0\No longer deletes entire effect, unless you tell it to. Now supporting Friend Zone and BCE."
                     });
 				end
 			end

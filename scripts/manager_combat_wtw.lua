@@ -22,15 +22,36 @@ local aEffectVarMap = {
 };
 
 function onInit()
-    CombatManager.setCustomTurnStart(proneWindow);
-    CombatManager.setCustomTurnEnd(closeAllProneWindows);
-	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_PRONEQUERY, handleProneQueryClient);
-	-- Register OOB message for source local processing that supports commands that need host privilege to execute
-	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
-	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSEQUERY, handleCloseProneQuery);
+    OptionsManager.registerOption2('WTWON', false, 'option_Walk_this_Way', 'option_WtW_On',
+                                   'option_entry_cycler', {
+        labels = 'option_val_off',
+        values = 'off',
+        baselabel = 'option_val_on',
+        baseval = 'on',
+        default = 'on'
+    });
+    OptionsManager.registerOption2('WHOLEEFFECT', false, 'option_Walk_this_Way', 'option_Delete_Whole',
+                                   'option_entry_cycler', {
+        labels = 'option_val_on',
+        values = 'on',
+        baselabel = 'option_val_off',
+        baseval = 'off',
+        default = 'off'
+    });
+	if not OptionsManager.isOption('WTWON', 'off') then
+        CombatManager.setCustomTurnStart(proneWindow);
+        CombatManager.setCustomTurnEnd(closeAllProneWindows);
+	    OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_PRONEQUERY, handleProneQueryClient);
+	    -- Register OOB message for source local processing that supports commands that need host privilege to execute
+	    OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
+	    OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSEQUERY, handleCloseProneQuery);
+	end
 end
 
 function checkProne(sourceNodeCT)
+	if OptionsManager.isOption('WTWON', 'off') then
+	    return;
+	end
     if not sourceNodeCT then
         return;
     end
@@ -39,32 +60,194 @@ function checkProne(sourceNodeCT)
     -- local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
     local rSource = ActorManager.getCTNode(rCurrent)
 
-    if not EffectManager5E.hasEffectCondition(rSource, "Prone") then
-	    return false
-		-- have it only remove the prone and not the rest of the effect
-	elseif EffectManager5E.hasEffectCondition(rSource, "Grappled") then
-	    return false
-	elseif EffectManager5E.hasEffectCondition(rSource, "Paralyzed") then
-	    return false
-	elseif EffectManager5E.hasEffectCondition(rSource, "Petrified") then
-	    return false
-	elseif EffectManager5E.hasEffectCondition(rSource, "Restrained") then
-	    return false
-	elseif EffectManager5E.hasEffectCondition(rSource, "Unconscious") then
-	    return false
-	elseif EffectManager5E.hasEffect(rSource, "SPEED: none") then
-	    return false
-	elseif EffectManager5E.hasEffect(rSource, "SPEED:none") then
-	    return false
-	elseif EffectManager5E.hasEffect(rSource, "Tasha's Hideous Laughter") then
-	    return false
-	elseif containsTextInEffect(rSource, "Unable to Stand") then
-	    return false
-	elseif EffectManager5E.hasEffect(rSource, "NOSTAND") then
-	    return false
-    else
-	    return true
+	if EffectManager5EBCE then
+        if not EffectManager5EBCE.moddedHasEffect(rSource, "Prone", nil, false, true) then
+            return false
+        elseif EffectManager5EBCE.moddedHasEffect(rSource, "Grappled", nil, false, true) then
+            return false
+        elseif EffectManager5EBCE.moddedHasEffect(rSource, "Paralyzed", nil, false, true) then
+            return false
+        elseif EffectManager5EBCE.moddedHasEffect(rSource, "Petrified", nil, false, true) then
+            return false
+        elseif EffectManager5EBCE.moddedHasEffect(rSource, "Restrained", nil, false, true) then
+            return false
+        elseif EffectManager5EBCE.moddedHasEffect(rSource, "Unconscious", nil, false, true) then
+            return false
+        -- elseif EffectManager5EBCE.moddedHasEffect(rSource, "SPEED: none") then
+		    -- Doesn't work
+        --     return false
+        elseif EffectManager5EBCE.moddedHasEffect(rSource, "Tasha's Hideous Laughter") then
+            return false
+        elseif containsTextInEffect(rSource, "Unable to Stand") then
+            return false
+        elseif EffectManager5EBCE.moddedHasEffect(rSource, "NOSTAND") then
+            return false
+        else
+            return true
+        end
+	else
+        if not EffectManager5E.hasEffectCondition(rSource, "Prone") then
+            return false
+        elseif EffectManager5E.hasEffectCondition(rSource, "Grappled") then
+            return false
+        elseif EffectManager5E.hasEffectCondition(rSource, "Paralyzed") then
+            return false
+        elseif EffectManager5E.hasEffectCondition(rSource, "Petrified") then
+            return false
+        elseif EffectManager5E.hasEffectCondition(rSource, "Restrained") then
+            return false
+        elseif EffectManager5E.hasEffectCondition(rSource, "Unconscious") then
+            return false
+        -- elseif EffectManager5E.hasEffect(rSource, "SPEED: none") then
+		    -- Doesn't work
+        --     return false
+        elseif EffectManager5E.hasEffect(rSource, "Tasha's Hideous Laughter") then
+            return false
+        elseif containsTextInEffect(rSource, "Unable to Stand") then
+            return false
+        elseif EffectManager5E.hasEffect(rSource, "NOSTAND") then
+            return false
+        else
+            return true
+        end
+	end
+end
+
+function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
+    if not rActor or not sClause then
+	    return
+		Debug.console("Walk This Way - removeEffectClause - not rActor or not sClause")
     end
+
+    local sLowerClause = sClause:lower();
+	local aMatch = {};
+	local aEffects;
+	local tEffectCompParams;
+
+	if EffectManagerBCE then
+	    tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
+        if TurboManager then
+            aEffects = TurboManager.getMatchedEffects(rActor, sClause);
+        end
+    else
+	    aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
+    end
+	-- Debug.console("aEffects = " .. tostring(aEffects))
+
+	-- Iterate through each effect
+    for _, v in pairs(aEffects) do
+        local nActive = DB.getValue(v, 'isactive', 0);
+    	-- Debug.console("nActive = " .. tostring(nActive))
+		local bGo = false
+		local bTargeted
+		local rConditionalHelper
+
+        if EffectManagerBCE then
+            rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
+       		-- Debug.console("rConditionalHelper = " .. tostring(rConditionalHelper))
+
+            local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
+                (not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
+                (tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
+       		-- Debug.console("bActive = " .. tostring(bActive))
+
+            if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
+              (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
+              (EffectManagerADND.isValidCheckEffect(rActor, v) or (rTarget and EffectManagerADND.isValidCheckEffect(rTarget, v))))) then
+                bGo = true
+                rConditionalHelper.bTargeted = EffectManager.isTargetedEffect(v);
+                -- Debug.console("rConditionalHelper = " .. tostring(rConditionalHelper))
+            end
+        else
+            if nActive ~= 0 then
+                bGo = true
+                bTargeted = EffectManager.isTargetedEffect(v);
+            end
+        end
+        -- Debug.console("bGo = " .. tostring(bGo))
+        -- Debug.console("bTargeted = " .. tostring(bTargeted))
+
+        if bGo then
+            -- Parse each effect label
+            local sLabel = DB.getValue(v, 'label', '');
+            -- Debug.console("sLabel = " .. tostring(sLabel))
+            local aEffectComps = EffectManager.parseEffect(sLabel);
+            -- Debug.console("aEffectComps = " .. tostring(aEffectComps))
+
+            -- Iterate through each effect component looking for a type match
+            local nMatch = 0;
+            for kEffectComp, sEffectComp in ipairs(aEffectComps) do
+                local rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
+                -- Debug.console("rEffectComp = " .. tostring(rEffectComp))
+                -- Handle conditionals
+                if EffectManager5EBCE then
+                    EffectManager5EBCE.processConditional(rActor, rTarget, v, rEffectComp, rConditionalHelper);
+                    -- Check for match
+                    if rConditionalHelper.bProcessEffect and rEffectComp.original:lower() == sLowerClause then
+                        if rConditionalHelper.bTargeted and not bIgnoreEffectTargets then
+                            if EffectManager.isEffectTarget(v, rTarget) then
+                                nMatch = kEffectComp;
+                            end
+                        elseif not bTargetedOnly then
+                            nMatch = kEffectComp;
+                        end
+                    end
+                else
+                    if rEffectComp.type == "IF" then
+                        if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
+                            break;
+                        end
+                    elseif rEffectComp.type == "IFT" then
+                        if not rTarget then
+                            break;
+                        end
+                        if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
+                            break;
+                        end
+                    -- Check for match
+                    elseif rEffectComp.original:lower() == sLowerClause then
+                        if bTargeted and not bIgnoreEffectTargets then
+                            if EffectManager.isEffectTarget(v, rTarget) then
+                                nMatch = kEffectComp;
+                            end
+                        elseif not bTargetedOnly then
+                            nMatch = kEffectComp;
+                        end
+                    end
+                end
+                -- Debug.console("nMatch = " .. tostring(nMatch))
+            end
+
+            -- If matched, then remove Clause
+            if nMatch > 0 then
+                -- Debug.console("nActive = " .. tostring(nActive))
+                if nActive == 2 then
+                    DB.setValue(v, 'isactive', 'number', 1);
+                else
+                    table.insert(aMatch, v);
+                    -- Debug.console("aMatch = " .. tostring(aMatch))
+					if Session.IsHost then
+						local nodeEffect = v
+						local nodeActor = DB.getChild(nodeEffect, "...");
+						if not nodeActor then
+							ChatManager.SystemMessage(Interface.getString("ct_error_effectmissingactor") .. " (" .. msgOOB.sEffectNode .. ")");
+							return;
+						end
+					    EffectManager.expireEffect(nodeActor, nodeEffect, tonumber(nMatch) or 0);
+					else
+                        EffectManager.notifyExpire(v, nMatch, true);
+					end
+                end
+            end
+        end
+    end
+
+    if #aMatch > 0 then
+	    -- Debug.console("return true")
+        return true;
+    end
+    -- Debug.console("return false")
+    return false;
 end
 
 function containsTextInEffect(rActor, sText)
@@ -86,6 +269,9 @@ function containsTextInEffect(rActor, sText)
 end
 
 function proneWindow(sourceNodeCT)
+	if OptionsManager.isOption('WTWON', 'off') then
+	    return;
+	end
     if not Session.IsHost then
 	    return;
     end
@@ -114,6 +300,9 @@ function closeAllProneWindows(sourceNodeCT)
 end
 
 function openProneWindow()
+	if OptionsManager.isOption('WTWON', 'off') then
+	    return;
+	end
 	local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
     local rSource = ActorManager.getCTNode(rCurrent)
     local datasource = ""
@@ -133,19 +322,26 @@ function closeProneWindow()
 end
 
 function standUp()
+	if OptionsManager.isOption('WTWON', 'off') then
+	    return;
+	end
     local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
     local rSource = ActorManager.getCTNode(rCurrent)
 
+	if not OptionsManager.isOption('WHOLEEFFECT', 'on') then
+	    removeEffectClause(rSource, "Prone")
+	end
 	if Session.IsHost then
-        -- EffectManager.removeCondition(rCurrent, "Prone");
-        -- EffectManager.removeEffect(rSource, "Prone");
-        removeEffectCaseInsensitive(rSource, "Prone");
-		-- EffectManager5E.removeEffectByType(rSource, "Prone");
+		if OptionsManager.isOption('WHOLEEFFECT', 'on') then
+            removeEffectCaseInsensitive(rSource, "Prone");
+		end
 	    EffectManager.addEffect("", "", rSource, {
 		    sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
 		}, "");
 	else
-		notifyApplyHostCommands(rSource, 1, "Prone");
+		if OptionsManager.isOption('WHOLEEFFECT', 'on') then
+		    notifyApplyHostCommands(rSource, 1, "Prone");
+        end
 		notifyApplyHostCommands(rSource, 0, {
 		    sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
 		});
@@ -169,6 +365,9 @@ function removeEffectCaseInsensitive(nodeCTEntry, sEffPatternToRemove)
 end
 
 function queryClient(rSource)
+	if OptionsManager.isOption('WTWON', 'off') then
+	    return;
+	end
 	local sOwner = getControllingClient(rSource);
 
 	if sOwner then
@@ -194,6 +393,9 @@ function sendCloseWindowCmd(rSource)
 end
 
 function handleProneQueryClient(msgOOB)
+	if OptionsManager.isOption('WTWON', 'off') then
+	    return;
+	end
 	-- local sCTNodeID = msgOOB.sCTNodeID;
 	-- local wMain = openProneWindow();
 	openProneWindow();
@@ -334,4 +536,20 @@ function getControllingClient(rActor)
 	else
 		return nil;
 	end
+end
+
+---For a given cohort actor, determine the root character node that owns it
+---@param rActor table the actor we need the root commander for
+---@return string|nil nodePath the root character node of the chain
+function getRootCommander(rActor)
+    if RRActionManager then
+	    return RRActionManager.getRootCommander(rActor);
+	end
+	local sRecord = ActorManager.getCreatureNodeName(rActor);
+	local sRecordSansModule = StringManager.split(sRecord, "@")[1];
+	local aRecordPathSansModule = StringManager.split(sRecordSansModule, ".");
+	if aRecordPathSansModule[1] and aRecordPathSansModule[2] then
+		return aRecordPathSansModule[1] .. "." .. aRecordPathSansModule[2];
+	end
+	return nil;
 end
