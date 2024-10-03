@@ -1,9 +1,10 @@
 # Walk This Way
 ## Features
-* If turn starts and character is prone and not unconscious, it asks if they want to use half their movement speed to stand up.
+* This extension provides a small popup window at the start of a person's turn that asks if they want to stand up. It happens when a character is prone but does not have one of the conditions that prevents them from standing up.
 
 ## Installation
-Download [WalkThisWay.ext](https://github.com/Farratto/WalkThisWay/releases) and place in the extensions subfolder of the Fantasy Grounds data folder.  Or download from the Forge!
+Download from the forge at https://forge.fantasygrounds.com/shop/items/1940/view.
+Source code available at [WalkThisWay.ext](https://github.com/Farratto/WalkThisWay/releases).
 
 ## Attribution
 SmiteWorks owns rights to code sections copied from their rulesets by permission for Fantasy Grounds community development.
@@ -20,5 +21,7 @@ The window can be moved and it remembers where it was.  It can be ignored and it
 "Prone" should be on an effect by itself.  Not all code writers adhere to this best practice.  If prone is part of a larger effect, the entire effect will be deleted.  Example: "Complex Effect; Poisoned; Grappled; DMGO: 1d6 fire; Prone; So Many Things".  The entire effect will be deleted if the user hits yes.
 
 ##Still Being Developed
-Hopefully I'll have the limiations above addressed soon.  Thank you for your patience.
-If you find any additional effects, where a user is not able to stand up, please let me know.  Or any other concerns or suggestions are welcome.  Enjoy!
+Hopefully I'll have the limiation above addressed soon.  Thank you for your patience.
+If you find any additional effects, where a user is not able to stand up, please let me know.  Or any other concerns or suggestions are welcome.
+
+Enjoy!
