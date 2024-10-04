@@ -18,7 +18,10 @@
 	<string name="msg_NotConnected">Player not connected. Query available on host.</string>
 	
 	<!-- Options -->
-	<string name="option_Walk_this_Way">Walk this Way</string>
-	<string name="option_WtW_On">Enable Extension</string>
-	<string name="option_Delete_Whole">On for delete entire Effect. Off for delete only 'Prone' portion of effect.</string>
+	<string name="option_Walk_this_Way">Walk this Way (GM)</string>
+	<string name="option_WtW_On">Enable Walk this Way Extension</string>
+	<string name="option_WtW_Delete_Whole">ON for delete entire Effect. OFF for delete only 'Prone' portion of effect.</string>
+	<string name="option_WtW_Allow_Player_Choice">Allow players to turn reminder windows on or off (requires restart)</string>
+	<string name="option_WtW_On_Player_Choice">Enable reminder window to stand when you are prone</string>
+	<string name="option_WtW_On_DM_Choice">Reminder windows for characters not owned by players</string>
 </root>

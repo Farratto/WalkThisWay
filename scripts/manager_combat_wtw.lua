@@ -30,7 +30,7 @@ function onInit()
         baseval = 'on',
         default = 'on'
     });
-    OptionsManager.registerOption2('WHOLEEFFECT', false, 'option_Walk_this_Way', 'option_Delete_Whole',
+    OptionsManager.registerOption2('WHOLEEFFECT', false, 'option_Walk_this_Way', 'option_WtW_Delete_Whole',
                                    'option_entry_cycler', {
         labels = 'option_val_on',
         values = 'on',
@@ -38,6 +38,33 @@ function onInit()
         baseval = 'off',
         default = 'off'
     });
+    OptionsManager.registerOption2('APCW', false, 'option_Walk_this_Way', 'option_WtW_Allow_Player_Choice',
+                                   'option_entry_cycler', {
+        labels = 'option_val_on',
+        values = 'on',
+        baselabel = 'option_val_off',
+        baseval = 'off',
+        default = 'off'
+    });
+	if clientGetOption('APCW') == "on" then
+        OptionsManager.registerOption2('WTWONPLR', true, "option_header_client", 'option_WtW_On_Player_Choice',
+                                       'option_entry_cycler', {
+            labels = 'option_val_off',
+            values = 'off',
+            baselabel = 'option_val_on',
+            baseval = 'on',
+            default = 'on'
+        });
+	else
+        OptionsManager.registerOption2('WTWONDM', false, "option_Walk_this_Way", 'option_WtW_On_DM_Choice',
+                                       'option_entry_cycler', {
+            labels = 'option_val_off',
+            values = 'off',
+            baselabel = 'option_val_on',
+            baseval = 'on',
+            default = 'on'
+        });
+	end
 	if not OptionsManager.isOption('WTWON', 'off') then
         CombatManager.setCustomTurnStart(proneWindow);
         CombatManager.setCustomTurnEnd(closeAllProneWindows);
@@ -45,6 +72,12 @@ function onInit()
 	    -- Register OOB message for source local processing that supports commands that need host privilege to execute
 	    OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
 	    OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSEQUERY, handleCloseProneQuery);
+	end
+end
+
+function clientGetOption(sKey)
+	if CampaignRegistry["Opt" .. sKey] then
+		return CampaignRegistry["Opt" .. sKey];
 	end
 end
 
@@ -137,19 +170,19 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 	-- Iterate through each effect
     for _, v in pairs(aEffects) do
         local nActive = DB.getValue(v, 'isactive', 0);
-    	-- Debug.console("nActive = " .. tostring(nActive))
+        -- Debug.console("nActive = " .. tostring(nActive))
 		local bGo = false
 		local bTargeted
 		local rConditionalHelper
 
         if EffectManagerBCE then
             rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
-       		-- Debug.console("rConditionalHelper = " .. tostring(rConditionalHelper))
+            -- Debug.console("rConditionalHelper = " .. tostring(rConditionalHelper))
 
             local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
                 (not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
                 (tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
-       		-- Debug.console("bActive = " .. tostring(bActive))
+            -- Debug.console("bActive = " .. tostring(bActive))
 
             if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
               (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
@@ -300,19 +333,22 @@ function closeAllProneWindows(sourceNodeCT)
 end
 
 function openProneWindow()
-	if OptionsManager.isOption('WTWON', 'off') then
+	if OptionsManager.isOption('WTWON', 'off') or OptionsManager.isOption('WTWONPLR', 'off') then
 	    return;
 	end
-	local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
-    local rSource = ActorManager.getCTNode(rCurrent)
+	if Session.IsHost and OptionsManager.isOption('WTWONDM', 'off') then
+	    return;
+	end
+	-- local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
+    -- local rSource = ActorManager.getCTNode(rCurrent)
     local datasource = ""
 	-- Interface.openWindow('prone_query', datasource);
 	Interface.openWindow('prone_query_small', datasource);
 end
 
 function closeProneWindow()
-	local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
-    local rSource = ActorManager.getCTNode(rCurrent)
+	-- local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
+    -- local rSource = ActorManager.getCTNode(rCurrent)
     local datasource = ""
 	-- local wChar = Interface.findWindow("prone_query", datasource);
 	local wChar = Interface.findWindow("prone_query_small", datasource);
