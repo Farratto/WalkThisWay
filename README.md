@@ -4,6 +4,7 @@
 
 ## Installation
 Download from the forge at https://forge.fantasygrounds.com/shop/items/1940/view.
+Forum Thread: https://www.fantasygrounds.com/forums/showthread.php?82914-Walk-this-Way-for-5e
 Source code available at [WalkThisWay.ext](https://github.com/Farratto/WalkThisWay/releases).
 
 ## Details
