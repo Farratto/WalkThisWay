@@ -27,7 +27,7 @@ SOFTWARE.
 <root release="3.0" version="3">
 	<properties>
 		<name>Feature: Walk This Way</name>
-		<version>1.2.5</version>
+		<version>1.3.0</version>
 		<loadorder>400</loadorder>
 		<author>Farratto</author>
 		<description>Reminders for prone condition and movement.</description>
@@ -50,7 +50,7 @@ SOFTWARE.
 			function onInit()
 				if PowerUp then
 					PowerUp.registerExtension("Walk this Way", "dev_version", {
-                        ['message'] = "v1.2.5\New Options allowing players to individually disable the reminder windows (if DM allows)."
+                        ['message'] = "v1.3.0\Added Support for Team Twohy's 5e Effects Coding."
                     });
 				end
 			end

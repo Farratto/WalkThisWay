@@ -109,11 +109,12 @@ function checkProne(sourceNodeCT)
         -- elseif EffectManager5EBCE.moddedHasEffect(rSource, "SPEED: none") then
 		    -- Doesn't work
         --     return false
-        elseif EffectManager5EBCE.moddedHasEffect(rSource, "Tasha's Hideous Laughter") then
-            return false
         elseif containsTextInEffect(rSource, "Unable to Stand") then
             return false
         elseif EffectManager5EBCE.moddedHasEffect(rSource, "NOSTAND") then
+            return false
+--         elseif EffectManager5EBCE.moddedHasEffect(rSource, "Tasha's Hideous Laughter") then
+        elseif checkHideousLaughter(rSource) then
             return false
         else
             return true
@@ -134,16 +135,147 @@ function checkProne(sourceNodeCT)
         -- elseif EffectManager5E.hasEffect(rSource, "SPEED: none") then
 		    -- Doesn't work
         --     return false
-        elseif EffectManager5E.hasEffect(rSource, "Tasha's Hideous Laughter") then
-            return false
         elseif containsTextInEffect(rSource, "Unable to Stand") then
             return false
         elseif EffectManager5E.hasEffect(rSource, "NOSTAND") then
+            return false
+--         elseif EffectManager5E.hasEffect(rSource, "Tasha's Hideous Laughter") then
+        elseif checkHideousLaughter(rSource) then
             return false
         else
             return true
         end
 	end
+end
+
+function checkHideousLaughter(rActor)
+    Debug.console("checkHideousLaughter called")
+	if not rActor then
+	    return
+		Debug.console("Walk This Way - checkHideousLaughter - not rActor")
+	end
+	local aEffects;
+	local tEffectCompParams;
+    local bClauseExceptFound = false;
+	local bClauseOneFound = false;
+	local bClauseFiveFound = false;
+	local nMatch = 0;
+	local sClause = "Tasha's Hideous Laughter"
+	    -- should return true, but only if it's not clause1
+	local sClause1 = "Tasha's Hideous Laughter; Prone"
+	    -- should return false, but only if none of the other trues are present
+		-- and also if the only sClause is the one contained within sClause1
+	local sClause2 = "Tasha's Hideous Laughter (C); Prone; Incapacitated"
+	    -- should return true, regardless of other clauses
+		-- starts with clause
+		-- Team Twohy with ongoing save extension
+	local sClause3 = "Tasha's Hideous Laughter; Incapacitated"
+	    -- should return true, regardless of other clauses
+		-- whole clause
+		-- Team Twohy without ongoing save extension
+-- 	local sClause4 = "Tasha's Hideous Laughter (C)"
+	    -- should return false, if all other clauses are not found
+		-- whole clause
+		-- Team Twohy without ongoing save extension
+		-- lucky here. This one is a last check anyway, and it doesn't hit with any of the others.
+	local sClause5 = "Tasha's Hideous Laughter; (C)"
+	    -- should return false, if clauses 0, 2, or 3 are not present
+		-- should behave same as clause1
+		-- whole clause
+		-- 5eAE with self concentration
+
+	if EffectManagerBCE then
+	    tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
+		Debug.console("tEffectCompParams = " .. tostring(tEffectCompParams))
+	end
+    aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
+	Debug.console("aEffects = " .. tostring(aEffects))
+
+	-- Iterate through each effect
+    for _, v in pairs(aEffects) do
+        local nActive = DB.getValue(v, 'isactive', 0);
+        Debug.console("nActive = " .. tostring(nActive))
+		local bGo = false
+
+        if EffectManagerBCE then
+            local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
+                (not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
+                (tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
+            Debug.console("bActive = " .. tostring(bActive))
+
+            if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
+              (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
+              (EffectManagerADND.isValidCheckEffect(rActor, v)))) then
+                bGo = true
+                Debug.console("EffectManagerADND results bGo = " .. tostring(bGo))
+            end
+        else
+            if nActive ~= 0 then
+                bGo = true
+                Debug.console("not EffectManagerBCE & bGo = " .. tostring(bGo))
+            end
+        end
+        Debug.console("bGo = " .. tostring(bGo))
+
+        if bGo then
+            local sLabel = DB.getValue(v, 'label', '');
+            Debug.console("sLabel = " .. tostring(sLabel))
+
+            -- Check for match
+            if sLabel == sClause3 then
+                Debug.console("sClause3 found")
+                Debug.console("returned true")
+				return true
+            end
+
+			local sLabelSub = string.sub(sLabel, 1, #sClause2)
+            Debug.console("sLabelSub = " .. tostring(sLabelSub))
+            if sLabelSub == sClause2 then
+                Debug.console("sClause2 found")
+                Debug.console("returned true")
+				return true
+            end
+
+            if sLabel == sClause1 or sLabel == sClause5 then
+                bClauseExceptFound = true
+				if sLabel == sClause5 then
+				    bClauseFiveFound = true
+                    Debug.console("bClauseFiveFound = " .. tostring(bClauseFiveFound))
+				else
+				    bClauseOneFound = true
+                    Debug.console("bClauseOneFound = " .. tostring(bClauseOneFound))
+				end
+                nMatch = nMatch + 1;
+                Debug.console("nMatch = " .. tostring(nMatch))
+            elseif string.find(sLabel, sClause) then
+                nMatch = nMatch + 1;
+                Debug.console("sClause & nMatch = " .. tostring(nMatch))
+            end
+            if bClauseFiveFound and bClauseOneFound then
+			    nMatch = nMatch - 1;
+                Debug.console("Both found & nMatch = " .. tostring(nMatch))
+            end
+			Debug.console("match failed")
+        end
+	end
+    Debug.console("for loop completed")
+
+    Debug.console("Last check coming")
+	if EffectManager5EBCE then
+        if EffectManager5EBCE.moddedHasEffect(rActor, sClause) then
+		    if not bClauseExceptFound or nMatch > 1 then
+                Debug.console("EffectManager5EBCE & last check positive ... returning true")
+                return true;
+			end
+		end
+    elseif EffectManager5E.hasEffect(rActor, sClause) then
+	    if not bClauseExceptFound or nMatch > 1 then
+            Debug.console("EffectManager5E & last check positive ... returning true")
+            return true;
+		end
+	end
+    Debug.console("All checks failed - Default return false")
+    return false;
 end
 
 function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
@@ -226,6 +358,7 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
                         end
                     end
                 else
+                    -- Handle conditionals
                     if rEffectComp.type == "IF" then
                         if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
                             break;
