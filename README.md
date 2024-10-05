@@ -9,10 +9,10 @@ Source code available at [WalkThisWay.ext](https://github.com/Farratto/WalkThisW
 
 ## Details
 On turn start, the extension will check the character, whose turn just started, for the prone condition.  If it finds it, it will check if that same actor has any of the following effects:
-Grappled, Paralyzed, Petrified, Restrained, Unconscious, Tasha's Hideous Laughter, Unable to Stand, & NOSTAND.
+Grappled, Paralyzed, Petrified, Restrained, Unconscious, Tasha's Hideous Laughter, Unable to Stand, SPEED: none, & NOSTAND.
 If the actor has prone, but not any of the above effects, the extension will provide a small popup window to the screen of the party that controls that character.  The window asks if the person wants to stand up.  If they answer yes, the extension will remove the effect that contains prone and add an effect that says "SPEED: 0.5" that lasts until end of turn.  If they answer no, close the window, or ignore the window, the extension will do nothing.
 The window can be moved and it remembers where it was.  It can be ignored and it will go away at the end of turn without consequences.
-Current Extension/Module Support: Better Combat Effects, Friend Zone, 5e Automatic Effects, Team Twohy's 5e Effects Coding
+Current Extension/Module Support: Better Combat Effects, Friend Zone, GrimPress's 5e Automatic Effects, & Team Twohy's 5e Effects Coding
 
 ## Still Being Developed
 If you find any additional effects, where a user is not able to stand up, please let me know.  Or any other concerns or suggestions are welcome.
