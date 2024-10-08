@@ -489,7 +489,6 @@ function openProneWindow()
 	-- local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
 	-- local rSource = ActorManager.getCTNode(rCurrent)
 	local datasource = ""
-	-- Interface.openWindow('prone_query', datasource);
 	Interface.openWindow('prone_query_small', datasource);
 end
 
