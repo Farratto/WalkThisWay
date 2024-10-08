@@ -149,7 +149,6 @@ function checkProne(sourceNodeCT)
 end
 
 function checkHideousLaughter(rActor)
-	Debug.console("checkHideousLaughter called")
 	if not rActor then
 		Debug.console("Walk This Way - checkHideousLaughter - not rActor")
 	    return
@@ -181,12 +180,12 @@ function checkHideousLaughter(rActor)
 		-- 5eAE with self concentration
 
 	if hasEffectFindString(rActor, sClause3, true) then
-		Debug.console("sClause3 found, returning true")
+		-- Debug.console("sClause3 found, returning true")
 		return true
 	end
 
-	if hasEffectFindString(rActor, sClause2, false, false, true, true) then
-		Debug.console("sClause2 found, returning true")
+	if hasEffectFindString(rActor, sClause2, false, false, true) then
+		-- Debug.console("sClause2 found, returning true")
 		return true
 	end
 
@@ -195,30 +194,30 @@ function checkHideousLaughter(rActor)
 	if hasClause1 or hasClause5 then
 	    bClauseExceptFound = true
 		nMatch = nMatch + 1
-		Debug.console("bClauseExceptFound & nMatch = " .. tostring(nMatch))
+		-- Debug.console("bClauseExceptFound & nMatch = " .. tostring(nMatch))
 	elseif hasEffectFindString(rActor, sClause, false, true) then
 	    nMatch = nMatch + 1
-		Debug.console("has sClause & nMatch = " .. tostring(nMatch))
+		-- Debug.console("has sClause & nMatch = " .. tostring(nMatch))
 	end
 	if hasClause1 and hasClause5 then
 	    nMatch = nMatch - 1
-		Debug.console("Both found & nMatch = " .. tostring(nMatch))
+		-- Debug.console("Both found & nMatch = " .. tostring(nMatch))
 	end
 
 	if EffectManager5EBCE then
 		if EffectManager5EBCE.moddedHasEffect(rActor, sClause) then
 		    if not bClauseExceptFound or nMatch > 1 then
-				Debug.console("EffectManager5EBCE & last check positive ... returning true")
+				-- Debug.console("EffectManager5EBCE & last check positive ... returning true")
 				return true;
 			end
 		end
 	elseif EffectManager5E.hasEffect(rActor, sClause) then
 	    if not bClauseExceptFound or nMatch > 1 then
-			Debug.console("EffectManager5E & last check positive ... returning true")
+			-- Debug.console("EffectManager5E & last check positive ... returning true")
 			return true;
 		end
 	end
-	Debug.console("All hideouslaughter checks failed - Default return false")
+	-- Debug.console("All hideouslaughter checks failed - Default return false")
 	return false;
 end
 
@@ -323,9 +322,9 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 
 	if EffectManagerBCE then
 	    tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
-		if TurboManager then
-			aEffects = TurboManager.getMatchedEffects(rActor, sClause);
-		end
+	end
+	if TurboManager then
+		aEffects = TurboManager.getMatchedEffects(rActor, sClause);
 	else
 	    aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
 	end
