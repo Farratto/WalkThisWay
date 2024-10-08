@@ -46,7 +46,7 @@ SOFTWARE.
 
 		<icon name="WtW_icon" file="graphics/icons/Shoe.png" />
 
-		<script name="PowerUpKNK">
+		<script name="PowerUpWtW">
 			function onInit()
 				if PowerUp then
 					PowerUp.registerExtension("Walk this Way", "v1.3.3", {
