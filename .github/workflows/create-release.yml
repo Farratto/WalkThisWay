@@ -56,20 +56,10 @@ jobs:
         filename: ${{ github.event.repository.name }}${{ env.EXTENSION }}
         exclusions: ${{ env.FILE_TYPE_EXLUSIONS }}
 
-    - name: Add ${{ github.event.repository.name }}${{ env.EXTENSION }}, ${{ env.README }}${{ env.PDF }} to Release
-      uses: ncipollo/release-action@v1
-      with:
-        artifacts: ${{ github.event.repository.name }}${{ env.EXTENSION }},${{ env.RESOURCES }}${{ env.README }}${{ env.PDF }}
-
     - uses: actions/upload-artifact@v4
       with:
         name: ${{ github.event.repository.name }}${{ env.EXTENSION }}
         path: ${{ github.event.repository.name }}${{ env.EXTENSION }}
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.README }}${{ env.PDF }}
-        path: ${{ env.RESOURCES }}${{ env.README }}${{ env.PDF }}
 
 
   upload:
