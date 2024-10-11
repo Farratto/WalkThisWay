@@ -22,7 +22,7 @@ local aEffectVarMap = {
 };
 
 function onInit()
-	OptionsManager.registerOption2('WTWON', false, 'option_Walk_this_Way', 'option_WtW_On',
+	OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
 								   'option_entry_cycler', {
 		labels = 'option_val_off',
 		values = 'off',
@@ -30,7 +30,7 @@ function onInit()
 		baseval = 'on',
 		default = 'on'
 	});
-	OptionsManager.registerOption2('WHOLEEFFECT', false, 'option_Walk_this_Way', 'option_WtW_Delete_Whole',
+	OptionsManager.registerOption2('WHOLEEFFECT', false, 'option_header_WtW', 'option_WtW_Delete_Whole',
 								   'option_entry_cycler', {
 		labels = 'option_val_on',
 		values = 'on',
@@ -38,7 +38,7 @@ function onInit()
 		baseval = 'off',
 		default = 'off'
 	});
-	OptionsManager.registerOption2('APCW', false, 'option_Walk_this_Way', 'option_WtW_Allow_Player_Choice',
+	OptionsManager.registerOption2('APCW', false, 'option_header_WtW', 'option_WtW_Allow_Player_Choice',
 								   'option_entry_cycler', {
 		labels = 'option_val_on',
 		values = 'on',
@@ -56,7 +56,7 @@ function onInit()
 			default = 'on'
 		});
 	else
-		OptionsManager.registerOption2('WTWONDM', false, "option_Walk_this_Way", 'option_WtW_On_DM_Choice',
+		OptionsManager.registerOption2('WTWONDM', false, "option_header_WtW", 'option_WtW_On_DM_Choice',
 									   'option_entry_cycler', {
 			labels = 'option_val_off',
 			values = 'off',

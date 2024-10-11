@@ -1,13 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
-	<!-- Options -->
-	<string name="option_header_knk">Walk this Way</string>
-	<!--
-	<string name="option_label_IDLU">Remove destroyed items from inventory</string>
-	<string name="option_label_SCIP">Show carried item powers</string>
-	<string name="option_label_ASED">Attach spell effects directly to non-spell records. (Convenience only)</string>
-    -->
-
+    <!-- Query Window -->
 	<string name="prone_standup">You are Prone</string>
 	<string name="query_msg_1">You are Prone.</string>
 	<string name="query_msg_2">Would you like to expend half your speed in movement to stand up?</string>
@@ -18,7 +11,8 @@
 	<string name="msg_NotConnected">Player not connected. Query available on host.</string>
 	
 	<!-- Options -->
-	<string name="option_Walk_this_Way">Walk this Way (GM)</string>
+	<string name="option_header_WtW">Walk this Way (GM)</string>
+<!--	<string name="option_Walk_this_Way">Walk this Way (GM)</string> -->
 	<string name="option_WtW_On">Enable Walk this Way Extension</string>
 	<string name="option_WtW_Delete_Whole">ON for delete entire Effect. OFF for delete only 'Prone' portion of effect.</string>
 	<string name="option_WtW_Allow_Player_Choice">Allow players to turn reminder windows on or off (requires restart)</string>
