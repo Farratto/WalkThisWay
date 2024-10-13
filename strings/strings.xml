@@ -4,6 +4,7 @@
 	<string name="prone_standup">You are Prone</string>
 	<string name="query_msg_1">You are Prone.</string>
 	<string name="query_msg_2">Would you like to expend half your speed in movement to stand up?</string>
+	<string name="query_msg_nocost">Would you like to stand up?</string>
 
 	<string name="stood_up">Stood Up; SPEED: 0.5</string>
 

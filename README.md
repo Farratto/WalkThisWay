@@ -18,6 +18,13 @@ The window can be moved and it remembers where it was.  It can be ignored and it
 
 Current Extension/Module Support: Better Combat Effects, Friend Zone, GrimPress's 5e Automatic Effects, & Team Twohy's 5e Effects Coding
 
+## Other Rulesets
+This extension was designed with 5e in mind, but I have ported it to work on most (all?) rulesets.  If you're running a ruleset other than 5e, it will check for prone and much less specific settings for not being able to stand:
+
+Unable to Stand, SPEED: none, & NOSTAND
+
+If you would like me to add to this list, or make more specific accomodations for your ruleset, please let me know.
+
 ## Still Being Developed
 If you find any additional effects, where a user is not able to stand up, please let me know.  Or any other concerns or suggestions are welcome.
 

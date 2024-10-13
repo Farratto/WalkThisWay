@@ -93,6 +93,22 @@ function checkProne(sourceNodeCT)
 	-- local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
 	local rSource = ActorManager.getCTNode(rCurrent)
 
+	if Session.RulesetName ~= "5E" then
+		if not EffectManager.hasCondition(rSource, "Prone") then
+			return false
+		elseif hasEffectFindString(rSource, "SPEED: none") then
+			return false
+		elseif hasEffectFindString(rSource, "SPEED:none") then
+			return false
+		elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
+			return false
+		elseif EffectManager.hasCondition(rSource, "NOSTAND") then
+			return false
+		else
+			return true
+		end
+	end
+
 	if EffectManager5EBCE then
 		if not EffectManager5EBCE.moddedHasEffect(rSource, "Prone", nil, false, true) then
 			return false
@@ -373,7 +389,12 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 			-- Iterate through each effect component looking for a type match
 			local nMatch = 0;
 			for kEffectComp, sEffectComp in ipairs(aEffectComps) do
-				local rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
+				local rEffectComp
+				if EffectManager5E then
+					rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
+				else
+					rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
+				end
 				-- Debug.console("rEffectComp = " .. tostring(rEffectComp))
 				-- Handle conditionals
 				if EffectManager5EBCE then
@@ -389,20 +410,23 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 						end
 					end
 				else
-					-- Handle conditionals
-					if rEffectComp.type == "IF" then
-						if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
-							break;
+					if EffectManager5E then
+						-- Handle conditionals
+						if rEffectComp.type == "IF" then
+							if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
+								break;
+							end
+						elseif rEffectComp.type == "IFT" then
+							if not rTarget then
+								break;
+							end
+							if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
+								break;
+							end
 						end
-					elseif rEffectComp.type == "IFT" then
-						if not rTarget then
-							break;
-						end
-						if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
-							break;
-						end
+					end
 					-- Check for match
-					elseif rEffectComp.original:lower() == sLowerClause then
+					if rEffectComp.original:lower() == sLowerClause then
 						if bTargeted and not bIgnoreEffectTargets then
 							if EffectManager.isEffectTarget(v, rTarget) then
 								nMatch = kEffectComp;
@@ -488,7 +512,11 @@ function openProneWindow()
 	-- local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
 	-- local rSource = ActorManager.getCTNode(rCurrent)
 	local datasource = ""
-	Interface.openWindow('prone_query_small', datasource);
+	if Session.RulesetName == "5E" then
+		Interface.openWindow('prone_query_small', datasource);
+	else
+		Interface.openWindow('prone_query_not5e', datasource);
+	end
 end
 
 function closeProneWindow()
@@ -497,8 +525,12 @@ function closeProneWindow()
 	local datasource = ""
 	-- local wChar = Interface.findWindow("prone_query", datasource);
 	local wChar = Interface.findWindow("prone_query_small", datasource);
+	local wCoreChar = Interface.findWindow("prone_query_not5e", datasource);
 	if wChar then
 		wChar.close();
+	end
+	if wCoreChar then
+		wCoreChar.close();
 	end
 end
 
