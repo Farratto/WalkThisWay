@@ -5,8 +5,8 @@
 
 -- OOB identifier for source local processing that supports commands that need host privilege to execute
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
-OOB_MSGTYPE_PRONEQUERY = "oobpronequery";
-OOB_MSGTYPE_CLOSEQUERY = "oobclosequery";
+OOB_MSGTYPE_PRONEQUERY = "pronequery";
+OOB_MSGTYPE_CLOSEQUERY = "closequery";
 
 -- Because OOB messages need everything broken apart into individual pieces this is the key variable used to do that.
 -- Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua

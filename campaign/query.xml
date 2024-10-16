@@ -15,21 +15,22 @@
 				<resource>prone_standup</resource>
 			</windowtitlebar_utilitybox>
 			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
-			<anchor_title_charsheethelper name="contentanchor" />
 			<anchor_content_utilitybox_top />
 			<anchor_content_utilitybox_bottom />
-
+<!--
 			<sub_content_buttons_groupbox_bottom name="sub_buttons">
 				<class>prone_query_bottom</class>
 			</sub_content_buttons_groupbox_bottom>
+-->
+			<sub_content_buttons_bottom name="sub_buttons">
+				<class>prone_query_bottom</class>
+			</sub_content_buttons_bottom>
 			<area_content_framed_groupbox name="contentframe" />
 			<subwindow name="pronequerymsg">
 				<anchored to="contentframe" position="over" />
 				<class>prone_query_msg</class>
-<!--				<fastinit /> -->
 				<activate />
 			</subwindow>
-
 			<resize_utilitybox />
 		</sheetdata>
 	</windowclass>
@@ -60,7 +61,6 @@
 			<subwindow name="pronequerymsg">
 				<anchored to="contentframe" position="over" />
 				<class>prone_query_msg_nocost</class>
-<!--				<fastinit /> -->
 				<activate />
 			</subwindow>
 
@@ -81,6 +81,7 @@
 			<anchor_content_top />
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
+<!--				<font>reference-page-header</font> -->
 				<static textres="query_msg_1" />
 			</stringc_content_noframe_noscroll_static_top>
 			<stringc_content_noframe_noscroll_static_top>
