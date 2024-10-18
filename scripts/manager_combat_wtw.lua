@@ -94,7 +94,42 @@ function checkProne(sourceNodeCT)
 	local rSource = ActorManager.getCTNode(rCurrent)
 
 	if Session.RulesetName ~= "5E" then
+		if EffectManagerPFRPG2 then
+			if not EffectManagerPFRPG2.hasEffectCondition(rSource, "Prone") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Unconscious") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Dead") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Paralyzed") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Dying") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Immobilized") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Petrified") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Restrained") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Grabbed") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Stunned") then
+				return false
+			elseif hasEffectFindString(rSource, "SPEED: none") then
+				return false
+			elseif hasEffectFindString(rSource, "SPEED:none") then
+				return false
+			elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "NOSTAND") then
+				return false
+			else
+				return true
+			end
+		end
 		if not EffectManager.hasCondition(rSource, "Prone") then
+			return false
+		elseif EffectManager.hasCondition(rSource, "Unconscious") then
 			return false
 		elseif hasEffectFindString(rSource, "SPEED: none") then
 			return false
@@ -392,6 +427,8 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 				local rEffectComp
 				if EffectManager5E then
 					rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
+				elseif EffectManagerPFRPG2 then
+					rEffectComp = EffectManagerPFRPG2.parseEffectComp(sEffectComp);
 				else
 					rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
 				end
@@ -514,6 +551,8 @@ function openProneWindow()
 	local datasource = ""
 	if Session.RulesetName == "5E" then
 		Interface.openWindow('prone_query_small', datasource);
+	elseif Session.RulesetName == "PFRPG2" then
+		Interface.openWindow('prone_query_pfrpg2', datasource);
 	else
 		Interface.openWindow('prone_query_not5e', datasource);
 	end
@@ -526,11 +565,15 @@ function closeProneWindow()
 	-- local wChar = Interface.findWindow("prone_query", datasource);
 	local wChar = Interface.findWindow("prone_query_small", datasource);
 	local wCoreChar = Interface.findWindow("prone_query_not5e", datasource);
+	local wPFChar = Interface.findWindow("prone_query_pfrpg2", datasource);
 	if wChar then
 		wChar.close();
 	end
 	if wCoreChar then
 		wCoreChar.close();
+	end
+	if wPFChar then
+		wPFChar.close();
 	end
 end
 
@@ -548,16 +591,20 @@ function standUp()
 		if OptionsManager.isOption('WHOLEEFFECT', 'on') then
 			removeEffectCaseInsensitive(rSource, "Prone");
 		end
-	    EffectManager.addEffect("", "", rSource, {
-		    sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
-		}, "");
+		if Session.RulesetName == "5E" then
+			EffectManager.addEffect("", "", rSource, {
+				sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
+			}, "");
+		end
 	else
 		if OptionsManager.isOption('WHOLEEFFECT', 'on') then
 		    notifyApplyHostCommands(rSource, 1, "Prone");
 		end
-		notifyApplyHostCommands(rSource, 0, {
-		    sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
-		});
+		if Session.RulesetName == "5E" then
+			notifyApplyHostCommands(rSource, 0, {
+				sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
+			});
+		end
 	end
 end
 
