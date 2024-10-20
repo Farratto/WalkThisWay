@@ -2,6 +2,8 @@
 ## Features  
 * This extension provides a small popup window at the start of a person's turn that asks if they want to stand up. It happens when a character is prone but does not have one of the conditions that prevents them from standing up.  
 
+Latest Version: v1.4.2
+
 ## Installation  
 Download from the forge at https://forge.fantasygrounds.com/shop/items/1940/view.  
 Forum Thread: https://www.fantasygrounds.com/forums/showthread.php?82914-Walk-this-Way-for-5e  

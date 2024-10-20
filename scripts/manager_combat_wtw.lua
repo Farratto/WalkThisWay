@@ -2,6 +2,10 @@
 -- Please see the license.html file included with this distribution for
 -- attribution and copyright information.
 --
+-- luacheck: globals clientGetOption checkProne checkHideousLaughter hasEffectFindString removeEffectClause proneWindow
+-- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp removeEffectCaseInsensitive
+-- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery
+-- luacheck: globals handleApplyHostCommands notifyApplyHostCommands getControllingClient getRootCommander
 
 -- OOB identifier for source local processing that supports commands that need host privilege to execute
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
@@ -81,6 +85,7 @@ function clientGetOption(sKey)
 	end
 end
 
+-- luacheck: push ignore 561
 function checkProne(sourceNodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
 	    return;
@@ -115,9 +120,7 @@ function checkProne(sourceNodeCT)
 				return false
 			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Stunned") then
 				return false
-			elseif hasEffectFindString(rSource, "SPEED: none") then
-				return false
-			elseif hasEffectFindString(rSource, "SPEED:none") then
+			elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
 				return false
 			elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
 				return false
@@ -131,9 +134,7 @@ function checkProne(sourceNodeCT)
 			return false
 		elseif EffectManager.hasCondition(rSource, "Unconscious") then
 			return false
-		elseif hasEffectFindString(rSource, "SPEED: none") then
-			return false
-		elseif hasEffectFindString(rSource, "SPEED:none") then
+		elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
 			return false
 		elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
 			return false
@@ -157,9 +158,7 @@ function checkProne(sourceNodeCT)
 			return false
 		elseif EffectManager5EBCE.moddedHasEffect(rSource, "Unconscious", nil, false, true) then
 			return false
-		elseif hasEffectFindString(rSource, "SPEED: none") then
-		    return false
-		elseif hasEffectFindString(rSource, "SPEED:none") then
+		elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
 		    return false
 		elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
 			return false
@@ -183,9 +182,7 @@ function checkProne(sourceNodeCT)
 			return false
 		elseif EffectManager5E.hasEffectCondition(rSource, "Unconscious") then
 			return false
-		elseif hasEffectFindString(rSource, "SPEED: none") then
-		    return false
-		elseif hasEffectFindString(rSource, "SPEED:none") then
+		elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
 		    return false
 		elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
 			return false
@@ -198,6 +195,7 @@ function checkProne(sourceNodeCT)
 		end
 	end
 end
+-- luacheck: pop
 
 function checkHideousLaughter(rActor)
 	if not rActor then
@@ -272,6 +270,7 @@ function checkHideousLaughter(rActor)
 	return false;
 end
 
+-- luacheck: push ignore 561
 function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bStartsWith, bDebug)
 	-- defaults: case sensitive, not starts with, not whole match, & not debug
 	-- bWholeMatch, if true, overrides bStartsWith
@@ -359,7 +358,9 @@ function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bSt
 	if bDebug then Debug.console("All findstrings checks failed - Default return false") end
 	return false;
 end
+-- luacheck: pop
 
+-- luacheck: push ignore 561
 function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
 	if not rActor or not sClause then
 	    return
@@ -507,6 +508,7 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 	-- Debug.console("return false")
 	return false;
 end
+-- luacheck: pop
 
 function proneWindow(sourceNodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
@@ -652,7 +654,7 @@ function sendCloseWindowCmd(rSource)
 	end
 end
 
-function handleProneQueryClient(msgOOB)
+function handleProneQueryClient(msgOOB) -- luacheck: ignore 212
 	if OptionsManager.isOption('WTWON', 'off') then
 	    return;
 	end
@@ -660,7 +662,7 @@ function handleProneQueryClient(msgOOB)
 	-- local wMain = openProneWindow();
 	openProneWindow();
 end
-function handleCloseProneQuery(msgOOB)
+function handleCloseProneQuery(msgOOB) -- luacheck: ignore 212
 	-- local sCTNodeID = msgOOB.sCTNodeID;
 	closeProneWindow()
 end

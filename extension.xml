@@ -52,7 +52,7 @@ SOFTWARE.
 			function onInit()
 				if PowerUp then
 					PowerUp.registerExtension("Walk this Way", "v1.4.2", {
-                        ['message'] = "v1.4.1\Minor adjustments for Pathfinder 2e"
+                        ['message'] = "v1.4.2\Minor adjustments for Pathfinder 2e"
                     });
 				end
 			end
