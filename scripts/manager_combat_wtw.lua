@@ -2,6 +2,10 @@
 -- Please see the license.html file included with this distribution for
 -- attribution and copyright information.
 --
+-- luacheck: globals clientGetOption checkProne checkHideousLaughter hasEffectFindString removeEffectClause proneWindow
+-- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp removeEffectCaseInsensitive
+-- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery
+-- luacheck: globals handleApplyHostCommands notifyApplyHostCommands getControllingClient getRootCommander
 
 -- OOB identifier for source local processing that supports commands that need host privilege to execute
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
@@ -81,6 +85,7 @@ function clientGetOption(sKey)
 	end
 end
 
+-- luacheck: push ignore 561
 function checkProne(sourceNodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
 	    return;
@@ -94,11 +99,42 @@ function checkProne(sourceNodeCT)
 	local rSource = ActorManager.getCTNode(rCurrent)
 
 	if Session.RulesetName ~= "5E" then
+		if EffectManagerPFRPG2 then
+			if not EffectManagerPFRPG2.hasEffectCondition(rSource, "Prone") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Unconscious") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Dead") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Paralyzed") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Dying") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Immobilized") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Petrified") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Restrained") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Grabbed") then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Stunned") then
+				return false
+			elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
+				return false
+			elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
+				return false
+			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "NOSTAND") then
+				return false
+			else
+				return true
+			end
+		end
 		if not EffectManager.hasCondition(rSource, "Prone") then
 			return false
-		elseif hasEffectFindString(rSource, "SPEED: none") then
+		elseif EffectManager.hasCondition(rSource, "Unconscious") then
 			return false
-		elseif hasEffectFindString(rSource, "SPEED:none") then
+		elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
 			return false
 		elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
 			return false
@@ -122,9 +158,7 @@ function checkProne(sourceNodeCT)
 			return false
 		elseif EffectManager5EBCE.moddedHasEffect(rSource, "Unconscious", nil, false, true) then
 			return false
-		elseif hasEffectFindString(rSource, "SPEED: none") then
-		    return false
-		elseif hasEffectFindString(rSource, "SPEED:none") then
+		elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
 		    return false
 		elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
 			return false
@@ -148,9 +182,7 @@ function checkProne(sourceNodeCT)
 			return false
 		elseif EffectManager5E.hasEffectCondition(rSource, "Unconscious") then
 			return false
-		elseif hasEffectFindString(rSource, "SPEED: none") then
-		    return false
-		elseif hasEffectFindString(rSource, "SPEED:none") then
+		elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
 		    return false
 		elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
 			return false
@@ -163,6 +195,7 @@ function checkProne(sourceNodeCT)
 		end
 	end
 end
+-- luacheck: pop
 
 function checkHideousLaughter(rActor)
 	if not rActor then
@@ -237,6 +270,7 @@ function checkHideousLaughter(rActor)
 	return false;
 end
 
+-- luacheck: push ignore 561
 function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bStartsWith, bDebug)
 	-- defaults: case sensitive, not starts with, not whole match, & not debug
 	-- bWholeMatch, if true, overrides bStartsWith
@@ -324,7 +358,9 @@ function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bSt
 	if bDebug then Debug.console("All findstrings checks failed - Default return false") end
 	return false;
 end
+-- luacheck: pop
 
+-- luacheck: push ignore 561
 function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
 	if not rActor or not sClause then
 	    return
@@ -392,6 +428,8 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 				local rEffectComp
 				if EffectManager5E then
 					rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
+				elseif EffectManagerPFRPG2 then
+					rEffectComp = EffectManagerPFRPG2.parseEffectComp(sEffectComp);
 				else
 					rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
 				end
@@ -470,6 +508,7 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 	-- Debug.console("return false")
 	return false;
 end
+-- luacheck: pop
 
 function proneWindow(sourceNodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
@@ -514,6 +553,8 @@ function openProneWindow()
 	local datasource = ""
 	if Session.RulesetName == "5E" then
 		Interface.openWindow('prone_query_small', datasource);
+	elseif Session.RulesetName == "PFRPG2" then
+		Interface.openWindow('prone_query_pfrpg2', datasource);
 	else
 		Interface.openWindow('prone_query_not5e', datasource);
 	end
@@ -526,11 +567,15 @@ function closeProneWindow()
 	-- local wChar = Interface.findWindow("prone_query", datasource);
 	local wChar = Interface.findWindow("prone_query_small", datasource);
 	local wCoreChar = Interface.findWindow("prone_query_not5e", datasource);
+	local wPFChar = Interface.findWindow("prone_query_pfrpg2", datasource);
 	if wChar then
 		wChar.close();
 	end
 	if wCoreChar then
 		wCoreChar.close();
+	end
+	if wPFChar then
+		wPFChar.close();
 	end
 end
 
@@ -548,16 +593,20 @@ function standUp()
 		if OptionsManager.isOption('WHOLEEFFECT', 'on') then
 			removeEffectCaseInsensitive(rSource, "Prone");
 		end
-	    EffectManager.addEffect("", "", rSource, {
-		    sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
-		}, "");
+		if Session.RulesetName == "5E" then
+			EffectManager.addEffect("", "", rSource, {
+				sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
+			}, "");
+		end
 	else
 		if OptionsManager.isOption('WHOLEEFFECT', 'on') then
 		    notifyApplyHostCommands(rSource, 1, "Prone");
 		end
-		notifyApplyHostCommands(rSource, 0, {
-		    sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
-		});
+		if Session.RulesetName == "5E" then
+			notifyApplyHostCommands(rSource, 0, {
+				sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
+			});
+		end
 	end
 end
 
@@ -605,7 +654,7 @@ function sendCloseWindowCmd(rSource)
 	end
 end
 
-function handleProneQueryClient(msgOOB)
+function handleProneQueryClient(msgOOB) -- luacheck: ignore 212
 	if OptionsManager.isOption('WTWON', 'off') then
 	    return;
 	end
@@ -613,7 +662,7 @@ function handleProneQueryClient(msgOOB)
 	-- local wMain = openProneWindow();
 	openProneWindow();
 end
-function handleCloseProneQuery(msgOOB)
+function handleCloseProneQuery(msgOOB) -- luacheck: ignore 212
 	-- local sCTNodeID = msgOOB.sCTNodeID;
 	closeProneWindow()
 end
