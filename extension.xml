@@ -27,7 +27,7 @@ SOFTWARE.
 <root release="3.0" version="3">
 	<properties>
 		<name>Feature: Walk This Way</name>
-		<version>v1.4.2</version>
+		<version>~dev_version~</version>
 		<loadorder>400</loadorder>
 		<author>Farratto</author>
 		<description>Reminders for prone condition and movement.</description>
@@ -51,14 +51,14 @@ SOFTWARE.
 		<script name="PowerUpWtW">
 			function onInit()
 				if PowerUp then
-					PowerUp.registerExtension("Walk this Way", "v1.4.2", {
-                        ['message'] = "v1.4.2\Minor adjustments for Pathfinder 2e"
+					PowerUp.registerExtension("Walk this Way", "~dev_version~", {
+                        ['message'] = "~dev_version~\~update_notes~"
                     });
 				end
 			end
 		</script>
 	</base>
 
-	<announcement text="Walk this Way v1.4.2 by Farratto." icon="WtW_icon" font="emotefont" />
+	<announcement text="Walk this Way ~dev_version~ by Farratto." icon="WtW_icon" font="emotefont" />
 
 </root>

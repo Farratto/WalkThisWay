@@ -6,6 +6,7 @@
 -- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp removeEffectCaseInsensitive
 -- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery
 -- luacheck: globals handleApplyHostCommands notifyApplyHostCommands getControllingClient getRootCommander
+-- luacheck: globals setPQvalue delWTWdataChild
 
 -- OOB identifier for source local processing that supports commands that need host privilege to execute
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
@@ -199,7 +200,7 @@ end
 
 function checkHideousLaughter(rActor)
 	if not rActor then
-		Debug.console("Walk This Way - checkHideousLaughter - not rActor")
+		Debug.console("WalkThisWay.checkHideousLaughter - not rActor")
 	    return
 	end
 	local bClauseExceptFound = false;
@@ -276,7 +277,7 @@ function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bSt
 	-- bWholeMatch, if true, overrides bStartsWith
 	-- Debug.console("hasEffectFindString called")
 	if not rActor or not sString then
-		Debug.console("Walk This Way - hasEffectFindString - not rActor or not sString")
+		Debug.console("WalkThisWay.hasEffectFindString - not rActor or not sString")
 	    return
 	end
 	local aEffects;
@@ -364,7 +365,7 @@ end
 function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
 	if not rActor or not sClause then
 	    return
-		Debug.console("Walk This Way - removeEffectClause - not rActor or not sClause")
+		Debug.console("WalkThisWay.removeEffectClause - not rActor or not sClause")
 	end
 
 	local sLowerClause = sClause:lower();
@@ -510,6 +511,30 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 end
 -- luacheck: pop
 
+function setPQvalue(sName)
+    local nodeWTW = DB.createNode('WalkThisWay');
+--	DB.setPublic(nodeWTW, true) --appears to be the default
+	local nodePQ = DB.getChild(nodeWTW, 'proneQuery')
+    if not nodePQ then
+        nodePQ = DB.createChild(nodeWTW, 'proneQuery', 'string');
+    end
+	local sMessage = tostring(sName) .. ' is prone.'
+	DB.setValue(nodeWTW, 'proneQuery', 'string', sMessage)
+	return nodePQ
+end
+
+function delWTWdataChild(sChildNode)
+    local nodeWTW = DB.findNode('WalkThisWay');
+	if not nodeWTW then
+		return true
+	end
+	local nodePQ = DB.getChild(nodeWTW, sChildNode)
+    if not nodePQ then
+		return true
+	end
+    return DB.deleteNode(nodePQ)
+end
+
 function proneWindow(sourceNodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
 	    return;
@@ -529,6 +554,9 @@ function proneWindow(sourceNodeCT)
 		queryClient(rSource)
 		return;
 	else
+		if rSource.sName then
+			setPQvalue(rSource.sName)
+		end
 	    openProneWindow();
 	end
 end
@@ -548,10 +576,8 @@ function openProneWindow()
 	if Session.IsHost and OptionsManager.isOption('WTWONDM', 'off') then
 	    return;
 	end
-	-- local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
-	-- local rSource = ActorManager.getCTNode(rCurrent)
-	local datasource = ""
-	if Session.RulesetName == "5E" then
+	local datasource = 'WalkThisWay'
+	if Session.RulesetName == '5E' then
 		Interface.openWindow('prone_query_small', datasource);
 	elseif Session.RulesetName == "PFRPG2" then
 		Interface.openWindow('prone_query_pfrpg2', datasource);
@@ -561,10 +587,7 @@ function openProneWindow()
 end
 
 function closeProneWindow()
-	-- local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
-	-- local rSource = ActorManager.getCTNode(rCurrent)
-	local datasource = ""
-	-- local wChar = Interface.findWindow("prone_query", datasource);
+	local datasource = 'WalkThisWay'
 	local wChar = Interface.findWindow("prone_query_small", datasource);
 	local wCoreChar = Interface.findWindow("prone_query_not5e", datasource);
 	local wPFChar = Interface.findWindow("prone_query_pfrpg2", datasource);
@@ -577,6 +600,7 @@ function closeProneWindow()
 	if wPFChar then
 		wPFChar.close();
 	end
+	delWTWdataChild('proneQuery')
 end
 
 function standUp()
@@ -633,6 +657,9 @@ function queryClient(rSource)
 	local sOwner = getControllingClient(rSource);
 
 	if sOwner then
+		if rSource.sName then
+			setPQvalue(rSource.sName)
+		end
 		local msgOOB = {};
 		msgOOB.type = OOB_MSGTYPE_PRONEQUERY;
 		msgOOB.sCTNodeID = ActorManager.getCTNodeName(rSource);
@@ -641,6 +668,7 @@ function queryClient(rSource)
 		ChatManager.SystemMessage(Interface.getString("msg_NotConnected"));
 	end
 end
+
 function sendCloseWindowCmd(rSource)
 	local sOwner = getControllingClient(rSource);
 
@@ -658,12 +686,9 @@ function handleProneQueryClient(msgOOB) -- luacheck: ignore 212
 	if OptionsManager.isOption('WTWON', 'off') then
 	    return;
 	end
-	-- local sCTNodeID = msgOOB.sCTNodeID;
-	-- local wMain = openProneWindow();
 	openProneWindow();
 end
 function handleCloseProneQuery(msgOOB) -- luacheck: ignore 212
-	-- local sCTNodeID = msgOOB.sCTNodeID;
 	closeProneWindow()
 end
 
@@ -773,15 +798,18 @@ end
 ---@param rActor table the actor who the owner needs to be determined for
 ---@return string|nil sOwner the controlling client if they are connected. otherwise returns nil
 function getControllingClient(rActor)
-	if RRActionManager then
-	    return RRActionManager.getControllingClient(rActor);
-	end
+--temporarily turned off until RR has accomodated the change
+--	if RRActionManager then
+--	    return RRActionManager.getControllingClient(rActor);
+--	end
 	local isControlled = false;
 	local sNode = nil;
 	if ActorManager.isPC(rActor) then
 		sNode = ActorManager.getCreatureNodeName(rActor);
 	else
-		if FriendZone and FriendZone.isCohort(rActor) then
+		if Pets and Pets.isCohort(rActor) then
+			sNode = getRootCommander(rActor);
+		elseif FriendZone and FriendZone.isCohort(rActor) then
 			sNode = getRootCommander(rActor);
 		end
 	end

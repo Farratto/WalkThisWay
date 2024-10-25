@@ -53,7 +53,6 @@
 			<anchor_title_charsheethelper name="contentanchor" />
 			<anchor_content_utilitybox_top />
 			<anchor_content_utilitybox_bottom />
-
 <!--
 			<sub_content_buttons_groupbox_bottom name="sub_buttons">
 				<class>prone_query_bottom</class>
@@ -91,7 +90,6 @@
 			<anchor_title_charsheethelper name="contentanchor" />
 			<anchor_content_utilitybox_top />
 			<anchor_content_utilitybox_bottom />
-
 <!--
 			<sub_content_buttons_groupbox_bottom name="sub_buttons">
 				<class>prone_query_bottom</class>
@@ -114,18 +112,23 @@
 	<windowclass name="prone_query_bottom">
 		<sheetdata>
 			<anchor_content_top />
-			<button_affirm name="affirm" />
 			<button_deny name="deny" />
+			<button_affirm name="affirm" />
 		</sheetdata>
 	</windowclass>
 
 	<windowclass name="prone_query_msg">
 		<sheetdata>
 			<anchor_content_top />
+			<string_content_noframe_static_top name="proneQuery">
+				<center />
+			</string_content_noframe_static_top>
+<!--
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<static textres="query_msg_1" />
 			</stringc_content_noframe_noscroll_static_top>
+-->
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<static textres="query_msg_2" />
@@ -136,10 +139,15 @@
 	<windowclass name="prone_query_msg_pfrpg2">
 		<sheetdata>
 			<anchor_content_top />
+			<string_content_noframe_static_top name="proneQuery">
+				<center />
+			</string_content_noframe_static_top>
+<!--
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<static textres="query_msg_1" />
 			</stringc_content_noframe_noscroll_static_top>
+-->
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<static textres="query_msg_pfrpg2" />
@@ -150,6 +158,15 @@
 	<windowclass name="prone_query_msg_nocost">
 		<sheetdata>
 			<anchor_content_top />
+			<string_content_noframe_static_top name="proneQuery">
+				<center />
+			</string_content_noframe_static_top>
+<!--
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<static textres="query_msg_1" />
+			</stringc_content_noframe_noscroll_static_top>
+-->
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<static textres="query_msg_nocost" />
@@ -160,7 +177,7 @@
 	<template name="button_affirm">
 		<button_boolean>
 			<anchored>
-				<right anchor="center" offset="-15" />
+				<left anchor="center" offset="15" />
 			</anchored>
 			<text>Yes</text>
 			<script>
@@ -175,14 +192,11 @@
 	<template name="button_deny">
 		<button_boolean>
 			<anchored>
-				<left anchor="center" offset="15" />
+				<right anchor="center" offset="-15" />
 			</anchored>
 			<text>No</text>
 			<script>
 				function onButtonPress()
-				    --if super and super.onButtonPress() then
-				    --    super.onButtonPress();
-				    --end
 					CombatManagerWtW.closeProneWindow();
 				end
 			</script>
