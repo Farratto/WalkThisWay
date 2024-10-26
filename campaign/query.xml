@@ -179,7 +179,7 @@
 			<anchored>
 				<left anchor="center" offset="15" />
 			</anchored>
-			<text>Yes</text>
+			<text>Okay</text>
 			<script>
 				function onButtonPress()
 				    CombatManagerWtW.standUp();
@@ -194,7 +194,7 @@
 			<anchored>
 				<right anchor="center" offset="-15" />
 			</anchored>
-			<text>No</text>
+			<text>Cancel</text>
 			<script>
 				function onButtonPress()
 					CombatManagerWtW.closeProneWindow();
