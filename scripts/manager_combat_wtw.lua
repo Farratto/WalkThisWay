@@ -1,5 +1,5 @@
 --
--- Please see the license.html file included with this distribution for
+-- Please see the license.txt file included with this distribution for
 -- attribution and copyright information.
 --
 -- luacheck: globals clientGetOption checkProne checkHideousLaughter hasEffectFindString removeEffectClause proneWindow
@@ -27,6 +27,8 @@ local aEffectVarMap = {
 };
 
 function onInit()
+-- DEFAULT BEHAVIORS FOR OPTIONS: sType = "option_entry_cycler", on|off, default = off
+--Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client", Old 4th = ("option_label_" .. sKey)
 	OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
 								   'option_entry_cycler', {
 		labels = 'option_val_off',
@@ -96,7 +98,6 @@ function checkProne(sourceNodeCT)
 	end
 
 	local rCurrent = ActorManager.resolveActor(sourceNodeCT);
-	-- local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
 	local rSource = ActorManager.getCTNode(rCurrent)
 
 	if Session.RulesetName ~= "5E" then
@@ -544,14 +545,14 @@ function proneWindow(sourceNodeCT)
 	end
 
 	local rSource = ActorManager.resolveActor(sourceNodeCT);
-	local sOwner = getControllingClient(rSource);
+	local sOwner = getControllingClient(sourceNodeCT);
 
 	if not checkProne(rSource) then
 	    return;
 	end
 
 	if sOwner then
-		queryClient(rSource)
+		queryClient(sourceNodeCT)
 		return;
 	else
 		if rSource.sName then
@@ -563,9 +564,8 @@ end
 
 function closeAllProneWindows(sourceNodeCT)
 	closeProneWindow();
-	local rSource = ActorManager.resolveActor(sourceNodeCT);
-	if getControllingClient(rSource) then
-	    sendCloseWindowCmd(rSource)
+	if getControllingClient(sourceNodeCT) then
+	    sendCloseWindowCmd(sourceNodeCT)
 	end
 end
 
@@ -650,11 +650,12 @@ function removeEffectCaseInsensitive(nodeCTEntry, sEffPatternToRemove)
 	end
 end
 
-function queryClient(rSource)
+function queryClient(nodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
 	    return;
 	end
-	local sOwner = getControllingClient(rSource);
+	local sOwner = getControllingClient(nodeCT);
+	local rSource = ActorManager.resolveActor(nodeCT);
 
 	if sOwner then
 		if rSource.sName then
@@ -669,13 +670,13 @@ function queryClient(rSource)
 	end
 end
 
-function sendCloseWindowCmd(rSource)
-	local sOwner = getControllingClient(rSource);
+function sendCloseWindowCmd(nodeCT)
+	local sOwner = getControllingClient(nodeCT);
 
 	if sOwner then
 		local msgOOB = {};
 		msgOOB.type = OOB_MSGTYPE_CLOSEQUERY;
-		msgOOB.sCTNodeID = ActorManager.getCTNodeName(rSource);
+		msgOOB.sCTNodeID = nodeCT;
 		Comm.deliverOOBMessage(msgOOB, sOwner);
 	else
 		ChatManager.SystemMessage(Interface.getString("msg_NotConnected"));
@@ -793,53 +794,59 @@ function notifyApplyHostCommands(nodeCT, iAction, rValues)
 	Comm.deliverOOBMessage(msgOOB, "");
 end
 
----For a given actor, determines who the owning client is and if they are connected.
-	---Returns nil for inactive identities and those owned by the GM
----@param rActor table the actor who the owner needs to be determined for
----@return string|nil sOwner the controlling client if they are connected. otherwise returns nil
-function getControllingClient(rActor)
---temporarily turned off until RR has accomodated the change
---	if RRActionManager then
---	    return RRActionManager.getControllingClient(rActor);
---	end
-	local isControlled = false;
-	local sNode = nil;
-	if ActorManager.isPC(rActor) then
-		sNode = ActorManager.getCreatureNodeName(rActor);
-	else
-		if Pets and Pets.isCohort(rActor) then
-			sNode = getRootCommander(rActor);
-		elseif FriendZone and FriendZone.isCohort(rActor) then
-			sNode = getRootCommander(rActor);
-		end
-	end
-
-	--There will be an active identity if the client is connected. If sNode is still nil, nothing will be found
-	for _, value in pairs(User.getAllActiveIdentities()) do
-		if "charsheet." .. value == sNode then
-			isControlled = true;
-		end
-	end
-
-	if isControlled then
-		return DB.getOwner(sNode);
-	else
-		return nil;
-	end
-end
-
 ---For a given cohort actor, determine the root character node that owns it
----@param rActor table the actor we need the root commander for
----@return string|nil nodePath the root character node of the chain
 function getRootCommander(rActor)
-	if RRActionManager then
-	    return RRActionManager.getRootCommander(rActor);
+	if not rActor then
+		Debug.console("WalkThisWay.getRootCommander - rActor doesn't exist")
+		return
 	end
 	local sRecord = ActorManager.getCreatureNodeName(rActor);
 	local sRecordSansModule = StringManager.split(sRecord, "@")[1];
 	local aRecordPathSansModule = StringManager.split(sRecordSansModule, ".");
 	if aRecordPathSansModule[1] and aRecordPathSansModule[2] then
 		return aRecordPathSansModule[1] .. "." .. aRecordPathSansModule[2];
+	end
+	return nil;
+end
+
+--Returns nil for inactive identities and those owned by the GM
+function getControllingClient(nodeCT)
+	if not nodeCT then
+		Debug.console("WalkThisWay.getControllingClient - nodeCT doesn't exist")
+		return
+	end
+	local sPCNode = nil;
+	local rActor = ActorManager.resolveActor(nodeCT);
+	local sNPCowner
+	if ActorManager.isPC(rActor) then
+		sPCNode = ActorManager.getCreatureNodeName(rActor);
+	else
+		sNPCowner = DB.getValue(nodeCT, "NPCowner", "");
+		if sNPCowner == "" then
+			if Pets and Pets.isCohort(rActor) then
+				sPCNode = getRootCommander(rActor);
+			else
+				if FriendZone and FriendZone.isCohort(rActor) then
+					sPCNode = getRootCommander(rActor);
+				end
+			end
+		end
+	end
+
+	if sPCNode or sNPCowner then
+		for _, value in pairs(User.getAllActiveIdentities()) do
+			if sPCNode then
+				if "charsheet." .. value == sPCNode then
+					return DB.getOwner(sPCNode);
+				end
+			end
+			if sNPCowner then
+				local sIDOwner = User.getIdentityOwner(value)
+				if sIDOwner == sNPCowner then
+					return sIDOwner
+				end
+			end
+		end
 	end
 	return nil;
 end

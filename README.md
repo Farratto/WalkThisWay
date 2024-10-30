@@ -9,7 +9,7 @@ This extension provides a small popup window at the start of a person's turn tha
 
 Install from the [Fantasy Grounds Forge](https://forge.fantasygrounds.com/shop/items/1940/view). \
 You can find the source code at Farratto's [GitHub](https://github.com/Farratto/WalkThisWay/releases). \
-You can ask questions at the [Fantasy Grounds Forum](https://www.fantasygrounds.com/forums/showthread.php?82914-Walk-this-Way-for-5e). \
+You can ask questions at the [Fantasy Grounds Forum](https://www.fantasygrounds.com/forums/showthread.php?82914-Walk-this-Way-for-5e).
 
 ### Details
 
@@ -19,7 +19,7 @@ On turn start, the extension will check the character, whose turn just started, 
 
 If the actor has prone, but not any of the above effects, the extension will provide a small popup window to the screen of the party that controls that character.  The window asks if the person wants to stand up.  If they answer yes, the extension will remove the effect that contains prone and add an effect that says "SPEED: 0.5" that lasts until end of turn.  If they answer no, close the window, or ignore the window, the extension will do nothing. \
 The window can be moved and it remembers where it was.  It can be ignored and it will go away at the end of turn without consequences. \
-Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, & Team Twohy's 5e Effects Coding
+Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM
 
 ### Other Rulesets
 
@@ -49,11 +49,12 @@ SmiteWorks owns rights to code sections copied from their rulesets by permission
 
 ### Change Log
 
-* 1.4.3: Pets extension support. Query Window Improved.
-* 1.4.2: More specific support for Pathfinder 2e added.
-* 1.4.0: Ported for other rulesets.
-* 1.3.4: Bug reported in interaction with BCE. Fixed
-* 1.3.3: Made query window more theme-friendly.
-* 1.3.2: Added Support for Team Twohy's 5e Effects Coding. Made changes under the hood to improve accuracy and efficiency.
-* 1.2.5: New Options allowing players to individually disable the reminder windows (if DM allows).
-* 1.2.0: Now will only delete entire effect line if you ask it to. Added a toggle option to turn the extension on/off live. Full support added for BCE & FZ.
+* v1.4.5: Assistant GM support. Minor Performance improvement.
+* v1.4.3: Pets extension support. Query Window Improved.
+* v1.4.2: More specific support for Pathfinder 2e added.
+* v1.4.0: Ported for other rulesets.
+* v1.3.4: Bug reported in interaction with BCE. Fixed
+* v1.3.3: Made query window more theme-friendly.
+* v1.3.2: Added Support for Team Twohy's 5e Effects Coding. Made changes under the hood to improve accuracy and efficiency.
+* v1.2.5: New Options allowing players to individually disable the reminder windows (if DM allows).
+* v1.2.0: Now will only delete entire effect line if you ask it to. Added a toggle option to turn the extension on/off live. Full support added for BCE & FZ.
