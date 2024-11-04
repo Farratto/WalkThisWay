@@ -49,6 +49,7 @@ SmiteWorks owns rights to code sections copied from their rulesets by permission
 
 ### Change Log
 
+* v1.4.6: Bug
 * v1.4.5: Assistant GM support. Minor Performance improvement.
 * v1.4.3: Pets extension support. Query Window Improved.
 * v1.4.2: More specific support for Pathfinder 2e added.
