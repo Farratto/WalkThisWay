@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+	Please see the LICENSE.txt file included with this distribution for
+	attribution and copyright information.
+-->
+<root version="3.0">
+	<windowclass name="prone_query_small">
+		<frame>utilitybox</frame>
+		<placement>
+			<size width="330" height="220" />
+		</placement>
+		<sizelimits >
+			<maximum width="450" height="300" />
+			<minimum width="263" height="175" />
+			<dynamic />
+		</sizelimits>
+		<sheetdata>
+			<windowtitlebar_utilitybox name="title">
+				<resource>prone_standup</resource>
+			</windowtitlebar_utilitybox>
+			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
+			<anchor_content_utilitybox_top />
+			<anchor_content_utilitybox_bottom />
+			<sub_content_buttons_bottom name="sub_buttons">
+				<class>prone_query_bottom</class>
+			</sub_content_buttons_bottom>
+			<area_content_framed_groupbox name="contentframe" />
+			<subwindow name="pronequerymsg">
+				<anchored to="contentframe" position="over" />
+				<class>prone_query_msg</class>
+				<activate />
+			</subwindow>
+			<resize_utilitybox />
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="prone_query_not5e">
+		<frame>utilitybox</frame>
+		<placement>
+			<size width="330" height="220" />
+		</placement>
+		<sizelimits >
+			<maximum width="450" height="300" />
+			<minimum width="263" height="175" />
+			<dynamic />
+		</sizelimits>
+		<sheetdata>
+			<windowtitlebar_utilitybox name="title">
+				<resource>prone_standup</resource>
+			</windowtitlebar_utilitybox>
+			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
+			<anchor_title_charsheethelper name="contentanchor" />
+			<anchor_content_utilitybox_top />
+			<anchor_content_utilitybox_bottom />
+			<sub_content_buttons_bottom name="sub_buttons">
+				<class>prone_query_bottom</class>
+			</sub_content_buttons_bottom>
+			<area_content_framed_groupbox name="contentframe" />
+			<subwindow name="pronequerymsg">
+				<anchored to="contentframe" position="over" />
+				<class>prone_query_msg_nocost</class>
+				<activate />
+			</subwindow>
+
+			<resize_utilitybox />
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="prone_query_pfrpg2">
+		<frame>utilitybox</frame>
+		<placement>
+			<size width="330" height="220" />
+		</placement>
+		<sizelimits >
+			<maximum width="450" height="300" />
+			<minimum width="263" height="175" />
+			<dynamic />
+		</sizelimits>
+		<sheetdata>
+			<windowtitlebar_utilitybox name="title">
+				<resource>prone_standup</resource>
+			</windowtitlebar_utilitybox>
+			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
+			<anchor_title_charsheethelper name="contentanchor" />
+			<anchor_content_utilitybox_top />
+			<anchor_content_utilitybox_bottom />
+			<sub_content_buttons_bottom name="sub_buttons">
+				<class>prone_query_bottom</class>
+			</sub_content_buttons_bottom>
+			<area_content_framed_groupbox name="contentframe" />
+			<subwindow name="pronequerymsg">
+				<anchored to="contentframe" position="over" />
+				<class>prone_query_msg_pfrpg2</class>
+				<activate />
+			</subwindow>
+
+			<resize_utilitybox />
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="prone_query_bottom">
+		<sheetdata>
+			<anchor_content_top />
+			<button_deny name="deny" />
+			<button_affirm name="affirm" />
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="prone_query_msg">
+		<sheetdata>
+			<anchor_content_top />
+			<string_content_noframe_static_top name="proneQuery">
+				<center />
+			</string_content_noframe_static_top>
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<static textres="query_msg_2" />
+			</stringc_content_noframe_noscroll_static_top>
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="prone_query_msg_pfrpg2">
+		<sheetdata>
+			<anchor_content_top />
+			<string_content_noframe_static_top name="proneQuery">
+				<center />
+			</string_content_noframe_static_top>
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<static textres="query_msg_pfrpg2" />
+			</stringc_content_noframe_noscroll_static_top>
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="prone_query_msg_nocost">
+		<sheetdata>
+			<anchor_content_top />
+			<string_content_noframe_static_top name="proneQuery">
+				<center />
+			</string_content_noframe_static_top>
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<static textres="query_msg_nocost" />
+			</stringc_content_noframe_noscroll_static_top>
+		</sheetdata>
+	</windowclass>
+
+	<template name="button_affirm">
+		<button_boolean>
+			<anchored>
+				<left anchor="center" offset="15" />
+			</anchored>
+			<text>Okay</text>
+			<script>
+				function onButtonPress()
+					WalkThisWay.standUp();
+					WalkThisWay.closeProneWindow();
+				end
+			</script>
+		</button_boolean>
+	</template>
+
+	<template name="button_deny">
+		<button_boolean>
+			<anchored>
+				<right anchor="center" offset="-15" />
+			</anchored>
+			<text>Cancel</text>
+			<script>
+				function onButtonPress()
+					WalkThisWay.closeProneWindow();
+				end
+			</script>
+		</button_boolean>
+	</template>
+
+	<template name="button_boolean">
+		<buttoncontrol>
+			<anchored width="100" height="20">
+				<bottom offset="-5" />
+			</anchored>
+			<frame name="buttonup" offset="5,5,5,5" />
+			<stateframe>
+				<pressed name="buttondown" offset="5,5,5,5" />
+			</stateframe>
+			<font>button-white</font>
+		</buttoncontrol>
+	</template>
+</root>

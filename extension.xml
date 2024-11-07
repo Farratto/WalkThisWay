@@ -14,8 +14,9 @@
 	</properties>
 	<base>
 		<includefile source="strings.xml" />
-		<includefile source="query.xml" />
-		<script name="CombatManagerWtW" file="walk_this_way.lua" />
+		<includefile source="campaign/query.xml" />
+		<includefile source="campaign/speed.xml" />
+		<script name="WalkThisWay" file="scripts/walk_this_way.lua" />
 		<icon name="WtW_icon" file="shoe.png" />
 		<script name="PowerUpWtW">
 			function onInit()

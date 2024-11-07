@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+	Please see the LICENSE.txt file included with this distribution for
+	attribution and copyright information.
+-->
+<root version="3.0">
+	<windowclass name="speed_window">
+		<frame>utilitybox</frame>
+		<placement>
+			<size width="330" height="220" />
+		</placement>
+		<sizelimits >
+			<maximum width="450" height="300" />
+			<minimum width="263" height="175" />
+			<dynamic />
+		</sizelimits>
+		<sheetdata>
+			<windowtitlebar_utilitybox name="title">
+				<resource>speed_title</resource>
+			</windowtitlebar_utilitybox>
+			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
+			<anchor_content_utilitybox_top />
+			<anchor_content_utilitybox_bottom />
+			<area_content_framed_groupbox name="contentframe" />
+			<subwindow name="speedwindowcontent">
+				<anchored to="contentframe" position="over" />
+				<class>speed_window_content</class>
+				<activate />
+			</subwindow>
+			<resize_utilitybox />
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="speed_window_content">
+		<sheetdata>
+			<anchor_content_top />
+			<string_content_noframe_static_top name="actorname">
+				<center />
+			</string_content_noframe_static_top>
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<static textres="speed_title" />
+			</stringc_content_noframe_noscroll_static_top>
+			<string_content_noframe_static_top name="currentSpeed">
+				<center />
+			</string_content_noframe_static_top>
+		</sheetdata>
+	</windowclass>
+</root>
