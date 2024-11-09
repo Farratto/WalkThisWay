@@ -3,7 +3,7 @@
 
 -- luacheck: globals checkBetterGoldPurity hasEffectFindString removeEffectClause handleApplyHostCommands
 -- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient removeEffectCaseInsensitive
--- luacheck: globals getEffectsByTypeWtW
+-- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 _sBetterGoldPurity = ''; --luacheck: ignore 111
@@ -442,7 +442,7 @@ function removeEffectCaseInsensitive(nodeCTEntry, sEffPatternToRemove)
 	end
 end
 
-function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTargetedOnly, bCaseSensitive)
+function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTargetedOnly, bCaseSensitive) --luacheck: ignore 212
 	if not rActor then
 		return;
 	end
@@ -472,9 +472,7 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 				local aEffectComps = EffectManager.parseEffect(sLabel);
 
 				-- Look for type/subtype match
-				local nMatch = 0;
-
-				for kEffectComp, sEffectComp in ipairs(aEffectComps) do
+				for _, sEffectComp in ipairs(aEffectComps) do
 					local rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
 					local rMatchTable = {};
 
@@ -484,7 +482,8 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 						local comp_match = false;
 						-- Check for match
 						local sStartsWith = string.sub(sEffectComp, 1, #sEffectType);
-						
+						local sStartsWith = sStartsWith .. ':'
+
 						local bPrelimMatch;
 						if bCaseSensitive then
 							if sStartsWith == sEffectType then
@@ -507,13 +506,10 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 
 						-- Match!
 						if comp_match then
-							nMatch = kEffectComp;
-							rEffectComp.sEffectNode = DB.getPath(v);
-							
 							--BCEManager.chat('Add: ', rEffectComp, sEffectType);
 							if nActive == 1 then
-								rMatchTable[clause] = sEffectComp;
-								rMatchTable[label] = v;
+								rMatchTable['clause'] = sEffectComp;
+								rMatchTable['label'] = v;
 								table.insert(results, rMatchTable);
 							end
 						end

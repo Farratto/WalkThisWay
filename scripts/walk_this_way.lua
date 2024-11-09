@@ -105,37 +105,26 @@ function speedCalculator(nodeCT, bDebug)
 	local rActor = ActorManager.resolveActor(nodeCT);
 
 	if hasRoot(nodeCT) then
+		if bDebug then Debug.console("root found") end
 		return 'none';
 	end
+	if bDebug then Debug.console("no root found") end
 
 	if not rActor then
 		Debug.console("WalkThisWay.speedCalculator - not rActor");
 		return;
 	end
 
-	local tSpeedTypesNew = {};
---	local tSpeedEffects = EffectManager.getEffectsByType(rActor, 'SPEED');
---	local tSpeedEffects = EffectManager5E.getEffectsByType(rActor, 'SPEED', tRecognizedRmndrs);
---	local tSpeedEffects = WtWCommon.moddedGetEffectsByType5E(rActor, 'FGOP');
---	local tSpeedEffects = WtWCommon.moddedGetEffectsByType5E(rActor, 'OBSCURED');
---	local tSpeedEffects = WtWCommon.moddedGetEffectsByTypeCore(rActor, 'SPEED');
---	local tSpeedEffects = WtWCommon.hasEffectFindString(rActor, 'SPEED', false, true, false, true);
-	local tSpeedEffects = getEffectsByTypeWtW(rActor, 'SPEED');
-	if bDebug then Debug.console("tSpeedEffects = " .. tostring(tSpeedEffects)) end
-	local effect1 = tSpeedEffects[1];
-	if bDebug then Debug.console("effect1 = " .. tostring(effect1)) end
+	local tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED');
+	if bDebug then Debug.console("tSpeedEffects[1] = " .. tostring(tSpeedEffects[1])) end
 	local nHalved = 0;
 	if WtWCommon.fhasCondition(rActor, "Prone") then
 		nHalved = nHalved + 1
 	end
 
-	if not effect1 and (nHalved == 0) then
-		if bDebug then Debug.console("not effect1") end
-		return;
-	end
-
 	local sFGSpeed = DB.getValue(nodeCT, 'speed')
 	if not sFGSpeed then
+		Debug.console("WalkThisWay.speedCalculator - no base speed found");
 		return;
 	end
 
@@ -147,6 +136,7 @@ function speedCalculator(nodeCT, bDebug)
 	end
 	local nFGSpeed = tonumber(tFGSpeed[1]); --this will go away when I support multiple speeds
 	local nFGSpeedNew = nFGSpeed;
+	local tFGSpeedNew = {};
 	local tFGSpdTxt = {};
 	local nFGSpdTxtCnt = 0
 	for sMatch in string.gmatch(sFGSpeed, '%d+') do
@@ -159,169 +149,225 @@ function speedCalculator(nodeCT, bDebug)
 	local nDoubled = 0;
 	local tAccomSpeed = accommKnownExtsSpeed(nodeCT);
 	if tAccomSpeed then
-		if tAccomSpeed[nDoubled] then
-			nDoubled = nDoubled + tAccomSpeed[nDoubled]
+		if bDebug then Debug.console("accomodations detected") end
+		if tAccomSpeed['nDoubled'] then
+			nDoubled = nDoubled + tonumber(tAccomSpeed['nDoubled'])
+			if bDebug then Debug.console("nDoubled = (" .. tostring(nDoubled) .. ')') end
 		end
-		if tAccomSpeed[nHalved] then
-			nHalved = nHalved + tAccomSpeed[nHalved]
+		if tAccomSpeed['nHalved'] then
+			nHalved = nHalved + tonumber(tAccomSpeed['nHalved'])
+			if bDebug then Debug.console("nHalved = (" .. tostring(nHalved) .. ')') end
 		end
-		if tAccomSpeed[nSpeedMax] then
-			nSpeedMax = tAccomSpeed[nSpeedMax]
+		if tAccomSpeed['nSpeedMax'] then
+			nSpeedMax = tonumber(tAccomSpeed['nSpeedMax'])
+			if bDebug then Debug.console("nSpeedMax = (" .. tostring(nSpeedMax) .. ')') end
 		end
-		if tAccomSpeed[nSpeedMod] then
-			nSpeedMod = nSpeedMod + tAccomSpeed[nSpeedMod]
+		if tAccomSpeed['nSpeedMod'] then
+			if bDebug then Debug.console("tAccomSpeed['nSpeedMod'] = (" .. tostring(tAccomSpeed['nSpeedMod']) .. ')') end
+			nSpeedMod = nSpeedMod + tonumber(tAccomSpeed['nSpeedMod'])
+			if bDebug then Debug.console("nSpeedMod = (" .. tostring(nSpeedMod) .. ')') end
 		end
+	else
+		if bDebug then Debug.console("accomodations not detected") end
 	end
 
 	local nRebaseCount = 0;
-	for _,rEffectComp in ipairs(tSpeedEffects) do
-		if bDebug then Debug.console("rEffectComp = " .. tostring(rEffectComp)) end
-		if bDebug then Debug.console("rEffectComp.remainder(1) = " .. tostring(rEffectComp.remainder[1])) end
-		if bDebug then Debug.console("rEffectComp.dice(1) = " .. tostring(rEffectComp.dice[1])) end
-		if bDebug then Debug.console("rEffectComp.dice(2) = " .. tostring(rEffectComp.dice[2])) end
-		if bDebug then Debug.console("rEffectComp.mod = " .. tostring(rEffectComp.mod)) end
-		if rEffectComp.dice[1] then
-			Debug.console("WalkThisWay.speedCalculator - Syntax Error");
-			return;
-		end
-		for _,v in pairs(rEffectComp.remainder) do
-			if bDebug then Debug.console("v = " .. tostring(v)) end
-			local tSplitSpeedRmndrs = StringManager.split(v, ",", true);
-			if bDebug then Debug.console("tSplitSpeedRmndrs = " .. tostring(tSplitSpeedRmndrs)) end
-			for _,v2 in ipairs(tSplitSpeedRmndrs) do
-				if bDebug then Debug.console("v2 = " .. tostring(v2)) end
-				table.insert(tSpeedTypesNew, v2);
+	local bDifficult = false;
+	for _,v in ipairs(tSpeedEffects) do
+		local sRemainder;
+		local bRecognizedRmndr = false;
+		local sVClauseLower = string.lower(v.clause);
+		--WtW parsing
+		local sMinusSpeed = sVClauseLower:gsub('^speed%s-:%s*', '');
+		if bDebug then Debug.console("sMinusSpeed = (" .. tostring(sMinusSpeed) .. ')') end
+		local sMod = string.match(sMinusSpeed, '^%-?%d+');
+		if bDebug then Debug.console("sMod = " .. tostring(sMod)) end
+		local nMod = tonumber(sMod);
+		if nMod then
+			sRemainder = sMinusSpeed:gsub('^' .. tostring(sMod) .. '%s*', '');
+			if bDebug then Debug.console("sRemainder = " .. tostring(sRemainder)) end
+			if string.match(sRemainder, '^d%d+') then
+				Debug.console("WalkThisWay.speedCalculator - dice not currently supported. Please request this feature in the forums.");
 			end
+		else
+			sRemainder = sMinusSpeed;
+			if bDebug then Debug.console("sRemainder = " .. tostring(sRemainder)) end
 		end
-		if rEffectComp.mod ~= 0 then
-			if rEffectComp.mod > 0 then
-				if tSpeedTypesNew[2] then
-					Debug.console("WalkThisWay.speedCalculator - Syntax Error");
-				elseif StringManager.startsWith(tSpeedTypesNew[1], 'type') then
-					local sRmndrRemainder = tSpeedTypesNew[1]:gsub('^type%s*%(', '');
-					sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
-					if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
-					local nLoc;
-					local nCnt = 0;
-					for k,v in tFGSpdTxt do
-						nCnt = k;
-						if v == sRmndrRemainder then
-							nLoc = k;
-						end
-					end
-					if not nLoc then
-						table.insert(tFGSpdTxt, sRmndrRemainder)
-						nLoc = nCnt + 1;
-					end
+		if not sRemainder and not nMod then
+			Debug.console("WalkThisWay.speedCalculator - Syntax Error");
+		end
+
+		--start matching
+		if StringManager.startsWith(sRemainder, 'max') then
+			bRecognizedRmndr = true;
+			local nMaxMod;
+			if string.match(sRemainder, '%)$') then
+				local sRmndrRemainder = sRemainder:gsub('^max%s*%(', '');
+				sRmndrRemainder = sRmndrRemainder:gsub('%s*%)$', '');
+				if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
+				local nRmndrRemainder = tonumber(sRmndrRemainder);
+				if nRmndrRemainder then
+					nMaxMod = nRmndrRemainder
 				else
-					if nRebaseCount > 0 then
-						if nFGSpeedNew < nFGSpeed then
-							if nFGSpeedNew > rEffectComp.mod then
-								nFGSpeedNew = rEffectComp.mod;
-							else
-								if nFGSpeedNew < rEffectComp.mod then
-									nFGSpeedNew = rEffectComp.mod;
-								end
-							end
-						end
-					else
-						nFGSpeedNew = rEffectComp.mod;
-					end
-					if bDebug then Debug.console("nFGSpeedNew = " .. tostring(nFGSpeedNew)) end
-					nRebaseCount = nRebaseCount + 1;
+					Debug.console("WalkThisWay.speedCalculator - Syntax Error. Try SPEED: max(5)");
+				end
+				if nMod then
+					sRemainder = ''
 				end
 			else
-				if rEffectComp.mod < 0 then
-					table.insert(tSpeedTypesNew, 'dec(' .. tostring(rEffectComp.mod) .. ')');
-				end
+				nMaxMod = nMod
+				nMod = nil
 			end
-		end
-	end
-
-	local bDifficult = false;
-	for _,sSpeedType in ipairs(tSpeedTypesNew) do
-		sSpeedType = string.lower(sSpeedType);
-		if bDebug then Debug.console("sSpeedType = " .. tostring(sSpeedType)) end
-		if StringManager.startsWith(sSpeedType, 'max') then
-			local sRmndrRemainder = sSpeedType:gsub('^max%s*%(', '');
-			sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
-			if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
-			local nRmndrRemainder = tonumber(sRmndrRemainder);
-			if nRmndrRemainder then
-				if nSpeedMax then
-					if nRmndrRemainder < nSpeedMax then
-						nSpeedMax = math.floor(nRmndrRemainder);
-						if bDebug then Debug.console("nSpeedMax = " .. tostring(nSpeedMax)) end
-					end
-				else
-					nSpeedMax = math.floor(nRmndrRemainder);
+			if nSpeedMax then
+				if nMaxMod < nSpeedMax then
+					nSpeedMax = math.floor(nMaxMod);
 					if bDebug then Debug.console("nSpeedMax = " .. tostring(nSpeedMax)) end
 				end
+			else
+				nSpeedMax = math.floor(nMaxMod);
+				if bDebug then Debug.console("nSpeedMax = " .. tostring(nSpeedMax)) end
 			end
 		end
-		if sSpeedType == "difficult" then
+		if sRemainder == "difficult" then
+			bRecognizedRmndr = true;
 			bDifficult = true;
 			if bDebug then Debug.console("bDifficult = true") end
 		end
-		if (sSpeedType == "half" or sSpeedType == "halved") then
+		if (sRemainder == "half" or sRemainder == "halved") then
+			bRecognizedRmndr = true;
 			nHalved = nHalved + 1;
 		end
-		if (sSpeedType == "double" or sSpeedType == "doubled") then
+		if (sRemainder == "double" or sRemainder == "doubled") then
+			bRecognizedRmndr = true;
 			nDoubled = nDoubled + 1;
 		end
-		if StringManager.startsWith(sSpeedType, 'type') then
-			local sRmndrRemainder = sSpeedType:gsub('^type%s*%(', '');
-			sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
-			if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
-			if StringManager.startsWith(sRmndrRemainder, '-') then
-				local sRemoveType = string.sub(sRmndrRemainder, 2)
-				local tCheckFGSpdTxtTable = tFGSpdTxt;
-				for k,v in pairs(tCheckFGSpdTxtTable) do
-					if v == sRemoveType then
-						table.remove(tFGSpdTxt, k)
-					end
-				end
+		if StringManager.startsWith(sRemainder, 'type') then
+			bRecognizedRmndr = true;
+			if not string.match(sRemainder, '%)$') then
+				Debug.console("WalkThisWay.speedCalculator - Syntax error. Try SPEED: type(fly)");
 			else
-				local bFound = false
-				if tFGSpdTxt[1] then
-					for _,v in ipairs(tFGSpdTxt) do
-						if v == sRmndrRemainder then
-							bFound = true
+				local sType = nil;
+				if nMod then
+					if nMod <= 0 then
+						Debug.console("WalkThisWay.speedCalculator - Syntax Error");
+					else
+						local sRmndrRemainder = sRemainder:gsub('^type%s*%(', '');
+						sType = sRmndrRemainder:gsub('%)$', '');
+						if bDebug then Debug.console("sType = " .. tostring(sType)) end
+						local nLoc;
+						local nCnt = 0;
+						for k,v in pairs(tFGSpdTxt) do
+							nCnt = k;
+							if v == sType then
+								nLoc = k;
+							end
+						end
+						if not nLoc then
+							table.insert(tFGSpdTxt, sType)
+							nLoc = nCnt + 1;
+						end
+						table.insert(tFGSpeedNew, nLoc, nMod)
+					end
+				else
+					if not sType then
+						local sRmndrRemainder = sRemainder:gsub('^type%s*%(', '');
+						sType = sRmndrRemainder:gsub('%s*%)$', '');
+						if bDebug then Debug.console("sType = " .. tostring(sType)) end
+					end
+					if string.match(sType, '^%-') then
+						local sRemoveType = string.sub(sType, 2)
+						if bDebug then Debug.console("sRemoveType = " .. tostring(sRemoveType)) end
+						local tCheckFGSpdTxtTable = tFGSpdTxt;
+						for k,v in pairs(tCheckFGSpdTxtTable) do
+							if v == sRemoveType then
+								table.remove(tFGSpdTxt, k)
+							end
+						end
+					else
+						if bDebug then Debug.console("no minus found in sType") end
+						local bFound = false
+						if tFGSpdTxt[1] then
+							for _,v in ipairs(tFGSpdTxt) do
+								if v == sType then
+									bFound = true
+								end
+							end
+						end
+						if not bFound then
+							table.insert(tFGSpdTxt, sType)
 						end
 					end
 				end
-				if not bFound then
-					table.insert(tFGSpdTxt, sRmndrRemainder)
+			end
+		end
+		if StringManager.startsWith(sRemainder, 'inc') then
+			bRecognizedRmndr = true;
+			if string.match(sRemainder, '%)$') then
+				if nMod then
+					Debug.console("WalkThisWay.speedCalculator - Syntax Error");
+				else
+					local sRmndrRemainder = sRemainder:gsub('^inc%s*%(', '');
+					sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
+					if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
+					local nSpeedInc = tonumber(sRmndrRemainder);
+					if not nSpeedInc then
+						Debug.console("WalkThisWay.speedCalculator - Syntax Error")
+					else
+						nSpeedMod = nSpeedMod + nSpeedInc;
+					end
 				end
-			end
-		end
-
---		for _,nSpdTypeValue in ipairs(tFGSpeed) do --still need to replace variables with nSpdTypeValue
-
-		if StringManager.startsWith(sSpeedType, 'inc') then
-			local sRmndrRemainder = sSpeedType:gsub('^inc%s*%(', '');
-			sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
-			if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
-			local nSpeedInc = tonumber(sRmndrRemainder);
-			if not nSpeedInc then
-				Debug.console("WalkThisWay.speedCalculator - Syntax Error")
 			else
-				nSpeedMod = nSpeedMod + nSpeedInc;
+				nSpeedMod = nSpeedMod + nMod;
+				nMod = nil;
 			end
 		end
-		if StringManager.startsWith(sSpeedType, 'dec') then
-			local sRmndrRemainder = sSpeedType:gsub('^dec%s*%(', '');
-			sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
-			if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
-			local nSpeedDec = tonumber(sRmndrRemainder);
-			if not nSpeedDec then
-				Debug.console("WalkThisWay.speedCalculator - Syntax Error")
+		if StringManager.startsWith(sRemainder, 'dec') then
+			bRecognizedRmndr = true;
+			if string.match(sRemainder, '%)$') then
+				if nMod then
+					Debug.console("WalkThisWay.speedCalculator - Syntax Error");
+				else
+					local sRmndrRemainder = sRemainder:gsub('^dec%s*%(', '');
+					sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
+					if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
+					local nSpeedInc = tonumber(sRmndrRemainder);
+					if not nSpeedInc then
+						Debug.console("WalkThisWay.speedCalculator - Syntax Error")
+					else
+						nSpeedMod = nSpeedMod - nSpeedInc;
+					end
+				end
 			else
-				nSpeedMod = nSpeedMod - nSpeedDec;
+				nSpeedMod = nSpeedMod - nMod;
+				nMod = nil;
 			end
 		end
-
---		end
+		if not bRecognizedRmndr and sRemainder ~= '' then
+			Debug.console("WalkThisWay.speedCalculator - Syntax Error")
+		end
+		if nMod then
+			local sNMod = tostring(nMod)
+			if string.match(sNMod, '^%-') then
+				if bDebug then Debug.console("dec detected") end
+				nSpeedMod = nSpeedMod + nMod;
+			else
+				if nRebaseCount > 0 then
+					if nFGSpeedNew < nFGSpeed then
+						if nFGSpeedNew > nMod then
+							nFGSpeedNew = nMod;
+						else
+							if nFGSpeedNew < nMod then
+								nFGSpeedNew = nMod;
+							end
+						end
+					end
+				else
+					nFGSpeedNew = nMod;
+				end
+				if bDebug then Debug.console("nFGSpeedNew = " .. tostring(nFGSpeedNew)) end
+				nRebaseCount = nRebaseCount + 1;
+			end
+		end
 	end
 
 	if bDebug then Debug.console("nFGSpeedNew = " .. tostring(nFGSpeedNew)) end
@@ -386,26 +432,26 @@ function accommKnownExtsSpeed(nodeCT)
 			nDoubled = nDoubled + 1
 		end
 		--encumbrance
-		if EffectManager5E.hasEffect(nodeCT, "Speed=5") or EffectManager5E.hasEffect(nodeCT, "Exceeds Maximum Carrying Capacity") then
+		if EffectManager5E.hasEffect(nodeCT, "Exceeds Maximum Carrying Capacity") then
 			nSpeedMax = 5;
 		end
-		if EffectManager5E.hasEffect(nodeCT, "Heavily Encumbered") or EffectManager5E.hasEffect(nodeCT, "Speed-20") then
+		if EffectManager5E.hasEffect(nodeCT, "Heavily Encumbered") then
 			nSpeedMod = nSpeedMod - 20;
 		else
-			if EffectManager5E.hasEffect(nodeCT, "Lightly Encumbered") or EffectManager5E.hasEffect(nodeCT, "Encumbered") or
-				EffectManager5E.hasEffect(nodeCT, "Speed-10")
-			then
+			if EffectManager5E.hasEffect(nodeCT, "Lightly Encumbered") or EffectManager5E.hasEffect(nodeCT, "Encumbered") then
 				nSpeedMod = nSpeedMod - 10;
 			end
 		end
 		--exhaustion (speed 0 & DEATH checks are in hasRoot)
-		if WtWCommon.hasEffectFindString(nodeCT, "Speed Halved", false, true, true) then
+		if WtWCommon.hasEffectFindString(nodeCT, "Exhausted; Speed Halved", false, false, true) then
 			nHalved = nHalved + 1;
 		end
-		local sExhaustStack = WtWCommon.hasEffectFindString(nodeCT, "Speed -", false, true, true, true);
+		local sExhaustStack = WtWCommon.hasEffectFindString(nodeCT, "Exhausted; Speed %-%d+ %(info only%)", false, false, false, true);
+		Debug.console("sExhaustStack = " .. tostring(sExhaustStack))
 		if sExhaustStack then
-			local sExhaustStack = sExhaustStack:gsub('^[Speed -]%d+', '');
-			sExhaustStack = sExhaustStack:gsub('^%d+', '');
+			local sExhaustStack = sExhaustStack:gsub('^Exhausted; Speed %-', '');
+			Debug.console("sExhaustStack = " .. tostring(sExhaustStack))
+			local sExhaustStack = sExhaustStack:gsub('%s*%(%s*info only%s*%)$', '');
 			Debug.console("sExhaustStack = " .. tostring(sExhaustStack))
 			local nExhaustSpd = tonumber(sExhaustStack);
 			if nExhaustSpd then
@@ -422,20 +468,20 @@ function accommKnownExtsSpeed(nodeCT)
 			nHalved = nHalved - nDoubled;
 		end
 		if nDoubled > 0 then
-			tReturn[nDoubled] = nDoubled
+			tReturn['nDoubled'] = nDoubled
 			bReturn = true
 		end
 	end
 	if nHalved > 0 then
-		tReturn[nHalved] = nHalved
+		tReturn['nHalved'] = nHalved
 		bReturn = true
 	end
 	if nSpeedMax then
-		tReturn[nSpeedMax] = nSpeedMax
+		tReturn['nSpeedMax'] = nSpeedMax
 		bReturn = true
 	end
 	if nSpeedMod ~= 0 then
-		tReturn[nSpeedMod] = nSpeedMod
+		tReturn['nSpeedMod'] = nSpeedMod
 		bReturn = true
 	end
 
@@ -467,7 +513,7 @@ function hasRoot(nodeCT)
 				return true
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Stunned") then
 				return true
-			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s-0", false, true, true) then
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:?%s*none", false, true) then
 				return true
 			else
 				return false
@@ -475,7 +521,7 @@ function hasRoot(nodeCT)
 		else
 			if EffectManager.hasCondition(nodeCT, "Unconscious") then
 				return true
-			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s-0", false, true, true) then
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:?%s*none", false, true) then
 				return true
 			else
 				return false
@@ -494,7 +540,9 @@ function hasRoot(nodeCT)
 			return true
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "DEATH") then
 			return true
-		elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s-0", false, true, true) then
+		elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:?%s*0", false, true) then
+			return true
+		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:?%s*none", false, true) then
 			return true
 		else
 			return false
