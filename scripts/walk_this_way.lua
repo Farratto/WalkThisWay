@@ -1,37 +1,21 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
---
--- luacheck: globals clientGetOption checkProne checkHideousLaughter hasEffectFindString removeEffectClause
--- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp removeEffectCaseInsensitive
--- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery proneWindow
--- luacheck: globals handleApplyHostCommands notifyApplyHostCommands getControllingClient getRootCommander
--- luacheck: globals setPQvalue delWTWdataChild checkBetterGoldPurity speedCalculator handleExhaustion
--- luacheck: globals handleItemTooHeavy addEffectWtW
 
--- OOB identifier for source local processing that supports commands that need host privilege to execute
-OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
+-- luacheck: globals clientGetOption checkProne checkHideousLaughter addEffectWtW speedCalculator setPQvalue
+-- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild proneWindow
+-- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery hasRoot
+-- luacheck: globals accommKnownExtsSpeed
+
 OOB_MSGTYPE_PRONEQUERY = "pronequery";
 OOB_MSGTYPE_CLOSEQUERY = "closequery";
-_sBetterGoldPurity = '' --luacheck: ignore 111
 
-local faddEffectOriginal;
-
--- Because OOB messages need everything broken apart into individual pieces this is the key variable used to do that.
--- Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua
-local aEffectVarMap = {
-	["sName"] = { sDBType = "string", sDBField = "label" },
-	["nGMOnly"] = { sDBType = "number", sDBField = "isgmonly" },
-	["sSource"] = { sDBType = "string", sDBField = "source_name", bClearOnUntargetedDrop = true },
-	["sTarget"] = { sDBType = "string", bClearOnUntargetedDrop = true },
-	["nDuration"] = { sDBType = "number", sDBField = "duration", vDBDefault = 1, sDisplay = "[D: %d]" },
-	["nInit"] = { sDBType = "number", sDBField = "init", sSourceChangeSet = "initresult", bClearOnUntargetedDrop = true },
-	["sApply"] = { sDBType = "string", sDBField = "apply", sDisplay = "[%s]"},
-	["sChangeState"] = { sDBType = "string", sDBField = "changestate" } -- added by Farratto
-};
+faddEffectOriginal = ''; --luacheck: ignore 111
 
 function onInit()
 -- DEFAULT BEHAVIORS FOR OPTIONS: sType = "option_entry_cycler", on|off, default = off
---Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client", Old 4th = ("option_label_" .. sKey)
+--Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client"
+	--Old 4th = ("option_label_" .. sKey)
+	OptionsManager.registerOptionData({	sKey = "AOSW", bLocal = true });
 	OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
 								   'option_entry_cycler', {
 		labels = 'option_val_off',
@@ -79,24 +63,19 @@ function onInit()
 		CombatManager.setCustomTurnStart(proneWindow);
 		CombatManager.setCustomTurnEnd(closeAllProneWindows);
 		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_PRONEQUERY, handleProneQueryClient);
-		-- Register OOB message for source local processing that supports commands that need host privilege to execute
-		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
 		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSEQUERY, handleCloseProneQuery);
 	end
-	faddEffectOriginal = EffectManager.addEffect;
-	EffectManager.addEffect = WalkThisWay.addEffectWtW;
+
+	faddEffectOriginal = EffectManager.addEffect; --luacheck: ignore 111
+	EffectManager.addEffect = addEffectWtW;
 
 	EffectManager.registerEffectCompType("SPEED", { bIgnoreTarget = true, bNoDUSE = true, bIgnoreOtherFilter = true, bIgnoreExpire = true });
 		--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE bIgnoreTarget
 		--continued: bSpell bOneShot bIgnoreExpire
-
-	if EffectManager5EBCE then
-		_sBetterGoldPurity = checkBetterGoldPurity() --luacheck: ignore 111
-	end
 end
 
 function onClose()
-	EffectManager.addEffect = faddEffectOriginal;
+	EffectManager.addEffect = faddEffectOriginal; --luacheck: ignore 113
 end
 
 function clientGetOption(sKey)
@@ -106,7 +85,7 @@ function clientGetOption(sKey)
 end
 
 function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg)
-	faddEffectOriginal(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg);
+	faddEffectOriginal(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg); --luacheck: ignore 113
 	local nNewSpeed = speedCalculator(nodeCT, true);
 	Debug.console("nNewSpeed = " .. tostring(nNewSpeed));
 	if nNewSpeed then
@@ -116,6 +95,7 @@ function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg)
 	end
 end
 
+--still needs to be called upon effect deletion
 -- luacheck: push ignore 561
 function speedCalculator(nodeCT, bDebug)
 	if not nodeCT then
@@ -123,56 +103,145 @@ function speedCalculator(nodeCT, bDebug)
 		return;
 	end
 	local rActor = ActorManager.resolveActor(nodeCT);
+
+	if hasRoot(nodeCT) then
+		return 'none';
+	end
+
 	if not rActor then
 		Debug.console("WalkThisWay.speedCalculator - not rActor");
 		return;
 	end
-	local nFGSpeed = DB.getValue(nodeCT, 'speed')
-	if not nFGSpeed then
-		Debug.console("WalkThisWay.speedCalculator - not nFGSpeed");
-		nFGSpeed = 30;
-	end
 
 	local tSpeedTypesNew = {};
-	local tSpeedEffects = EffectManager.getEffectsByType(rActor, 'SPEED');
+--	local tSpeedEffects = EffectManager.getEffectsByType(rActor, 'SPEED');
+--	local tSpeedEffects = EffectManager5E.getEffectsByType(rActor, 'SPEED', tRecognizedRmndrs);
+--	local tSpeedEffects = WtWCommon.moddedGetEffectsByType5E(rActor, 'FGOP');
+--	local tSpeedEffects = WtWCommon.moddedGetEffectsByType5E(rActor, 'OBSCURED');
+--	local tSpeedEffects = WtWCommon.moddedGetEffectsByTypeCore(rActor, 'SPEED');
+--	local tSpeedEffects = WtWCommon.hasEffectFindString(rActor, 'SPEED', false, true, false, true);
+	local tSpeedEffects = getEffectsByTypeWtW(rActor, 'SPEED');
+	if bDebug then Debug.console("tSpeedEffects = " .. tostring(tSpeedEffects)) end
 	local effect1 = tSpeedEffects[1];
 	if bDebug then Debug.console("effect1 = " .. tostring(effect1)) end
-	if not effect1 then
+	local nHalved = 0;
+	if WtWCommon.fhasCondition(rActor, "Prone") then
+		nHalved = nHalved + 1
+	end
+
+	if not effect1 and (nHalved == 0) then
 		if bDebug then Debug.console("not effect1") end
 		return;
 	end
-	if bDebug then Debug.console("tSpeedEffects = " .. tostring(tSpeedEffects)) end
+
+	local sFGSpeed = DB.getValue(nodeCT, 'speed')
+	if not sFGSpeed then
+		return;
+	end
+
+	local tFGSpeed = {};
+	local nFGSpeedCnt = 0
+	for nMatch in string.gmatch(sFGSpeed, '%d+') do
+		nFGSpeedCnt = nFGSpeedCnt + 1;
+		tFGSpeed[nFGSpeedCnt] = nMatch;
+	end
+	local nFGSpeed = tonumber(tFGSpeed[1]); --this will go away when I support multiple speeds
+	local nFGSpeedNew = nFGSpeed;
+	local tFGSpdTxt = {};
+	local nFGSpdTxtCnt = 0
+	for sMatch in string.gmatch(sFGSpeed, '%d+') do
+		nFGSpdTxtCnt = nFGSpdTxtCnt + 1;
+		tFGSpeed[nFGSpdTxtCnt] = sMatch;
+	end
+
+	local nSpeedMod = 0;
+	local nSpeedMax = nil;
+	local nDoubled = 0;
+	local tAccomSpeed = accommKnownExtsSpeed(nodeCT);
+	if tAccomSpeed then
+		if tAccomSpeed[nDoubled] then
+			nDoubled = nDoubled + tAccomSpeed[nDoubled]
+		end
+		if tAccomSpeed[nHalved] then
+			nHalved = nHalved + tAccomSpeed[nHalved]
+		end
+		if tAccomSpeed[nSpeedMax] then
+			nSpeedMax = tAccomSpeed[nSpeedMax]
+		end
+		if tAccomSpeed[nSpeedMod] then
+			nSpeedMod = nSpeedMod + tAccomSpeed[nSpeedMod]
+		end
+	end
+
+	local nRebaseCount = 0;
 	for _,rEffectComp in ipairs(tSpeedEffects) do
 		if bDebug then Debug.console("rEffectComp = " .. tostring(rEffectComp)) end
-		for _,v in ipairs(rEffectComp.remainder) do
+		if bDebug then Debug.console("rEffectComp.remainder(1) = " .. tostring(rEffectComp.remainder[1])) end
+		if bDebug then Debug.console("rEffectComp.dice(1) = " .. tostring(rEffectComp.dice[1])) end
+		if bDebug then Debug.console("rEffectComp.dice(2) = " .. tostring(rEffectComp.dice[2])) end
+		if bDebug then Debug.console("rEffectComp.mod = " .. tostring(rEffectComp.mod)) end
+		if rEffectComp.dice[1] then
+			Debug.console("WalkThisWay.speedCalculator - Syntax Error");
+			return;
+		end
+		for _,v in pairs(rEffectComp.remainder) do
 			if bDebug then Debug.console("v = " .. tostring(v)) end
-			local tSplitSpeedTypes = StringManager.split(v, ",", true);
-			if bDebug then Debug.console("tSplitSpeedTypes = " .. tostring(tSplitSpeedTypes)) end
-			for _,v2 in ipairs(tSplitSpeedTypes) do
+			local tSplitSpeedRmndrs = StringManager.split(v, ",", true);
+			if bDebug then Debug.console("tSplitSpeedRmndrs = " .. tostring(tSplitSpeedRmndrs)) end
+			for _,v2 in ipairs(tSplitSpeedRmndrs) do
 				if bDebug then Debug.console("v2 = " .. tostring(v2)) end
 				table.insert(tSpeedTypesNew, v2);
 			end
 		end
+		if rEffectComp.mod ~= 0 then
+			if rEffectComp.mod > 0 then
+				if tSpeedTypesNew[2] then
+					Debug.console("WalkThisWay.speedCalculator - Syntax Error");
+				elseif StringManager.startsWith(tSpeedTypesNew[1], 'type') then
+					local sRmndrRemainder = tSpeedTypesNew[1]:gsub('^type%s*%(', '');
+					sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
+					if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
+					local nLoc;
+					local nCnt = 0;
+					for k,v in tFGSpdTxt do
+						nCnt = k;
+						if v == sRmndrRemainder then
+							nLoc = k;
+						end
+					end
+					if not nLoc then
+						table.insert(tFGSpdTxt, sRmndrRemainder)
+						nLoc = nCnt + 1;
+					end
+				else
+					if nRebaseCount > 0 then
+						if nFGSpeedNew < nFGSpeed then
+							if nFGSpeedNew > rEffectComp.mod then
+								nFGSpeedNew = rEffectComp.mod;
+							else
+								if nFGSpeedNew < rEffectComp.mod then
+									nFGSpeedNew = rEffectComp.mod;
+								end
+							end
+						end
+					else
+						nFGSpeedNew = rEffectComp.mod;
+					end
+					if bDebug then Debug.console("nFGSpeedNew = " .. tostring(nFGSpeedNew)) end
+					nRebaseCount = nRebaseCount + 1;
+				end
+			else
+				if rEffectComp.mod < 0 then
+					table.insert(tSpeedTypesNew, 'dec(' .. tostring(rEffectComp.mod) .. ')');
+				end
+			end
+		end
 	end
 
-	local nSpeedMod = 0;
 	local bDifficult = false;
-	local nHalved = 0;
-	local nFGSpeedNew = nFGSpeed;
-	local nRebaseCount = 0;
-	local nSpeedMax;
 	for _,sSpeedType in ipairs(tSpeedTypesNew) do
 		sSpeedType = string.lower(sSpeedType);
 		if bDebug then Debug.console("sSpeedType = " .. tostring(sSpeedType)) end
-		local sInfoOnly = string.sub(sSpeedType, -11);
-		if bDebug then Debug.console("sInfoOnly = " .. tostring(sInfoOnly)) end
-		if sInfoOnly == '(info only)' then
-			sSpeedType = string.sub(sSpeedType, 1, -11);
-			if bDebug then Debug.console("sSpeedType = " .. tostring(sSpeedType)) end
-		end
-		if sSpeedType == "none" then
-			return '0';
-		end
 		if StringManager.startsWith(sSpeedType, 'max') then
 			local sRmndrRemainder = sSpeedType:gsub('^max%s*%(', '');
 			sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
@@ -190,90 +259,87 @@ function speedCalculator(nodeCT, bDebug)
 				end
 			end
 		end
-		if StringManager.startsWith(sSpeedType, 'rebase') then
-			local sRmndrRemainder = sSpeedType:gsub('^rebase%s*%(', '');
-			sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
-			if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
-			local nRmndrRemainder = tonumber(sRmndrRemainder);
-			if nRmndrRemainder then
-				if nRebaseCount > 0 then
-					if nFGSpeedNew < nFGSpeed then
-						if nFGSpeedNew > nRmndrRemainder then
-							nFGSpeedNew = nRmndrRemainder;
-						else
-							if nFGSpeedNew < nRmndrRemainder then
-								nFGSpeedNew = nRmndrRemainder;
-							end
-						end
-					end
-				else
-					nFGSpeedNew = nRmndrRemainder;
-				end
-				if bDebug then Debug.console("nFGSpeedNew = " .. tostring(nFGSpeedNew)) end
-			end
-			nRebaseCount = nRebaseCount + 1;
-		end
-		if (sSpeedType == "halfbase" or sSpeedType == "-halfbase") then
-			if bDebug then Debug.console("sSpeedType = halfbase") end
-			nSpeedMod = nSpeedMod - math.floor(nFGSpeed / 2);
-		end
-		if (sSpeedType == "half" or sSpeedType == "halved" or tonumber(sSpeedType) == 0.5) then
-			nHalved = nHalved + 1;
-		end
 		if sSpeedType == "difficult" then
 			bDifficult = true;
 			if bDebug then Debug.console("bDifficult = true") end
 		end
-		local sFirstChar = string.sub(sSpeedType, 1, 1);
-		if bDebug then Debug.console("sFirstChar = " .. tostring(sFirstChar)) end
-		local sSecondAndOn;
-		if not (sFirstChar == "+" or sFirstChar == "-") then
-			local nSpeedType = tonumber(sSpeedType);
-			if nSpeedType then
-				nFGSpeedNew = nSpeedType;
+		if (sSpeedType == "half" or sSpeedType == "halved") then
+			nHalved = nHalved + 1;
+		end
+		if (sSpeedType == "double" or sSpeedType == "doubled") then
+			nDoubled = nDoubled + 1;
+		end
+		if StringManager.startsWith(sSpeedType, 'type') then
+			local sRmndrRemainder = sSpeedType:gsub('^type%s*%(', '');
+			sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
+			if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
+			if StringManager.startsWith(sRmndrRemainder, '-') then
+				local sRemoveType = string.sub(sRmndrRemainder, 2)
+				local tCheckFGSpdTxtTable = tFGSpdTxt;
+				for k,v in pairs(tCheckFGSpdTxtTable) do
+					if v == sRemoveType then
+						table.remove(tFGSpdTxt, k)
+					end
+				end
 			else
-				if sSpeedType == "base" then
-					if sFirstChar == "+" then
-						nSpeedMod = nSpeedMod + nFGSpeed;
-					else
-						nSpeedMod = nSpeedMod - nFGSpeed;
+				local bFound = false
+				if tFGSpdTxt[1] then
+					for _,v in ipairs(tFGSpdTxt) do
+						if v == sRmndrRemainder then
+							bFound = true
+						end
 					end
 				end
-				if sSpeedType == "halfbase" then
-					if sFirstChar == "+" then
-						nSpeedMod = nSpeedMod + math.floor(nFGSpeed / 2);
-					end
-				end
-			end
-		else
-			sSecondAndOn = string.sub(sSpeedType, 2, #sSpeedType);
-			local nSecondAndOn = tonumber(sSecondAndOn);
-			if nSecondAndOn then
-				if sFirstChar == "+" then
-					nSpeedMod = nSpeedMod + nSecondAndOn;
-				else
-					nSpeedMod = nSpeedMod - nSecondAndOn;
+				if not bFound then
+					table.insert(tFGSpdTxt, sRmndrRemainder)
 				end
 			end
 		end
-	end
 
-	--accomidations for 5e auto encumbrance
-	if EffectManager5E.hasEffect(nodeCT, "Speed=5") or EffectManager5E.hasEffect(nodeCT, "Exceeds Maximum Carrying Capacity") then
-		nSpeedMax = 5;
-	end
-	if EffectManager5E.hasEffect(nodeCT, "Heavily Encumbered") or EffectManager5E.hasEffect(nodeCT, "Speed-20") then
-		nSpeedMod = nSpeedMod - 20;
-	end
-	if EffectManager5E.hasEffect(nodeCT, "Lightly Encumbered") or EffectManager5E.hasEffect(nodeCT, "Encumbered") or
-	EffectManager5E.hasEffect(nodeCT, "Speed-10") then
-		nSpeedMod = nSpeedMod - 10;
+--		for _,nSpdTypeValue in ipairs(tFGSpeed) do --still need to replace variables with nSpdTypeValue
+
+		if StringManager.startsWith(sSpeedType, 'inc') then
+			local sRmndrRemainder = sSpeedType:gsub('^inc%s*%(', '');
+			sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
+			if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
+			local nSpeedInc = tonumber(sRmndrRemainder);
+			if not nSpeedInc then
+				Debug.console("WalkThisWay.speedCalculator - Syntax Error")
+			else
+				nSpeedMod = nSpeedMod + nSpeedInc;
+			end
+		end
+		if StringManager.startsWith(sSpeedType, 'dec') then
+			local sRmndrRemainder = sSpeedType:gsub('^dec%s*%(', '');
+			sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
+			if bDebug then Debug.console("sRmndrRemainder = " .. tostring(sRmndrRemainder)) end
+			local nSpeedDec = tonumber(sRmndrRemainder);
+			if not nSpeedDec then
+				Debug.console("WalkThisWay.speedCalculator - Syntax Error")
+			else
+				nSpeedMod = nSpeedMod - nSpeedDec;
+			end
+		end
+
+--		end
 	end
 
 	if bDebug then Debug.console("nFGSpeedNew = " .. tostring(nFGSpeedNew)) end
 	if bDebug then Debug.console("nSpeedMod = " .. tostring(nSpeedMod)) end
 	local nSpeedFinal = nFGSpeedNew + nSpeedMod;
 	if bDebug then Debug.console("nSpeedFinal = " .. tostring(nSpeedFinal)) end
+	if nDoubled > 0 then
+		if nHalved > 0 then
+			if bDebug then Debug.console("nDoubled & nHalved") end
+			nDoubled = nDoubled - nHalved;
+			nHalved = nHalved - nDoubled;
+		end
+		while nDoubled > 0 do
+			if bDebug then Debug.console("nDoubled > 0") end
+			nSpeedFinal = nSpeedFinal * 2;
+			nDoubled = nDoubled - 1;
+		end
+	end
 	if nHalved > 0 then
 		while nHalved > 0 do
 			if bDebug then Debug.console("nHalved > 0") end
@@ -293,18 +359,151 @@ function speedCalculator(nodeCT, bDebug)
 			nSpeedFinal = nSpeedMax;
 		end
 	end
+
 	if not nSpeedFinal then
 		if bDebug then Debug.console("WalkThisWay.speedCalculator - nSpeedFinal is not a number") end
-		return '30';
+		return;
 	end
 	if nSpeedFinal < 0 then
-		return '0';
+		nSpeedFinal = 0;
 	end
-	return tostring(nSpeedFinal);
+	local sReturn = tostring(nSpeedFinal)
+	for _,sSpdTxt in ipairs(tFGSpdTxt) do
+		sReturn = sReturn .. ' ' .. sSpdTxt
+	end
+	return sReturn;
 end
 -- luacheck: pop
 
+function accommKnownExtsSpeed(nodeCT)
+	local nDoubled = 0;
+	local nHalved = 0;
+	local nSpeedMax;
+	local nSpeedMod = 0;
+	local tReturn = {}
+	if Session.RulesetName == "5E" then
+		if EffectManager5E.hasEffectCondition(nodeCT, 'Dash') then
+			nDoubled = nDoubled + 1
+		end
+		--encumbrance
+		if EffectManager5E.hasEffect(nodeCT, "Speed=5") or EffectManager5E.hasEffect(nodeCT, "Exceeds Maximum Carrying Capacity") then
+			nSpeedMax = 5;
+		end
+		if EffectManager5E.hasEffect(nodeCT, "Heavily Encumbered") or EffectManager5E.hasEffect(nodeCT, "Speed-20") then
+			nSpeedMod = nSpeedMod - 20;
+		else
+			if EffectManager5E.hasEffect(nodeCT, "Lightly Encumbered") or EffectManager5E.hasEffect(nodeCT, "Encumbered") or
+				EffectManager5E.hasEffect(nodeCT, "Speed-10")
+			then
+				nSpeedMod = nSpeedMod - 10;
+			end
+		end
+		--exhaustion (speed 0 & DEATH checks are in hasRoot)
+		if WtWCommon.hasEffectFindString(nodeCT, "Speed Halved", false, true, true) then
+			nHalved = nHalved + 1;
+		end
+		local sExhaustStack = WtWCommon.hasEffectFindString(nodeCT, "Speed -", false, true, true, true);
+		if sExhaustStack then
+			local sExhaustStack = sExhaustStack:gsub('^[Speed -]%d+', '');
+			sExhaustStack = sExhaustStack:gsub('^%d+', '');
+			Debug.console("sExhaustStack = " .. tostring(sExhaustStack))
+			local nExhaustSpd = tonumber(sExhaustStack);
+			if nExhaustSpd then
+				nSpeedMod = nSpeedMod - nExhaustSpd;
+			end
+		end
+	end
+
+	local bReturn = false
+	if nDoubled > 0 then
+		if nHalved > 0 then
+			--Debug.console("nDoubled & nHalved")
+			nDoubled = nDoubled - nHalved;
+			nHalved = nHalved - nDoubled;
+		end
+		if nDoubled > 0 then
+			tReturn[nDoubled] = nDoubled
+			bReturn = true
+		end
+	end
+	if nHalved > 0 then
+		tReturn[nHalved] = nHalved
+		bReturn = true
+	end
+	if nSpeedMax then
+		tReturn[nSpeedMax] = nSpeedMax
+		bReturn = true
+	end
+	if nSpeedMod ~= 0 then
+		tReturn[nSpeedMod] = nSpeedMod
+		bReturn = true
+	end
+
+	if bReturn then
+		return tReturn;
+	else
+		return;
+	end
+end
+
+function hasRoot(nodeCT)
+	if Session.RulesetName ~= "5E" then
+		if EffectManagerPFRPG2 then
+			if EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Unconscious") then
+				return true
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Dead") then
+				return true
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Paralyzed") then
+				return true
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Dying") then
+				return true
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Immobilized") then
+				return true
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Petrified") then
+				return true
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Restrained") then
+				return true
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Grabbed") then
+				return true
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Stunned") then
+				return true
+			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s-0", false, true, true) then
+				return true
+			else
+				return false
+			end
+		else
+			if EffectManager.hasCondition(nodeCT, "Unconscious") then
+				return true
+			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s-0", false, true, true) then
+				return true
+			else
+				return false
+			end
+		end
+	else
+		if EffectManager5E.hasEffectCondition(nodeCT, "Grappled") then
+			return true
+		elseif EffectManager5E.hasEffectCondition(nodeCT, "Paralyzed") then
+			return true
+		elseif EffectManager5E.hasEffectCondition(nodeCT, "Petrified") then
+			return true
+		elseif EffectManager5E.hasEffectCondition(nodeCT, "Restrained") then
+			return true
+		elseif EffectManager5E.hasEffectCondition(nodeCT, "Unconscious") then
+			return true
+		elseif EffectManager5E.hasEffectCondition(nodeCT, "DEATH") then
+			return true
+		elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s-0", false, true, true) then
+			return true
+		else
+			return false
+		end
+	end
+end
+
 --still needs to be called.	 check how rhagelstrom calls his
+--add option to turn off destroy
 function handleExhaustion(nodeCT)
 	--copied with slight mods from CombatManager2.onTurnStart.	don't know why it doesn't work
 	local nExhaustMod,_ = EffectManager5E.getEffectsBonus(nodeCT, { "EXHAUSTION" }, true);
@@ -315,11 +514,11 @@ function handleExhaustion(nodeCT)
 	if OptionsManager.isOption("GAVE", "2024") then
 		if nExhaustMod > 0 then
 			local nSpeedAdjust = nExhaustMod * 5;
-			EffectManager.addEffect("", "", nodeCT, { sName = "Exhausted; Speed: -" .. nSpeedAdjust }, bShowMsg);
+			EffectManager.addEffect("", "", nodeCT, { sName = "Exhausted; Speed: dec(" .. nSpeedAdjust .. ")" }, bShowMsg);
 		end
 	else
 		if nExhaustMod > 4 then
-			EffectManager.addEffect("", "", nodeCT, { sName = "Exhausted; Speed: 0, MAXHP: 0.5" }, bShowMsg);
+			EffectManager.addEffect("", "", nodeCT, { sName = "Exhausted; Speed: max(0), MAXHP: 0.5" }, bShowMsg);
 		elseif nExhaustMod > 3 then
 			EffectManager.addEffect("", "", nodeCT, { sName = "Exhausted; Speed: halved, MAXHP: 0.5" }, bShowMsg);
 		elseif nExhaustMod > 1 then
@@ -359,100 +558,57 @@ end
 		--<strength type="string">Str 13</strength>
 --end
 
-function checkBetterGoldPurity()
-	local tExtensions = Extension.getExtensions()
-	local sReturn
-	for _,sExtension in ipairs(tExtensions) do
-		if sExtension == 'BetterCombatEffects' then
-			sReturn = 'pyrite'
-		end
-		if sExtension == 'BetterCombatEffectsGold' then
-			sReturn = 'gold'
-		end
-	end
-	return sReturn
-end
-
-function checkProne(sourceNodeCT)
+function checkProne(nodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
 		return;
 	end
-	if not sourceNodeCT then
+	if not nodeCT then
 		return;
 	end
 
-	local rCurrent = ActorManager.resolveActor(sourceNodeCT);
-	local rSource = ActorManager.getCTNode(rCurrent);
+	--local rCurrent = ActorManager.resolveActor(nodeCT);
+	--local rSource = ActorManager.getCTNode(rCurrent);
 
 	if Session.RulesetName ~= "5E" then
 		if EffectManagerPFRPG2 then
-			if not EffectManagerPFRPG2.hasEffectCondition(rSource, "Prone") then
+			if not EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Prone") then
 				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Unconscious") then
+			elseif hasRoot(nodeCT) then
 				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Dead") then
+			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", false, true) then
 				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Paralyzed") then
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "NOSTAND") then
 				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Dying") then
+			else
+				return true
+			end
+		else
+			if not EffectManager.hasCondition(nodeCT, "Prone") then
 				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Immobilized") then
+			elseif hasRoot(nodeCT) then
 				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Petrified") then
+			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", false, true) then
 				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Restrained") then
-				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Grabbed") then
-				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "Stunned") then
-				return false
-			elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
-				return false
-			elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
-				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(rSource, "NOSTAND") then
+			elseif EffectManager.hasCondition(nodeCT, "NOSTAND") then
 				return false
 			else
 				return true
 			end
 		end
-		if not EffectManager.hasCondition(rSource, "Prone") then
+	else
+		if not EffectManager5E.hasEffectCondition(nodeCT, "Prone") then
 			return false
-		elseif EffectManager.hasCondition(rSource, "Unconscious") then
+			elseif hasRoot(nodeCT) then
+				return false
+		elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", false, true) then
 			return false
-		elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
+		elseif EffectManager5E.hasEffect(nodeCT, "NOSTAND") then
 			return false
-		elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
-			return false
-		elseif EffectManager.hasCondition(rSource, "NOSTAND") then
+		elseif checkHideousLaughter(nodeCT) then
 			return false
 		else
 			return true
 		end
-	end
-
-	if not EffectManager5E.hasEffectCondition(rSource, "Prone") then
-		return false
-	elseif EffectManager5E.hasEffectCondition(rSource, "Grappled") then
-		return false
-	elseif EffectManager5E.hasEffectCondition(rSource, "Paralyzed") then
-		return false
-	elseif EffectManager5E.hasEffectCondition(rSource, "Petrified") then
-		return false
-	elseif EffectManager5E.hasEffectCondition(rSource, "Restrained") then
-		return false
-	elseif EffectManager5E.hasEffectCondition(rSource, "Unconscious") then
-		return false
-	elseif hasEffectFindString(rSource, "SPEED%s-:%s-none") then
-		return false
-	elseif hasEffectFindString(rSource, "Unable to Stand", false, true) then
-		return false
-	elseif EffectManager5E.hasEffect(rSource, "NOSTAND") then
-		return false
-	elseif checkHideousLaughter(rSource) then
-		return false
-	else
-		return true
 	end
 end
 
@@ -487,23 +643,23 @@ function checkHideousLaughter(rActor)
 		-- whole clause
 		-- 5eAE with self concentration
 
-	if hasEffectFindString(rActor, sClause3, true) then
+	if WtWCommon.hasEffectFindString(rActor, sClause3, true) then
 		-- Debug.console("sClause3 found, returning true")
 		return true
 	end
 
-	if hasEffectFindString(rActor, sClause2, false, false, true) then
+	if WtWCommon.hasEffectFindString(rActor, sClause2, false, false, true) then
 		-- Debug.console("sClause2 found, returning true")
 		return true
 	end
 
-	local hasClause1 = hasEffectFindString(rActor, sClause1, true)
-	local hasClause5 = hasEffectFindString(rActor, sClause5, true)
+	local hasClause1 = WtWCommon.hasEffectFindString(rActor, sClause1, true)
+	local hasClause5 = WtWCommon.hasEffectFindString(rActor, sClause5, true)
 	if hasClause1 or hasClause5 then
 		bClauseExceptFound = true
 		nMatch = nMatch + 1
 		-- Debug.console("bClauseExceptFound & nMatch = " .. tostring(nMatch))
-	elseif hasEffectFindString(rActor, sClause, false, true) then
+	elseif WtWCommon.hasEffectFindString(rActor, sClause, false, true) then
 		nMatch = nMatch + 1
 		-- Debug.console("has sClause & nMatch = " .. tostring(nMatch))
 	end
@@ -521,246 +677,6 @@ function checkHideousLaughter(rActor)
 	-- Debug.console("All hideouslaughter checks failed - Default return false")
 	return false;
 end
-
--- luacheck: push ignore 561
-function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bStartsWith, bDebug)
-	-- defaults: case sensitive, not starts with, not whole match, & not debug
-	-- bWholeMatch, if true, overrides bStartsWith
-	-- Debug.console("hasEffectFindString called")
-	if not rActor or not sString then
-		Debug.console("WalkThisWay.hasEffectFindString - not rActor or not sString")
-		return
-	end
-	local aEffects;
-	local tEffectCompParams;
-	local sClause = sString
-
-	if bCaseInsensitive then
-		sClause = string.lower(sString)
-		if bDebug then Debug.console("sClause = " .. tostring(sClause)) end
-	end
-
-	if EffectManagerBCE then
-		tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
-		-- Debug.console("tEffectCompParams = " .. tostring(tEffectCompParams))
-	end
-	aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
-	-- Debug.console("aEffects = " .. tostring(aEffects))
-
-	-- Iterate through each effect
-	for _, v in pairs(aEffects) do
-		local nActive = DB.getValue(v, 'isactive', 0);
-		-- Debug.console("nActive = " .. tostring(nActive))
-		local bGo = false
-
-		if EffectManagerBCE then
-			local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
-				(not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
-				(tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
-			-- Debug.console("bActive = " .. tostring(bActive))
-
-			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
-			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
-			  (EffectManagerADND.isValidCheckEffect(rActor, v)))) then
-				bGo = true
-				-- Debug.console("EffectManagerADND results bGo = " .. tostring(bGo))
-			end
-		else
-			if nActive ~= 0 then
-				bGo = true
-				-- Debug.console("not EffectManagerBCE & bGo = " .. tostring(bGo))
-			end
-		end
-		if bDebug then Debug.console("bGo = " .. tostring(bGo)) end
-
-		if bGo then
-			local sLabel = DB.getValue(v, 'label', '');
-			local sFinalLabel = sLabel
-			if bCaseInsensitive then
-				sFinalLabel = string.lower(sLabel)
-				if bDebug then Debug.console("CaseInsensitive sFinalLabel = " .. tostring(sFinalLabel)) end
-			end
-			if bStartsWith and not bWholeMatch then
-				sFinalLabel = string.sub(sLabel, 1, #sString)
-				if bDebug then Debug.console("StartsWith sFinalLabel = " .. tostring(sFinalLabel)) end
-			end
-			if bDebug then Debug.console("sFinalLabel = " .. tostring(sFinalLabel)) end
-
-			-- Check for match
-			if bWholeMatch or bStartsWith then
-				if sFinalLabel == sClause then
-					if bDebug then Debug.console("wholeMatch or StartsWith found, returning true") end
-					return true
-				end
-				if bDebug then Debug.console("bWholeMatch but no match") end
-			else
-				if bDebug then Debug.console("sClause = " .. tostring(sClause)) end
-				local aFind = string.find(sFinalLabel, sClause)
-				if bDebug then Debug.console("aFind = " .. tostring(aFind)) end
-				if aFind then
-					if bDebug then Debug.console("partial match found, returning true") end
-					return true
-				end
-				if bDebug then Debug.console("not bWholeMatch but no match") end
-			end
-
-		end
-	end
-
-	if bDebug then Debug.console("All findstrings checks failed - Default return false") end
-	return false;
-end
--- luacheck: pop
-
--- luacheck: push ignore 561
-function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
-	if not rActor or not sClause then
-		return
-		Debug.console("WalkThisWay.removeEffectClause - not rActor or not sClause")
-	end
-
-	local sLowerClause = sClause:lower();
-	local aMatch = {};
-	local aEffects;
-	local tEffectCompParams;
-
-	if EffectManagerBCE then
-		tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
-	end
-	if TurboManager then
-		aEffects = TurboManager.getMatchedEffects(rActor, sClause);
-	else
-		aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
-	end
-	-- Debug.console("aEffects = " .. tostring(aEffects))
-
-	-- Iterate through each effect
-	for _, v in pairs(aEffects) do
-		local nActive = DB.getValue(v, 'isactive', 0);
-		-- Debug.console("nActive = " .. tostring(nActive))
-		local bGo = false
-		local bTargeted
-		local rConditionalHelper
-
-		if EffectManagerBCE then
-			rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
-			-- Debug.console("rConditionalHelper = " .. tostring(rConditionalHelper))
-
-			local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
-				(not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
-				(tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
-			-- Debug.console("bActive = " .. tostring(bActive))
-
-			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
-			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
-			  (EffectManagerADND.isValidCheckEffect(rActor, v) or (rTarget and EffectManagerADND.isValidCheckEffect(rTarget, v))))) then
-				bGo = true
-				rConditionalHelper.bTargeted = EffectManager.isTargetedEffect(v);
-				-- Debug.console("rConditionalHelper = " .. tostring(rConditionalHelper))
-			end
-		else
-			if nActive ~= 0 then
-				bGo = true
-				bTargeted = EffectManager.isTargetedEffect(v);
-			end
-		end
-		-- Debug.console("bGo = " .. tostring(bGo))
-		-- Debug.console("bTargeted = " .. tostring(bTargeted))
-
-		if bGo then
-			-- Parse each effect label
-			local sLabel = DB.getValue(v, 'label', '');
-			-- Debug.console("sLabel = " .. tostring(sLabel))
-			local aEffectComps = EffectManager.parseEffect(sLabel);
-			-- Debug.console("aEffectComps = " .. tostring(aEffectComps))
-
-			-- Iterate through each effect component looking for a type match
-			local nMatch = 0;
-			for kEffectComp, sEffectComp in ipairs(aEffectComps) do
-				local rEffectComp
-				if EffectManager5E then
-					rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
-				elseif EffectManagerPFRPG2 then
-					rEffectComp = EffectManagerPFRPG2.parseEffectComp(sEffectComp);
-				else
-					rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
-				end
-				-- Debug.console("rEffectComp = " .. tostring(rEffectComp))
-				-- Handle conditionals
-				if _sBetterGoldPurity == 'gold' then --luacheck: ignore 113
-					EffectManager5EBCE.processConditional(rActor, rTarget, v, rEffectComp, rConditionalHelper);
-					-- Check for match
-					if rConditionalHelper.bProcessEffect and rEffectComp.original:lower() == sLowerClause then
-						if rConditionalHelper.bTargeted and not bIgnoreEffectTargets then
-							if EffectManager.isEffectTarget(v, rTarget) then
-								nMatch = kEffectComp;
-							end
-						elseif not bTargetedOnly then
-							nMatch = kEffectComp;
-						end
-					end
-				else
-					if EffectManager5E then
-						-- Handle conditionals
-						if rEffectComp.type == "IF" then
-							if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
-								break;
-							end
-						elseif rEffectComp.type == "IFT" then
-							if not rTarget then
-								break;
-							end
-							if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
-								break;
-							end
-						end
-					end
-					-- Check for match
-					if rEffectComp.original:lower() == sLowerClause then
-						if bTargeted and not bIgnoreEffectTargets then
-							if EffectManager.isEffectTarget(v, rTarget) then
-								nMatch = kEffectComp;
-							end
-						elseif not bTargetedOnly then
-							nMatch = kEffectComp;
-						end
-					end
-				end
-				-- Debug.console("nMatch = " .. tostring(nMatch))
-			end
-
-			-- If matched, then remove Clause
-			if nMatch > 0 then
-				-- Debug.console("nActive = " .. tostring(nActive))
-				if nActive == 2 then
-					DB.setValue(v, 'isactive', 'number', 1);
-				else
-					table.insert(aMatch, v);
-					-- Debug.console("aMatch = " .. tostring(aMatch))
-					if Session.IsHost then
-						local nodeEffect = v
-						local nodeActor = DB.getChild(nodeEffect, "...");
-						if not nodeActor then
-							ChatManager.SystemMessage(Interface.getString("ct_error_effectmissingactor") .. " ( ... )");
-							return;
-						end
-						EffectManager.expireEffect(nodeActor, nodeEffect, tonumber(nMatch) or 0);
-					else
-						EffectManager.notifyExpire(v, nMatch, true);
-					end
-				end
-			end
-		end
-	end
-
-	if #aMatch > 0 then
-		-- Debug.console("return true")
-		return true;
-	end
-	-- Debug.console("return false")
-	return false;
-end
--- luacheck: pop
 
 function setPQvalue(sName)
 	local nodeWTW = DB.createNode('WalkThisWay');
@@ -795,17 +711,18 @@ function proneWindow(sourceNodeCT)
 	end
 
 	local rSource = ActorManager.resolveActor(sourceNodeCT);
-	local sOwner = getControllingClient(sourceNodeCT);
+	local sOwner = WtWCommon.getControllingClient(sourceNodeCT);
 
-	--here temporarily
-	local nodeCTWtW = DB.createChild(sourceNodeCT, 'WalkThisWay');
-	DB.setValue(nodeCTWtW, 'actorname', 'string', tostring(rSource.sName));
-	local sCurrentSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
-	if not sCurrentSpeed then
-		local nFGSpeed = DB.getValue(sourceNodeCT, 'speed');
-		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nFGSpeed));
+	if OptionsManager.isOption('AOSW', 'on') then
+		local nodeCTWtW = DB.createChild(sourceNodeCT, 'WalkThisWay');
+		DB.setValue(nodeCTWtW, 'actorname', 'string', tostring(rSource.sName));
+		local sCurrentSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
+		if not sCurrentSpeed then
+			local nFGSpeed = DB.getValue(sourceNodeCT, 'speed');
+			DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nFGSpeed));
+		end
+		Interface.openWindow('speed_window', nodeCTWtW)
 	end
-	Interface.openWindow('speed_window', nodeCTWtW)
 
 	if not checkProne(rSource) then
 		return;
@@ -824,7 +741,7 @@ end
 
 function closeAllProneWindows(sourceNodeCT)
 	closeProneWindow();
-	if getControllingClient(sourceNodeCT) then
+	if WtWCommon.getControllingClient(sourceNodeCT) then
 		sendCloseWindowCmd(sourceNodeCT)
 	end
 end
@@ -868,44 +785,49 @@ function standUp()
 		return;
 	end
 	local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
-	local rSource = ActorManager.getCTNode(rCurrent)
+	local rSource = ActorManager.getCTNode(rCurrent);
+	local sFGSpeed = DB.getValue(rSource, 'speed');
+
+	local tFGSpeed = {};
+	local nFGSpeedCnt = 0
+	for nMatch in string.gmatch(sFGSpeed, '%d+') do
+		nFGSpeedCnt = nFGSpeedCnt + 1;
+		tFGSpeed[nFGSpeedCnt] = nMatch;
+	end
+	local nFGSpeed;
+	local nHalfBase;
+	if not sFGSpeed or (nFGSpeedCnt > 1) then
+		nHalfBase = 'halfbase';
+	else
+		nFGSpeed = tonumber(tFGSpeed[1]);
+		nHalfBase = math.floor(nFGSpeed / 2);
+	end
+	local sStoodUp = 'Stood Up; SPEED: change(-' .. tostring(nHalfBase) .. ')';
 
 	if not OptionsManager.isOption('WHOLEEFFECT', 'on') then
-		removeEffectClause(rSource, "Prone")
+		WtWCommon.removeEffectClause(rSource, "Prone");
 	end
 	if Session.IsHost then
 		if OptionsManager.isOption('WHOLEEFFECT', 'on') then
-			removeEffectCaseInsensitive(rSource, "Prone");
+			WtWCommon.removeEffectCaseInsensitive(rSource, "Prone");
 		end
 		if Session.RulesetName == "5E" then
 			EffectManager.addEffect("", "", rSource, {
-				sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
-			}, "");
+				sName = sStoodUp, nDuration = 1, sChangeState = "rts" }, "");
+		else
+			EffectManager.addEffect("", "", rSource, {
+				sName = 'Stood Up', nDuration = 1 }, "");
 		end
 	else
 		if OptionsManager.isOption('WHOLEEFFECT', 'on') then
-			notifyApplyHostCommands(rSource, 1, "Prone");
+			WtWCommon.notifyApplyHostCommands(rSource, 1, "Prone");
 		end
 		if Session.RulesetName == "5E" then
-			notifyApplyHostCommands(rSource, 0, {
-				sName = Interface.getString("stood_up"), nDuration = 1, sChangeState = "rts"
-			});
-		end
-	end
-end
-
-function removeEffectCaseInsensitive(nodeCTEntry, sEffPatternToRemove)
-	if not nodeCTEntry or ((sEffPatternToRemove or "") == "") then
-		return;
-	end
-
-	local sLEffPatternToRemove = string.lower(sEffPatternToRemove)
-
-	for _,nodeEffect in ipairs(DB.getChildList(nodeCTEntry, "effects")) do
-		local sLgetValue = string.lower(DB.getValue(nodeEffect, "label", ""))
-		if sLgetValue:match(sLEffPatternToRemove) then
-			DB.deleteNode(nodeEffect);
-			return;
+			WtWCommon.notifyApplyHostCommands(rSource, 0, {
+				sName = sStoodUp, nDuration = 1, sChangeState = "rts" });
+		else
+			WtWCommon.notifyApplyHostCommands(rSource, 0, {
+				sName = 'Stood Up', nDuration = 1, sChangeState = "rts" });
 		end
 	end
 end
@@ -914,7 +836,7 @@ function queryClient(nodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
 		return;
 	end
-	local sOwner = getControllingClient(nodeCT);
+	local sOwner = WtWCommon.getControllingClient(nodeCT);
 	local rSource = ActorManager.resolveActor(nodeCT);
 
 	if sOwner then
@@ -931,7 +853,7 @@ function queryClient(nodeCT)
 end
 
 function sendCloseWindowCmd(nodeCT)
-	local sOwner = getControllingClient(nodeCT);
+	local sOwner = WtWCommon.getControllingClient(nodeCT);
 
 	if sOwner then
 		local msgOOB = {};
@@ -951,163 +873,4 @@ function handleProneQueryClient(msgOOB) -- luacheck: ignore 212
 end
 function handleCloseProneQuery(msgOOB) -- luacheck: ignore 212
 	closeProneWindow()
-end
-
--- OOB message triggered command to do anything we need to execute at the host for the first source die rolls
-	-- (which are run locally).
--- msgOOB.type
---		OOB_MSGTYPE_APPLYHGACMDS
--- msgOOB.sNodeCT - combat tracker entry to have the iAction applied - ex. combattracker.list.id-00010
--- msgOOB.iAction
---		0 - EffectManager.addEffect - add an effect
-	-- (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
---				 msgOOB[*] type,value - list of aEffectVarMap effects to add
---		1 - EffectManager.removeEffect
---				msgOOB.sEffect - text of effect to remove
-function handleApplyHostCommands(msgOOB)
-	-- Debug.console("manager_combat_wtw:handleApplyHostCommands called");
-	-- Debug.console("manager_combat_wtw:handleApplyHostCommands; msgOOB = "
-	--	 .. tostring(msgOOB.type) .. "," .. tostring(msgOOB.iAction) .. "," .. tostring(msgOOB.sNodeCT)
-	-- );
-
-	-- get the combat tracker reference - ex. userdata for combattracker.list.id-00010
-	local rNodeCT = DB.findNode(msgOOB.sNodeCT);
-	--Debug.console(msgOOB.iAction .. " and " .. tostring(rNodeCT));
-
-	-- OOB messages basically turn everything into text even when they are entered as numeric
-		-- this is translating it back to a number
-	local iAction = tonumber(msgOOB.iAction);
-
-	-- Requesting the add effect action on host
-	if iAction == 0 then
-		-- add an effect (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
-		local rEffect = {};
-		for k,_ in pairs(msgOOB) do
-			--Debug.console("manager_combat_wtw:handleApplyHostCommands; type = " .. tostring(k) .. ", value = " .. tostring(v));
-			if aEffectVarMap[k] then
-				if aEffectVarMap[k].sDBType == "number" then
-					rEffect[k] = tonumber(msgOOB[k]) or 0;
-				else
-					rEffect[k] = msgOOB[k];
-				end
-			end
-		end
-		EffectManager.addEffect("", "", rNodeCT, rEffect, true);
-
-	-- Requesting the remove effect action on host
-	elseif iAction == 1 then
-		-- remove an effect
-		-- EffectManager.removeEffect(rNodeCT, msgOOB.sEffect);
-		removeEffectCaseInsensitive(rNodeCT, msgOOB.sEffect);
-	else
-		ChatManager.SystemMessage("[ERROR] manager_combat_wtw:handleApplyHostCommands; Unsupported iAction("
-			.. tostring(iAction) .. ")"
-		);
-		--Debug.console("manager_combat_wtw:handleApplyHostCommands; Unsupported iAction(" .. tostring(iAction) .. ")");
-	end
-end
-
--- function used to generate OOB message to process generic action commands on the Host
--- (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
-	-- nodeCT - combat tracker entry to have the iAction applied - ex. combattracker.list.id-00010
-	-- iAction
-	--		0 - EffectManager.addEffect - add an effect
-				-- (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
-	--				 rValues type,value - list of aEffectVarMap effects to add
-	--		1 - EffectManager.removeEffect
-	--				 rValue string - text of effect to remove
-function notifyApplyHostCommands(nodeCT, iAction, rValues)
-	--Debug.console("manager_generic_actions:notifyApplyHostCommands called");
-
-	local msgOOB = {};
-	-- msgOOB.type
-	--		OOB_MSGTYPE_APPLYHGACMDS
-	-- msgOOB.sNodeCT - combat tracker entry to have the iAction applied - ex. combattracker.list.id-00010
-	-- msgOOB.iAction
-	--		0 - EffectManager.addEffect - add an effect
-				-- (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
-	--				 msgOOB[*] type,value - list of aEffectVarMap effects to add
-	--		1 - EffectManager.removeEffect
-	--				msgOOB.sEffect - text of effect to remove
-	msgOOB.type = OOB_MSGTYPE_APPLYHCMDS;
-
-	msgOOB.iAction = iAction;
-	msgOOB.sNodeCT = DB.getPath(nodeCT);
-	-- Debug.console("manager_combat_wtw:notifyApplyHostCommands; msgOOB = "
-	--	 .. tostring(msgOOB.type) .. "," .. tostring(msgOOB.iAction) .. "," .. tostring(msgOOB.sNodeCT)
-	-- );
-	if msgOOB.iAction == 0 then
-		for k,_ in pairs(rValues) do
-			--Debug.console("manager_combat_wtw:notifyApplyHostCommands; type = " .. tostring(k) .. ", value = " .. tostring(v));
-			if aEffectVarMap[k] then
-				if aEffectVarMap[k].sDBType == "number" then
-					msgOOB[k] = rValues[k] or aEffectVarMap[k].vDBDefault or 0;
-				else
-					msgOOB[k] = rValues[k] or aEffectVarMap[k].vDBDefault or "";
-				end
-			end
-		end
-	elseif msgOOB.iAction == 1 then
-		msgOOB.sEffect = rValues;
-	end
-	-- deliver message to the host for processing on it (can't do a lot of updates to DB from clients)
-	Comm.deliverOOBMessage(msgOOB, "");
-end
-
----For a given cohort actor, determine the root character node that owns it
-function getRootCommander(rActor)
-	if not rActor then
-		Debug.console("WalkThisWay.getRootCommander - rActor doesn't exist")
-		return
-	end
-	local sRecord = ActorManager.getCreatureNodeName(rActor);
-	local sRecordSansModule = StringManager.split(sRecord, "@")[1];
-	local aRecordPathSansModule = StringManager.split(sRecordSansModule, ".");
-	if aRecordPathSansModule[1] and aRecordPathSansModule[2] then
-		return aRecordPathSansModule[1] .. "." .. aRecordPathSansModule[2];
-	end
-	return nil;
-end
-
---Returns nil for inactive identities and those owned by the GM
-function getControllingClient(nodeCT)
-	if not nodeCT then
-		Debug.console("WalkThisWay.getControllingClient - nodeCT doesn't exist")
-		return
-	end
-	local sPCNode = nil;
-	local rActor = ActorManager.resolveActor(nodeCT);
-	local sNPCowner
-	if ActorManager.isPC(rActor) then
-		sPCNode = ActorManager.getCreatureNodeName(rActor);
-	else
-		sNPCowner = DB.getValue(nodeCT, "NPCowner", "");
-		if sNPCowner == "" then
-			if Pets and Pets.isCohort(rActor) then
-				sPCNode = getRootCommander(rActor);
-			else
-				if FriendZone and FriendZone.isCohort(rActor) then
-					sPCNode = getRootCommander(rActor);
-				end
-			end
-		end
-	end
-
-	if sPCNode or sNPCowner then
-		for _, value in pairs(User.getAllActiveIdentities()) do
-			if sPCNode then
-				if "charsheet." .. value == sPCNode then
-					return User.getIdentityOwner(value)
-					--return DB.getOwner(sPCNode);
-				end
-			end
-			if sNPCowner then
-				local sIDOwner = User.getIdentityOwner(value)
-				if sIDOwner == sNPCowner then
-					return sIDOwner
-				end
-			end
-		end
-	end
-	return nil;
 end

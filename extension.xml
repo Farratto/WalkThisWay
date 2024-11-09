@@ -16,6 +16,7 @@
 		<includefile source="strings.xml" />
 		<includefile source="campaign/query.xml" />
 		<includefile source="campaign/speed.xml" />
+		<script name="WtWCommon" file="scripts/common_wtw.lua" />
 		<script name="WalkThisWay" file="scripts/walk_this_way.lua" />
 		<icon name="WtW_icon" file="shoe.png" />
 		<script name="PowerUpWtW">
