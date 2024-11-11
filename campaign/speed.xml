@@ -30,7 +30,6 @@
 			<resize_utilitybox />
 		</sheetdata>
 	</windowclass>
-
 	<windowclass name="speed_window_content">
 		<sheetdata>
 			<anchor_content_top />
@@ -44,6 +43,43 @@
 			<string_content_noframe_static_top name="currentSpeed">
 				<center />
 			</string_content_noframe_static_top>
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="ct_section_active" merge="join">
+		<sheetdata>
+			<string_ct name="speed" merge="delete" />
+			<string_ct name="WalkThisWay.currentSpeed">
+				<anchored to="speedlabel" position="righthigh" offset="5,0" height="20">
+<!--					<right parent="anchor_section" offset="-15" /> -->
+					<right parent="anchor_section" />
+				</anchored>
+				<script>
+					function onDoubleClick()
+						local nodeW = window.getDatabaseNode();
+						WalkThisWay.openSpeedWindow(nodeW)
+					end
+				</script>
+				<readonly />
+			</string_ct>
+		</sheetdata>
+	</windowclass>
+	<windowclass name="ct_section_active_npc" merge="join">
+		<sheetdata>
+			<string_ct name="speed" merge="delete" />
+			<string_ct name="WalkThisWay.currentSpeed">
+				<anchored to="speedlabel" position="righthigh" offset="5,0" height="20">
+<!--					<right parent="anchor_section" offset="-15" /> -->
+					<right parent="anchor_section" />
+				</anchored>
+				<script>
+					function onDoubleClick()
+						local nodeW = window.getDatabaseNode();
+						WalkThisWay.openSpeedWindow(nodeW)
+					end
+				</script>
+				<readonly />
+			</string_ct>
 		</sheetdata>
 	</windowclass>
 </root>

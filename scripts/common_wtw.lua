@@ -62,7 +62,7 @@ function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bSt
 	-- bWholeMatch, if true, overrides bStartsWith
 	-- Debug.console("hasEffectFindString called");
 	if not rActor or not sString then
-		Debug.console("WalkThisWay.hasEffectFindString - not rActor or not sString");
+		Debug.console("WtWCommon.hasEffectFindString - not rActor or not sString");
 		return;
 	end
 	local aEffects;
@@ -158,7 +158,7 @@ end
 function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
 	if not rActor or not sClause then
 		return
-		Debug.console("WalkThisWay.removeEffectClause - not rActor or not sClause")
+		Debug.console("WtWCommon.removeEffectClause - not rActor or not sClause")
 	end
 
 	local sLowerClause = sClause:lower();
@@ -371,7 +371,7 @@ end
 ---For a given cohort actor, determine the root character node that owns it
 function getRootCommander(rActor)
 	if not rActor then
-		Debug.console("WalkThisWay.getRootCommander - rActor doesn't exist")
+		Debug.console("WtWCommon.getRootCommander - rActor doesn't exist")
 		return
 	end
 	local sRecord = ActorManager.getCreatureNodeName(rActor);
@@ -386,7 +386,7 @@ end
 --Returns nil for inactive identities and those owned by the GM
 function getControllingClient(nodeCT)
 	if not nodeCT then
-		Debug.console("WalkThisWay.getControllingClient - nodeCT doesn't exist")
+		Debug.console("WtWCommon.getControllingClient - nodeCT doesn't exist")
 		return
 	end
 	local sPCNode = nil;
@@ -442,6 +442,7 @@ function removeEffectCaseInsensitive(nodeCTEntry, sEffPatternToRemove)
 	end
 end
 
+--note: if using caseInsensitivity, use all uppercase for literal character matches.
 function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTargetedOnly, bCaseSensitive) --luacheck: ignore 212
 	if not rActor then
 		return;
@@ -481,16 +482,15 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 					if rConditionalHelper.bProcessEffect then
 						local comp_match = false;
 						-- Check for match
-						local sStartsWith = string.sub(sEffectComp, 1, #sEffectType);
-						local sStartsWith = sStartsWith .. ':'
+						local sEffectCompUpper = string.upper(tostring(sEffectComp));
 
 						local bPrelimMatch;
 						if bCaseSensitive then
-							if sStartsWith == sEffectType then
+							if string.match(sEffectComp, '^' .. sEffectType) then
 								bPrelimMatch = true;
 							end
 						else
-							if string.lower(sStartsWith) == string.lower(sEffectType) then
+							if string.match(sEffectCompUpper, '^' .. sEffectType) then
 								bPrelimMatch = true;
 							end
 						end

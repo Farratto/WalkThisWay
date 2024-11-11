@@ -4,7 +4,7 @@
 -- luacheck: globals clientGetOption checkProne checkHideousLaughter addEffectWtW speedCalculator setPQvalue
 -- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild proneWindow
 -- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery hasRoot
--- luacheck: globals accommKnownExtsSpeed
+-- luacheck: globals accommKnownExtsSpeed deleteEffectSpeedCalc openSpeedWindow
 
 OOB_MSGTYPE_PRONEQUERY = "pronequery";
 OOB_MSGTYPE_CLOSEQUERY = "closequery";
@@ -72,10 +72,33 @@ function onInit()
 	EffectManager.registerEffectCompType("SPEED", { bIgnoreTarget = true, bNoDUSE = true, bIgnoreOtherFilter = true, bIgnoreExpire = true });
 		--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE bIgnoreTarget
 		--continued: bSpell bOneShot bIgnoreExpire
+
+    if Session.IsHost then
+        --DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', modSourceTurnHandler);
+			--might need this.  try it later.  don't forget to uncomment in close as well.
+        DB.addHandler('combattracker.list.*.effects.*.label', 'onDelete', deleteEffectSpeedCalc);
+    end
 end
 
 function onClose()
 	EffectManager.addEffect = faddEffectOriginal; --luacheck: ignore 113
+
+    if Session.IsHost then
+        --DB.removeHandler('combattracker.list.*.effects.*.label', 'onUpdate', modSourceTurnHandler);
+        DB.removeHandler('combattracker.list.*.effects.*.label', 'onDelete', deleteEffectSpeedCalc);
+    end
+
+end
+
+function deleteEffectSpeedCalc(nodeEffectLabel)
+    local nodeEffect = DB.getParent(nodeEffectLabel);
+    local nodeCT = DB.getChild(nodeEffect, '...');
+	local nNewSpeed = speedCalculator(nodeCT, true);
+	Debug.console("nNewSpeed = " .. tostring(nNewSpeed));
+	if nNewSpeed then
+		local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nNewSpeed));
+	end
 end
 
 function clientGetOption(sKey)
@@ -89,7 +112,6 @@ function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg)
 	local nNewSpeed = speedCalculator(nodeCT, true);
 	Debug.console("nNewSpeed = " .. tostring(nNewSpeed));
 	if nNewSpeed then
-		--DB.setValue(nodeCT, 'speed', 'string', tostring(nNewSpeed));
 		local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nNewSpeed));
 	end
@@ -107,15 +129,16 @@ function speedCalculator(nodeCT, bDebug)
 	if hasRoot(nodeCT) then
 		if bDebug then Debug.console("root found") end
 		return 'none';
+	else
+		if bDebug then Debug.console("no root found") end
 	end
-	if bDebug then Debug.console("no root found") end
 
 	if not rActor then
 		Debug.console("WalkThisWay.speedCalculator - not rActor");
 		return;
 	end
 
-	local tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED');
+	local tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
 	if bDebug then Debug.console("tSpeedEffects[1] = " .. tostring(tSpeedEffects[1])) end
 	local nHalved = 0;
 	if WtWCommon.fhasCondition(rActor, "Prone") then
@@ -128,21 +151,24 @@ function speedCalculator(nodeCT, bDebug)
 		return;
 	end
 
+	--40 ft., Climb 40 ft. (Demon only); Fly 60 ft. (Devil only)
+	--0 ft., Fly 40 ft. (hover)
+	local nFGSpdDCnt = 0;
 	local tFGSpeed = {};
-	local nFGSpeedCnt = 0
-	for nMatch in string.gmatch(sFGSpeed, '%d+') do
-		nFGSpeedCnt = nFGSpeedCnt + 1;
-		tFGSpeed[nFGSpeedCnt] = nMatch;
+	for sDMatch in string.gmatch(sFGSpeed, '%d+') do
+		nFGSpdDCnt = nFGSpdDCnt + 1;
+		local tSpeedRcrd = {}
+		tSpeedRcrd['velocity'] = sDMatch;
+		tFGSpeed[nFGSpdDCnt] = tSpeedRcrd;
 	end
-	local nFGSpeed = tonumber(tFGSpeed[1]); --this will go away when I support multiple speeds
-	local nFGSpeedNew = nFGSpeed;
-	local tFGSpeedNew = {};
-	local tFGSpdTxt = {};
-	local nFGSpdTxtCnt = 0
-	for sMatch in string.gmatch(sFGSpeed, '%d+') do
-		nFGSpdTxtCnt = nFGSpdTxtCnt + 1;
-		tFGSpeed[nFGSpdTxtCnt] = sMatch;
+	local nFGSpdTCnt = 0;
+	for sTMatch in string.gmatch(sFGSpeed, '%a+') do
+		nFGSpdTCnt = nFGSpdTCnt + 1;
+		local tSpeedRcrd = {}
+		tSpeedRcrd['type'] = sTMatch;
+		tFGSpeed[nFGSpdTCnt] = tSpeedRcrd;
 	end
+	local tFGSpeedNew = tFGSpeed
 
 	local nSpeedMod = 0;
 	local nSpeedMax = nil;
@@ -171,8 +197,8 @@ function speedCalculator(nodeCT, bDebug)
 		if bDebug then Debug.console("accomodations not detected") end
 	end
 
-	local nRebaseCount = 0;
 	local bDifficult = false;
+	local tRebase = {};
 	for _,v in ipairs(tSpeedEffects) do
 		local sRemainder;
 		local bRecognizedRmndr = false;
@@ -254,19 +280,21 @@ function speedCalculator(nodeCT, bDebug)
 						local sRmndrRemainder = sRemainder:gsub('^type%s*%(', '');
 						sType = sRmndrRemainder:gsub('%)$', '');
 						if bDebug then Debug.console("sType = " .. tostring(sType)) end
-						local nLoc;
-						local nCnt = 0;
-						for k,v in pairs(tFGSpdTxt) do
-							nCnt = k;
-							if v == sType then
-								nLoc = k;
+						local sTypeLower = string.lower(sType);
+						local bFound = false;
+						for _,v in ipairs(tFGSpeedNew) do
+							local vTypeLower = string.lower(v.type);
+							if vTypeLower == sTypeLower then
+								v.velocity = nMod;
+								bFound = true;
 							end
 						end
-						if not nLoc then
-							table.insert(tFGSpdTxt, sType)
-							nLoc = nCnt + 1;
+						if not bFound then
+							local tSpdRcrd = {};
+							tSpdRcrd['type'] = sType;
+							tSpdRcrd['velocity'] = nMod;
+							table.insert(tFGSpeedNew, tSpdRcrd);
 						end
-						table.insert(tFGSpeedNew, nLoc, nMod)
 					end
 				else
 					if not sType then
@@ -277,24 +305,28 @@ function speedCalculator(nodeCT, bDebug)
 					if string.match(sType, '^%-') then
 						local sRemoveType = string.sub(sType, 2)
 						if bDebug then Debug.console("sRemoveType = " .. tostring(sRemoveType)) end
-						local tCheckFGSpdTxtTable = tFGSpdTxt;
-						for k,v in pairs(tCheckFGSpdTxtTable) do
-							if v == sRemoveType then
-								table.remove(tFGSpdTxt, k)
+						local sRemoveTypeLower = string.lower(sRemoveType);
+						local tCheckFGSpdTable = tFGSpeedNew;
+						for k,v in ipairs(tCheckFGSpdTable) do
+							local vTypeLower = string.lower(v.type);
+							if vTypeLower == sRemoveTypeLower then
+								table.remove(tFGSpeedNew, k)
 							end
 						end
 					else
 						if bDebug then Debug.console("no minus found in sType") end
+						local sTypeLower = string.lower(sType);
 						local bFound = false
-						if tFGSpdTxt[1] then
-							for _,v in ipairs(tFGSpdTxt) do
-								if v == sType then
-									bFound = true
-								end
+						for _,v in ipairs(tFGSpeedNew) do
+							local vTypeLower = string.lower(v.type);
+							if vTypeLower == sTypeLower then
+								bFound = true
 							end
 						end
 						if not bFound then
-							table.insert(tFGSpdTxt, sType)
+							local tSpdRcrd = {}
+							tSpdRcrd['type'] = sType;
+							table.insert(tFGSpeedNew, tSpdRcrd)
 						end
 					end
 				end
@@ -351,71 +383,76 @@ function speedCalculator(nodeCT, bDebug)
 				if bDebug then Debug.console("dec detected") end
 				nSpeedMod = nSpeedMod + nMod;
 			else
-				if nRebaseCount > 0 then
-					if nFGSpeedNew < nFGSpeed then
-						if nFGSpeedNew > nMod then
-							nFGSpeedNew = nMod;
-						else
-							if nFGSpeedNew < nMod then
-								nFGSpeedNew = nMod;
-							end
-						end
-					end
-				else
-					nFGSpeedNew = nMod;
-				end
-				if bDebug then Debug.console("nFGSpeedNew = " .. tostring(nFGSpeedNew)) end
-				nRebaseCount = nRebaseCount + 1;
+				table.insert(tRebase, nMod)
 			end
 		end
 	end
 
-	if bDebug then Debug.console("nFGSpeedNew = " .. tostring(nFGSpeedNew)) end
 	if bDebug then Debug.console("nSpeedMod = " .. tostring(nSpeedMod)) end
-	local nSpeedFinal = nFGSpeedNew + nSpeedMod;
-	if bDebug then Debug.console("nSpeedFinal = " .. tostring(nSpeedFinal)) end
+
+	if bDifficult then nHalved = nHalved + 1 end
 	if nDoubled > 0 then
 		if nHalved > 0 then
 			if bDebug then Debug.console("nDoubled & nHalved") end
-			nDoubled = nDoubled - nHalved;
-			nHalved = nHalved - nDoubled;
-		end
-		while nDoubled > 0 do
-			if bDebug then Debug.console("nDoubled > 0") end
-			nSpeedFinal = nSpeedFinal * 2;
-			nDoubled = nDoubled - 1;
-		end
-	end
-	if nHalved > 0 then
-		while nHalved > 0 do
-			if bDebug then Debug.console("nHalved > 0") end
-			nSpeedFinal = math.floor(nSpeedFinal / 2);
-			nHalved = nHalved - 1;
-		end
-	end
-	if bDifficult then
-		nSpeedFinal = math.floor(nSpeedFinal / 2);
-	end
-	nSpeedFinal = tonumber(nSpeedFinal);
-	nSpeedFinal = math.floor(nSpeedFinal);
-	if bDebug then Debug.console("nSpeedFinal = " .. tostring(nSpeedFinal)) end
-	if bDebug then Debug.console("nSpeedMax = " .. tostring(nSpeedMax)) end
-	if nSpeedMax then
-		if nSpeedFinal > nSpeedMax then
-			nSpeedFinal = nSpeedMax;
+			local nDoubledOrigin = nDoubled;
+			local NHalvedOrigin = nHalved;
+			nDoubled = nDoubled - NHalvedOrigin;
+			nHalved = nHalved - nDoubledOrigin;
 		end
 	end
 
-	if not nSpeedFinal then
-		if bDebug then Debug.console("WalkThisWay.speedCalculator - nSpeedFinal is not a number") end
-		return;
+	local tSpeedFinal = tFGSpeedNew;
+	for _,tSpdRcrd in ipairs(tFGSpeedNew) do
+		local nFGSpeed = tSpdRcrd['velocity'];
+		local nFGSpeedNew = nFGSpeed;
+		for k,v in ipairs(tRebase) do
+			if k > 1 then
+				if (nFGSpeedNew < nFGSpeed) or (v < nFGSpeed) then
+					if v < nFGSpeedNew then
+						nFGSpeedNew = v;
+					end
+				else
+					if v > nFGSpeedNew then
+						nFGSpeedNew = v;
+					end
+				end
+			else
+				nFGSpeedNew = v;
+			end
+			if bDebug then Debug.console("nFGSpeedNew = " .. tostring(nFGSpeedNew)) end
+		end
+		if bDebug then Debug.console("nFGSpeedNew = " .. tostring(nFGSpeedNew)) end
+
+		local nSpeedFinal = nFGSpeedNew + nSpeedMod;
+		if bDebug then Debug.console("nSpeedFinal = " .. tostring(nSpeedFinal)) end
+		if nSpeedFinal < 0 then
+			tSpeedFinal['velocity'] = '0'
+		else
+			while nDoubled > 0 do
+				if bDebug then Debug.console("nDoubled > 0") end
+				nSpeedFinal = nSpeedFinal * 2;
+				nDoubled = nDoubled - 1;
+			end
+			while nHalved > 0 do
+				if bDebug then Debug.console("nHalved > 0") end
+				nSpeedFinal = nSpeedFinal / 2;
+				nHalved = nHalved - 1;
+			end
+			nSpeedFinal = math.floor(nSpeedFinal);
+			if bDebug then Debug.console("nSpeedFinal = " .. tostring(nSpeedFinal)) end
+			if bDebug then Debug.console("nSpeedMax = " .. tostring(nSpeedMax)) end
+			if nSpeedMax then
+				if nSpeedFinal > nSpeedMax then
+					nSpeedFinal = nSpeedMax;
+				end
+			end
+			tSpeedFinal['velocity'] = tostring(nSpeedFinal);
+		end
 	end
-	if nSpeedFinal < 0 then
-		nSpeedFinal = 0;
-	end
-	local sReturn = tostring(nSpeedFinal)
-	for _,sSpdTxt in ipairs(tFGSpdTxt) do
-		sReturn = sReturn .. ' ' .. sSpdTxt
+
+	local sReturn = '';
+	for _,tSpdRcrd in ipairs(tSpeedFinal) do
+		sReturn = sReturn .. tostring(tSpdRcrd.velocity) .. tSpdRcrd.type
 	end
 	return sReturn;
 end
@@ -464,8 +501,10 @@ function accommKnownExtsSpeed(nodeCT)
 	if nDoubled > 0 then
 		if nHalved > 0 then
 			--Debug.console("nDoubled & nHalved")
-			nDoubled = nDoubled - nHalved;
-			nHalved = nHalved - nDoubled;
+			local nDoubledOrigin = nDoubled;
+			local NHalvedOrigin = nHalved;
+			nDoubled = nDoubled - NHalvedOrigin;
+			nHalved = nHalved - nDoubledOrigin;
 		end
 		if nDoubled > 0 then
 			tReturn['nDoubled'] = nDoubled
@@ -750,7 +789,19 @@ function delWTWdataChild(sChildNode)
 	return DB.deleteNode(nodePQ)
 end
 
-function proneWindow(sourceNodeCT)
+function openSpeedWindow(nodeCT)
+	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	local rActor = ActorManager.resolveActor(nodeCT);
+	DB.setValue(nodeCTWtW, 'actorname', 'string', tostring(rActor.sName));
+	local sCurrentSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
+	if not sCurrentSpeed then
+		local nFGSpeed = DB.getValue(nodeCT, 'speed');
+		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nFGSpeed));
+	end
+	Interface.openWindow('speed_window', nodeCTWtW);
+end
+
+function proneWindow(nodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
 		return;
 	end
@@ -758,18 +809,11 @@ function proneWindow(sourceNodeCT)
 		return;
 	end
 
-	local rSource = ActorManager.resolveActor(sourceNodeCT);
-	local sOwner = WtWCommon.getControllingClient(sourceNodeCT);
+	local rSource = ActorManager.resolveActor(nodeCT);
+	local sOwner = WtWCommon.getControllingClient(nodeCT);
 
 	if OptionsManager.isOption('AOSW', 'on') then
-		local nodeCTWtW = DB.createChild(sourceNodeCT, 'WalkThisWay');
-		DB.setValue(nodeCTWtW, 'actorname', 'string', tostring(rSource.sName));
-		local sCurrentSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
-		if not sCurrentSpeed then
-			local nFGSpeed = DB.getValue(sourceNodeCT, 'speed');
-			DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nFGSpeed));
-		end
-		Interface.openWindow('speed_window', nodeCTWtW)
+		openSpeedWindow(nodeCT)
 	end
 
 	if not checkProne(rSource) then
@@ -777,7 +821,7 @@ function proneWindow(sourceNodeCT)
 	end
 
 	if sOwner then
-		queryClient(sourceNodeCT)
+		queryClient(nodeCT)
 		return;
 	else
 		if rSource.sName then
@@ -787,10 +831,10 @@ function proneWindow(sourceNodeCT)
 	end
 end
 
-function closeAllProneWindows(sourceNodeCT)
+function closeAllProneWindows(nodeCT)
 	closeProneWindow();
-	if WtWCommon.getControllingClient(sourceNodeCT) then
-		sendCloseWindowCmd(sourceNodeCT)
+	if WtWCommon.getControllingClient(nodeCT) then
+		sendCloseWindowCmd(nodeCT)
 	end
 end
 
