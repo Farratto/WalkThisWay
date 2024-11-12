@@ -4,7 +4,8 @@
 -- luacheck: globals clientGetOption checkProne checkHideousLaughter addEffectWtW speedCalculator setPQvalue
 -- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild proneWindow
 -- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery hasRoot
--- luacheck: globals accommKnownExtsSpeed deleteEffectSpeedCalc openSpeedWindow
+-- luacheck: globals accommKnownExtsSpeed deleteEffectSpeedCalc openSpeedWindow getConversionFactor
+-- luacheck: globals parseBaseSpeed
 
 OOB_MSGTYPE_PRONEQUERY = "pronequery";
 OOB_MSGTYPE_CLOSEQUERY = "closequery";
@@ -15,7 +16,17 @@ function onInit()
 -- DEFAULT BEHAVIORS FOR OPTIONS: sType = "option_entry_cycler", on|off, default = off
 --Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client"
 	--Old 4th = ("option_label_" .. sKey)
-	OptionsManager.registerOptionData({	sKey = "AOSW", bLocal = true });
+	OptionsManager.registerOptionData({	sKey = 'AOSW', bLocal = true });
+	OptionsManager.registerOptionData({	sKey = 'DDCU', sGroupRes = "option_header_WtW",
+		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
+			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
+		}
+	});
+	OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
+		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
+			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
+		}
+	});
 	OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
 								   'option_entry_cycler', {
 		labels = 'option_val_off',
@@ -93,7 +104,7 @@ end
 function deleteEffectSpeedCalc(nodeEffectLabel)
     local nodeEffect = DB.getParent(nodeEffectLabel);
     local nodeCT = DB.getChild(nodeEffect, '...');
-	local nNewSpeed = speedCalculator(nodeCT, true);
+	local nNewSpeed = speedCalculator(nodeCT);
 	Debug.console("nNewSpeed = " .. tostring(nNewSpeed));
 	if nNewSpeed then
 		local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
@@ -109,11 +120,56 @@ end
 
 function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg)
 	faddEffectOriginal(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg); --luacheck: ignore 113
-	local nNewSpeed = speedCalculator(nodeCT, true);
+	local nNewSpeed = speedCalculator(nodeCT);
 	Debug.console("nNewSpeed = " .. tostring(nNewSpeed));
 	if nNewSpeed then
 		local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nNewSpeed));
+	end
+end
+
+function getConversionFactor(sCurrentUnits, sDesiredUnits)
+	if not sCurrentUnits or not sDesiredUnits or sCurrentUnits == sDesiredUnits then
+		Debug.console('WalkThisWay.getConversionFactor - Internal Syntax error.');
+		return;
+	end
+	local nReturn;
+	if sCurrentUnits == 'ft.' then
+		if sDesiredUnits == 'm' then
+			nReturn = 1.5 / 5;
+			return nReturn;
+		elseif sDesiredUnits == 'tiles' then
+			nReturn = 1 / 5;
+			return nReturn;
+		else
+			Debug.console('WalkThisWay.getConversionFactor - Invalid units.');
+			return;
+		end
+	elseif sCurrentUnits == 'm' then
+		if sDesiredUnits == 'ft.' then
+			nReturn = 5 / 1.5;
+			return nReturn;
+		elseif sDesiredUnits == 'tiles' then
+			nReturn = 1 / 1.5;
+			return nReturn;
+		else
+			Debug.console('WalkThisWay.getConversionFactor - Invalid units.');
+			return;
+		end
+	elseif sCurrentUnits == 'tiles' then
+		if sDesiredUnits == 'ft.' then
+			nReturn = 5 / 1;
+			return nReturn;
+		elseif sDesiredUnits == 'm' then
+			nReturn = 1.5 / 1;
+			return nReturn;
+		else
+			Debug.console('WalkThisWay.getConversionFactor - Invalid units.');
+			return;
+		end
+	else
+		Debug.console('WalkThisWay.getConversionFactor - Invalid units.');
+		return;
 	end
 end
 
@@ -124,51 +180,42 @@ function speedCalculator(nodeCT, bDebug)
 		Debug.console("WalkThisWay.speedCalculator - not nodeCT");
 		return;
 	end
-	local rActor = ActorManager.resolveActor(nodeCT);
 
+	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
+	if not nodeFGSpeed then
+		parseBaseSpeed(nodeCT)
+	end
+	nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
+	if not nodeFGSpeed then
+		Debug.console("WalkThisWay.speedCalculator - Parsing base speed failed.");
+		return;
+	end
+
+	local nHover = DB.getValue(nodeCTWtW, 'hover')
+	local sLngthUnits = DB.getValue(nodeCTWtW, 'units')
 	if hasRoot(nodeCT) then
 		if bDebug then Debug.console("root found") end
-		return 'none';
+		local sReturn = '0 ' .. sLngthUnits;
+		if nHover == 1 then
+			sReturn = sReturn .. ' (hover)';
+		end
+		return sReturn;
 	else
 		if bDebug then Debug.console("no root found") end
 	end
 
+	local rActor = ActorManager.resolveActor(nodeCT);
 	if not rActor then
 		Debug.console("WalkThisWay.speedCalculator - not rActor");
 		return;
 	end
-
 	local tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
 	if bDebug then Debug.console("tSpeedEffects[1] = " .. tostring(tSpeedEffects[1])) end
 	local nHalved = 0;
 	if WtWCommon.fhasCondition(rActor, "Prone") then
 		nHalved = nHalved + 1
 	end
-
-	local sFGSpeed = DB.getValue(nodeCT, 'speed')
-	if not sFGSpeed then
-		Debug.console("WalkThisWay.speedCalculator - no base speed found");
-		return;
-	end
-
-	--40 ft., Climb 40 ft. (Demon only); Fly 60 ft. (Devil only)
-	--0 ft., Fly 40 ft. (hover)
-	local nFGSpdDCnt = 0;
-	local tFGSpeed = {};
-	for sDMatch in string.gmatch(sFGSpeed, '%d+') do
-		nFGSpdDCnt = nFGSpdDCnt + 1;
-		local tSpeedRcrd = {}
-		tSpeedRcrd['velocity'] = sDMatch;
-		tFGSpeed[nFGSpdDCnt] = tSpeedRcrd;
-	end
-	local nFGSpdTCnt = 0;
-	for sTMatch in string.gmatch(sFGSpeed, '%a+') do
-		nFGSpdTCnt = nFGSpdTCnt + 1;
-		local tSpeedRcrd = {}
-		tSpeedRcrd['type'] = sTMatch;
-		tFGSpeed[nFGSpdTCnt] = tSpeedRcrd;
-	end
-	local tFGSpeedNew = tFGSpeed
 
 	local nSpeedMod = 0;
 	local nSpeedMax = nil;
@@ -197,6 +244,12 @@ function speedCalculator(nodeCT, bDebug)
 		if bDebug then Debug.console("accomodations not detected") end
 	end
 
+
+	local tFGSpeedNodes = DB.getChildren(nodeCTWtW, 'FGSpeed');
+	local tFGSpeedNew = {};
+	-- PLACEMARKER --
+
+	
 	local bDifficult = false;
 	local tRebase = {};
 	for _,v in ipairs(tSpeedEffects) do
@@ -281,13 +334,24 @@ function speedCalculator(nodeCT, bDebug)
 						sType = sRmndrRemainder:gsub('%)$', '');
 						if bDebug then Debug.console("sType = " .. tostring(sType)) end
 						local sTypeLower = string.lower(sType);
+						local sTypeFly = string.match(sTypeLower, 'fly')
+						local sTypeHover = string.match(sTypeLower, 'hover')
 						local bFound = false;
 						for _,v in ipairs(tFGSpeedNew) do
 							local vTypeLower = string.lower(v.type);
-							if vTypeLower == sTypeLower then
-								v.velocity = nMod;
-								bFound = true;
+							if sTypeFly then
+								if string.match(vTypeLower, 'fly') then
+									bFound = true;
+									if (nHover == 1) or sTypeHover then
+										v.type = 'Fly (hover)'
+									end
+								end
+							else
+								if vTypeLower == sTypeLower then
+									bFound = true;
+								end
 							end
+							if bFound then v.velocity = nMod end
 						end
 						if not bFound then
 							local tSpdRcrd = {};
@@ -296,6 +360,7 @@ function speedCalculator(nodeCT, bDebug)
 							table.insert(tFGSpeedNew, tSpdRcrd);
 						end
 					end
+					nMod = nil;
 				else
 					if not sType then
 						local sRmndrRemainder = sRemainder:gsub('^type%s*%(', '');
@@ -401,10 +466,17 @@ function speedCalculator(nodeCT, bDebug)
 		end
 	end
 
-	local tSpeedFinal = tFGSpeedNew;
-	for _,tSpdRcrd in ipairs(tFGSpeedNew) do
+	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
 		local nFGSpeed = tSpdRcrd['velocity'];
 		local nFGSpeedNew = nFGSpeed;
+		if not nFGSpeedNew then
+			for _,v in ipairs(tFGSpeedNew) do
+				if v.type == 'walk' or v.type == '' then
+					nFGSpeedNew = v.velocity
+				end
+			end
+			if not nFGSpeedNew then nFGSpeedNew = tFGSpeedNew[1].velocity end
+		end
 		for k,v in ipairs(tRebase) do
 			if k > 1 then
 				if (nFGSpeedNew < nFGSpeed) or (v < nFGSpeed) then
@@ -426,19 +498,21 @@ function speedCalculator(nodeCT, bDebug)
 		local nSpeedFinal = nFGSpeedNew + nSpeedMod;
 		if bDebug then Debug.console("nSpeedFinal = " .. tostring(nSpeedFinal)) end
 		if nSpeedFinal < 0 then
-			tSpeedFinal['velocity'] = '0'
+			tFGSpeedNew[k].velocity = '0'
 		else
-			while nDoubled > 0 do
-				if bDebug then Debug.console("nDoubled > 0") end
+			local nDoubledLocal = nDoubled
+			local nHalvedLocal = nHalved
+			while nDoubledLocal > 0 do
+				if bDebug then Debug.console("nDoubledLocal > 0") end
 				nSpeedFinal = nSpeedFinal * 2;
-				nDoubled = nDoubled - 1;
+				nDoubledLocal = nDoubledLocal - 1;
 			end
-			while nHalved > 0 do
-				if bDebug then Debug.console("nHalved > 0") end
+			while nHalvedLocal > 0 do
+				if bDebug then Debug.console("nHalvedLocal > 0") end
 				nSpeedFinal = nSpeedFinal / 2;
-				nHalved = nHalved - 1;
+				nHalvedLocal = nHalvedLocal - 1;
 			end
-			nSpeedFinal = math.floor(nSpeedFinal);
+			--nSpeedFinal = math.floor(nSpeedFinal);
 			if bDebug then Debug.console("nSpeedFinal = " .. tostring(nSpeedFinal)) end
 			if bDebug then Debug.console("nSpeedMax = " .. tostring(nSpeedMax)) end
 			if nSpeedMax then
@@ -446,17 +520,122 @@ function speedCalculator(nodeCT, bDebug)
 					nSpeedFinal = nSpeedMax;
 				end
 			end
-			tSpeedFinal['velocity'] = tostring(nSpeedFinal);
+			tFGSpeedNew[k].velocity = tostring(nSpeedFinal);
 		end
 	end
 
-	local sReturn = '';
-	for _,tSpdRcrd in ipairs(tSpeedFinal) do
-		sReturn = sReturn .. tostring(tSpdRcrd.velocity) .. tSpdRcrd.type
+	local sUnitsPrefer = OptionsManager.getOption('DDLU');
+	local nConvFactor = 1;
+	if sLngthUnits ~= sUnitsPrefer then
+		nConvFactor = getConversionFactor(sLngthUnits, sUnitsPrefer);
+		if not nConvFactor then
+			nConvFactor = 1;
+		end
 	end
+	local sReturn;
+	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
+		tSpdRcrd.velocity = tSpdRcrd.velocity * nConvFactor
+		if sUnitsPrefer == 'ft.' then
+			tSpdRcrd.velocity = tSpdRcrd.velocity / 5;
+			tSpdRcrd.velocity = math.floor(tSpdRcrd.velocity);
+			tSpdRcrd.velocity = tSpdRcrd.velocity * 5;
+		else
+			if sUnitsPrefer ~= 'm' then
+				tSpdRcrd.velocity = math.floor(tSpdRcrd.velocity);
+			end
+		end
+
+		local sVelWithUnits = tostring(tSpdRcrd.velocity) .. ' ' .. sUnitsPrefer
+		if tSpdRcrd.type == '' or tSpdRcrd.type == 'walk' then
+			if k == 1 then
+				sReturn = sVelWithUnits
+			else
+				sReturn = sVelWithUnits .. '; ' .. sReturn
+			end
+		else
+			local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%g*%s*%)%s*$');
+			if sQualifier then
+				local sTypeSansQual = string.gsub(tSpdRcrd.type, '%s*%(%s*%g*%s*%)%s*$', '');
+				sReturn = sReturn .. '; ' .. sTypeSansQual .. ' ' .. sVelWithUnits .. ' ' .. sQualifier
+			else
+				sReturn = sReturn .. '; ' .. tSpdRcrd.type .. ' ' .. sVelWithUnits
+			end
+		end
+	end
+	sReturn = StringManager.strip(sReturn)
 	return sReturn;
 end
 -- luacheck: pop
+
+--option handler to re-run this if changing DDCU
+function parseBaseSpeed(nodeCT)
+	if not nodeCT then
+		Debug.console("WalkThisWay.parseBaseSpeed - not nodeCT");
+		return;
+	end
+	if not Session.IsHost then
+		Debug.console("WalkThisWay.parseBaseSpeed - not host");
+		return;
+	end
+
+	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	if not DB.getValue(nodeCTWtW, 'hover') then
+		if string.match(string.lower(sFGSpeed), 'hover') then
+			DB.setValue(nodeCTWtW, 'hover', 'number', 1);
+		else
+			DB.setValue(nodeCTWtW, 'hover', 'number', 0);
+		end
+	end
+
+	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
+	if not nodeFGSpeed then
+		local sFGSpeed = DB.getValue(nodeCT, 'speed')
+		if not sFGSpeed then
+			Debug.console("WalkThisWay.speedCalculator - no base speed found");
+			sFGSpeed = '30 ft.'
+		end
+		nodeFGSpeed = DB.createChild(nodeCTWtW, 'FGSpeed');
+		local aSpdTypeSplit,_ = StringManager.split(sFGSpeed, ',;', true)
+		local sLngthUnits = '';
+		local sUnitsGave = OptionsManager.getOption('DDCU');
+		for _,sSpdTypeSplit in ipairs(aSpdTypeSplit) do
+			local nodeSpeedRcrd = DB.createChild(nodeFGSpeed);
+			local sVelocity = string.match(sSpdTypeSplit, '%d+');
+			local sRemainder = string.gsub(sSpdTypeSplit, '%d+', '');
+			local sType;
+			local sStripPattern;
+			if sLngthUnits == '' then
+				sLngthUnits = string.match(sSpdTypeSplit, '%a%a?%.');
+				if not sLngthUnits then sLngthUnits = sUnitsGave end
+			end
+			sStripPattern = string.gsub(sLngthUnits, '%.', '');
+			sStripPattern = sStripPattern .. '%.';
+			sType = string.gsub(sRemainder, sStripPattern, '');
+			sType = StringManager.strip(sType);
+			if sType == '' then sType = 'walk' end
+			DB.setValue(nodeSpeedRcrd, 'velocity', 'number', sVelocity);
+			DB.setValue(nodeSpeedRcrd, 'type', 'string', sType);
+		end
+		if sLngthUnits == 'ft' then sLngthUnits = 'ft.' end
+		if sLngthUnits == 'm.' then sLngthUnits = 'm' end
+		local bConverted = false;
+		if sLngthUnits ~= sUnitsGave then
+			local nConvFactor = getConversionFactor(sLngthUnits, sUnitsGave);
+			if nConvFactor then
+				for _,v in ipairs(tFGSpeed) do
+					v.velocity = v.velocity * nConvFactor;
+				end
+				bConverted = true;
+			end
+		end
+		if bConverted then
+			sLngthUnits = sUnitsGave;
+		end
+		DB.setValue(nodeCTWtW, 'units', 'string', sLngthUnits);
+		return true;
+	end
+	return;
+end
 
 function accommKnownExtsSpeed(nodeCT)
 	local nDoubled = 0;

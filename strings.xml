@@ -23,4 +23,9 @@
 	<string name="option_WtW_On_Player_Choice">Enable reminder window to stand when you are prone</string>
 	<string name="option_WtW_On_DM_Choice">Reminder windows for characters not owned by players</string>
 	<string name="option_label_AOSW">Open speed details window on turn start</string>
+	<string name="option_label_DDLU">Preferred Distance Units For Display</string>
+	<string name="option_label_DDCU">Distance Units used in Spell Effect Calculation</string>
+	<string name="option_val_meters">Meters</string>
+	<string name="option_val_tiles">Tiles</string>
+	<string name="option_val_feet">Feet</string>
 </root>
