@@ -57,10 +57,9 @@ function checkBetterGoldPurity()
 end
 
 -- luacheck: push ignore 561
-function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bStartsWith, bReturnString, bDebug)
+function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bStartsWith, bReturnString)
 	-- defaults: case sensitive, not starts with, not whole match, not returnString & not debug
 	-- bWholeMatch, if true, overrides bStartsWith
-	-- Debug.console("hasEffectFindString called");
 	if not rActor or not sString then
 		Debug.console("WtWCommon.hasEffectFindString - not rActor or not sString");
 		return;
@@ -71,85 +70,67 @@ function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bSt
 
 	if bCaseInsensitive then
 		sClause = string.lower(sString);
-		if bDebug then Debug.console("sClause = " .. tostring(sClause)) end
 	end
 
 	if EffectManagerBCE then
 		tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
-		-- Debug.console("tEffectCompParams = " .. tostring(tEffectCompParams))
 	end
 	aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
-	-- Debug.console("aEffects = " .. tostring(aEffects));
 
 	-- Iterate through each effect
 	for _, v in pairs(aEffects) do
 		local nActive = DB.getValue(v, 'isactive', 0);
-		-- Debug.console("nActive = " .. tostring(nActive));
 		local bGo = false;
 
 		if EffectManagerBCE then
 			local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
 				(not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
 				(tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
-			-- Debug.console("bActive = " .. tostring(bActive));
 
 			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
 			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
 			  (EffectManagerADND.isValidCheckEffect(rActor, v)))) then
 				bGo = true;
-				-- Debug.console("EffectManagerADND results bGo = " .. tostring(bGo));
 			end
 		else
 			if nActive ~= 0 then
 				bGo = true;
-				-- Debug.console("not EffectManagerBCE & bGo = " .. tostring(bGo));
 			end
 		end
-		if bDebug then Debug.console("bGo = " .. tostring(bGo)) end
 
 		if bGo then
 			local sLabel = DB.getValue(v, 'label', '');
 			local sFinalLabel = sLabel;
 			if bCaseInsensitive then
 				sFinalLabel = string.lower(sLabel);
-				if bDebug then Debug.console("CaseInsensitive sFinalLabel = " .. tostring(sFinalLabel)) end
 			end
 			if bStartsWith and not bWholeMatch then
 				sFinalLabel = string.sub(sLabel, 1, #sString);
-				if bDebug then Debug.console("StartsWith sFinalLabel = " .. tostring(sFinalLabel)) end
 			end
-			if bDebug then Debug.console("sFinalLabel = " .. tostring(sFinalLabel)) end
 
 			-- Check for match
 			if bWholeMatch or bStartsWith then
 				if sFinalLabel == sClause then
-					if bDebug then Debug.console("wholeMatch or StartsWith found, returning true") end
 					if bReturnString then
 						return sLabel;
 					else
 						return true;
 					end
 				end
-				if bDebug then Debug.console("bWholeMatch but no match") end
 			else
-				if bDebug then Debug.console("sClause = " .. tostring(sClause)) end
 				local aFind = string.find(sFinalLabel, sClause)
-				if bDebug then Debug.console("aFind = " .. tostring(aFind)) end
 				if aFind then
-					if bDebug then Debug.console("partial match found, returning true") end
 					if bReturnString then
 						return sLabel;
 					else
 						return true;
 					end
 				end
-				if bDebug then Debug.console("not bWholeMatch but no match") end
 			end
 
 		end
 	end
 
-	if bDebug then Debug.console("All findstrings checks failed - Default return false") end
 	return false;
 end
 -- luacheck: pop
@@ -174,31 +155,26 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 	else
 		aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
 	end
-	-- Debug.console("aEffects = " .. tostring(aEffects))
 
 	-- Iterate through each effect
 	for _, v in pairs(aEffects) do
 		local nActive = DB.getValue(v, 'isactive', 0);
-		-- Debug.console("nActive = " .. tostring(nActive))
 		local bGo = false
 		local bTargeted
 		local rConditionalHelper
 
 		if EffectManagerBCE then
 			rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
-			-- Debug.console("rConditionalHelper = " .. tostring(rConditionalHelper))
 
 			local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
 				(not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
 				(tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
-			-- Debug.console("bActive = " .. tostring(bActive))
 
 			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
 			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
 			  (EffectManagerADND.isValidCheckEffect(rActor, v) or (rTarget and EffectManagerADND.isValidCheckEffect(rTarget, v))))) then
 				bGo = true
 				rConditionalHelper.bTargeted = EffectManager.isTargetedEffect(v);
-				-- Debug.console("rConditionalHelper = " .. tostring(rConditionalHelper))
 			end
 		else
 			if nActive ~= 0 then
@@ -206,15 +182,11 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 				bTargeted = EffectManager.isTargetedEffect(v);
 			end
 		end
-		-- Debug.console("bGo = " .. tostring(bGo))
-		-- Debug.console("bTargeted = " .. tostring(bTargeted))
 
 		if bGo then
 			-- Parse each effect label
 			local sLabel = DB.getValue(v, 'label', '');
-			-- Debug.console("sLabel = " .. tostring(sLabel))
 			local aEffectComps = EffectManager.parseEffect(sLabel);
-			-- Debug.console("aEffectComps = " .. tostring(aEffectComps))
 
 			-- Iterate through each effect component looking for a type match
 			local nMatch = 0;
@@ -227,7 +199,6 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 				else
 					rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
 				end
-				-- Debug.console("rEffectComp = " .. tostring(rEffectComp))
 				-- Handle conditionals
 				if _sBetterGoldPurity == 'gold' then --luacheck: ignore 113
 					EffectManager5EBCE.processConditional(rActor, rTarget, v, rEffectComp, rConditionalHelper);
@@ -268,17 +239,14 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 						end
 					end
 				end
-				-- Debug.console("nMatch = " .. tostring(nMatch))
 			end
 
 			-- If matched, then remove Clause
 			if nMatch > 0 then
-				-- Debug.console("nActive = " .. tostring(nActive))
 				if nActive == 2 then
 					DB.setValue(v, 'isactive', 'number', 1);
 				else
 					table.insert(aMatch, v);
-					-- Debug.console("aMatch = " .. tostring(aMatch))
 					if Session.IsHost then
 						local nodeEffect = v
 						local nodeActor = DB.getChild(nodeEffect, "...");
@@ -296,10 +264,8 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 	end
 
 	if #aMatch > 0 then
-		-- Debug.console("return true")
 		return true;
 	end
-	-- Debug.console("return false")
 	return false;
 end
 -- luacheck: pop
@@ -336,8 +302,6 @@ function handleApplyHostCommands(msgOOB)
 end
 
 function notifyApplyHostCommands(nodeCT, iAction, rValues)
-	--Debug.console("manager_generic_actions:notifyApplyHostCommands called");
-
 	local msgOOB = {};
 	-- msgOOB.type
 	--		OOB_MSGTYPE_APPLYHGACMDS
