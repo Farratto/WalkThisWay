@@ -10,13 +10,21 @@
 OOB_MSGTYPE_PRONEQUERY = "pronequery";
 OOB_MSGTYPE_CLOSEQUERY = "closequery";
 
---faddEffectOriginal = ''; --luacheck: ignore 111
 fonRecordTypeEvent = ''; --luacheck: ignore 111
 
 function onInit()
 -- DEFAULT BEHAVIORS FOR OPTIONS: sType = "option_entry_cycler", on|off, default = off
 --Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client"
 	--Old 4th = ("option_label_" .. sKey)
+	OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
+								   'option_entry_cycler', {
+		labels = 'option_val_off',
+		values = 'off',
+		baselabel = 'option_val_on',
+		baseval = 'on',
+		default = 'on'
+	});
+	OptionsManager.registerOptionData({	sKey = 'WESC', sGroupRes = 'option_header_WtW', tCustom = { default = "on" } });
 	OptionsManager.registerOptionData({	sKey = 'AOSW', bLocal = true });
 	OptionsManager.registerOptionData({	sKey = 'DDCU', sGroupRes = "option_header_WtW",
 		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
@@ -27,14 +35,6 @@ function onInit()
 		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
 			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
 		}
-	});
-	OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
-								   'option_entry_cycler', {
-		labels = 'option_val_off',
-		values = 'off',
-		baselabel = 'option_val_on',
-		baseval = 'on',
-		default = 'on'
 	});
 	OptionsManager.registerOption2('WHOLEEFFECT', false, 'option_header_WtW', 'option_WtW_Delete_Whole',
 								   'option_entry_cycler', {
@@ -78,42 +78,37 @@ function onInit()
 		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSEQUERY, handleCloseProneQuery);
 	end
 
-	--faddEffectOriginal = EffectManager.addEffect; --luacheck: ignore 111
-	--EffectManager.addEffect = addEffectWtW;
-
 	EffectManager.registerEffectCompType("SPEED", { bIgnoreTarget = true, bNoDUSE = true, bIgnoreOtherFilter = true, bIgnoreExpire = true });
 		--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE bIgnoreTarget
 		--continued: bSpell bOneShot bIgnoreExpire
 
-	DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', updateEffectSpeedCalc);
-	DB.addHandler('combattracker.list.*.effects.*.label', 'onDelete', updateEffectSpeedCalc);
-	DB.addHandler('combattracker.list.*.effects.*.label', 'onAdd', updateEffectSpeedCalc);
-	DB.addHandler('options.DDLU', 'onUpdate', recalcAllSpeeds);
-	DB.addHandler('options.DDLU', 'onAdd', recalcAllSpeeds);
+	OptionsManager.registerCallback('DDLU', recalcAllSpeeds);
 
 	if Session.IsHost then
 		DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
-		DB.addHandler('options.DDCU', 'onUpdate', reparseAllBaseSpeeds);
-		DB.addHandler('options.DDCU', 'onAdd', reparseAllBaseSpeeds);
+		OptionsManager.registerCallback('DDCU', reparseAllBaseSpeeds);
+		OptionsManager.registerCallback('WESC', recalcAllSpeeds);
 		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent; --luacheck: ignore 111
 		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
+	end
+
+	if not OptionsManager.isOption('WESC', 'off') then
+		DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', updateEffectSpeedCalc);
+		DB.addHandler('combattracker.list.*.effects.*.label', 'onDelete', updateEffectSpeedCalc);
+		--DB.addHandler('combattracker.list.*.effects.*.label', 'onAdd', updateEffectSpeedCalc);
 	end
 end
 
 function onClose()
-	--EffectManager.addEffect = faddEffectOriginal; --luacheck: ignore 113
 	DB.removeHandler('combattracker.list.*.effects.*.label', 'onUpdate', updateEffectSpeedCalc);
 	DB.removeHandler('combattracker.list.*.effects.*.label', 'onDelete', updateEffectSpeedCalc);
-	DB.removeHandler('combattracker.list.*.effects.*.label', 'onAdd', updateEffectSpeedCalc);
-	DB.removeHandler('options.DDLU', 'onUpdate', reparseAllBaseSpeeds);
-	DB.removeHandler('options.DDLU', 'onAdd', reparseAllBaseSpeeds);
+	--DB.removeHandler('combattracker.list.*.effects.*.label', 'onAdd', updateEffectSpeedCalc);
+	OptionsManager.unregisterCallback('DDLU', recalcAllSpeeds);
 
-	if Session.IsHost then
-		DB.removeHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
-		DB.removeHandler('options.DDCU', 'onUpdate', reparseAllBaseSpeeds);
-		DB.removeHandler('options.DDCU', 'onAdd', reparseAllBaseSpeeds);
-		CombatRecordManager.onRecordTypeEvent = fonRecordTypeEvent; --luacheck: ignore 113
-	end
+	DB.removeHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
+	OptionsManager.unregisterCallback('DDCU', reparseAllBaseSpeeds);
+	OptionsManager.unregisterCallback('WESC', recalcAllSpeeds);
+	CombatRecordManager.onRecordTypeEvent = fonRecordTypeEvent; --luacheck: ignore 113
 end
 
 function onRecordTypeEventWtW(sRecordType, tCustom)
@@ -122,13 +117,12 @@ function onRecordTypeEventWtW(sRecordType, tCustom)
 end
 
 function updateEffectSpeedCalc(nodeEffectLabel)
+	if OptionsManager.isOption('WESC', 'off') then
+		return;
+	end
 	local nodeEffect = DB.getParent(nodeEffectLabel);
 	local nodeCT = DB.getChild(nodeEffect, '...');
-	local nNewSpeed = speedCalculator(nodeCT);
-	if nNewSpeed then
-		local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nNewSpeed));
-	end
+	speedCalculator(nodeCT);
 end
 
 function clientGetOption(sKey)
@@ -139,11 +133,7 @@ end
 
 function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg)
 	faddEffectOriginal(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg); --luacheck: ignore 113
-	local nNewSpeed = speedCalculator(nodeCT);
-	if nNewSpeed then
-		local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nNewSpeed));
-	end
+	speedCalculator(nodeCT);
 end
 
 function getConversionFactor(sCurrentUnits, sDesiredUnits)
@@ -222,12 +212,21 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		end
 	end
 
+	local nBaseSpeed;
 	local tFGSpeedNew = {};
 	for _,v in pairs(DB.getChildren(nodeCTWtW, 'FGSpeed')) do
 		local tSpdRcrd = {};
 		tSpdRcrd['velocity'] = DB.getValue(v, 'velocity');
 		tSpdRcrd['type'] = DB.getValue(v, 'type');
 		table.insert(tFGSpeedNew, tSpdRcrd);
+		if tSpdRcrd['type'] == '' or string.lower(tSpdRcrd['type']) == 'walk' then
+			nBaseSpeed = tSpdRcrd['velocity']
+		end
+	end
+	nBaseSpeed = tonumber(nBaseSpeed);
+	if not nBaseSpeed then
+		Debug.console("WalkThisWay.speedCalculator - not nBaseSpeed");
+		nBaseSpeed = 30;
 	end
 
 	local nHover = DB.getValue(nodeCTWtW, 'hover')
@@ -249,16 +248,20 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		Debug.console("WalkThisWay.speedCalculator - not rActor");
 		return;
 	end
-	local tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
+	local tSpeedEffects = {};
 	local nHalved = 0;
-	if WtWCommon.fhasCondition(rActor, "Prone") then
-		nHalved = nHalved + 1
+	local tAccomSpeed = {};
+	if not OptionsManager.isOption('WESC', 'off') then
+		tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
+		tAccomSpeed = accommKnownExtsSpeed(nodeCT);
+		if WtWCommon.fhasCondition(rActor, "Prone") then
+			nHalved = nHalved + 1
+		end
 	end
 
 	local nSpeedMod = 0;
 	local nSpeedMax = nil;
 	local nDoubled = 0;
-	local tAccomSpeed = accommKnownExtsSpeed(nodeCT);
 	if tAccomSpeed then
 		if tAccomSpeed['nDoubled'] then
 			nDoubled = nDoubled + tonumber(tAccomSpeed['nDoubled'])
@@ -474,6 +477,8 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	end
 
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
+		Debug.console('k1 = '.. tostring(k) .. '. tSpdRcrd.velocity = ' .. tostring(tSpdRcrd.velocity))
+
 		local nFGSpeed = tSpdRcrd['velocity'];
 		local nFGSpeedNew = nFGSpeed;
 		if not nFGSpeedNew then
@@ -535,7 +540,9 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			nConvFactor = 1;
 		end
 	end
+	nBaseSpeed = nBaseSpeed * nConvFactor;
 	local sReturn = '';
+	local nBonusSpeed;
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
 		tSpdRcrd.velocity = tSpdRcrd.velocity * nConvFactor
 		if sUnitsPrefer == 'ft.' then
@@ -553,9 +560,12 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				tSpdRcrd.velocity = tSpdRcrd.velocity * 0.75;
 			end
 		end
+		Debug.console('k2 = '.. tostring(k) .. '. tSpdRcrd.velocity = ' .. tostring(tSpdRcrd.velocity))
 
 		local sVelWithUnits = tostring(tSpdRcrd.velocity) .. ' ' .. sUnitsPrefer
 		if tSpdRcrd.type == '' or tSpdRcrd.type == 'Walk' then
+			nBonusSpeed = tSpdRcrd.velocity - nBaseSpeed
+			Debug.console('nBonusSpeed = ' .. tostring(nBonusSpeed))
 			if k == 1 then
 				sReturn = sVelWithUnits
 			else
@@ -579,8 +589,29 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			end
 		end
 	end
-	sReturn = StringManager.strip(sReturn)
-	return sReturn;
+	sReturn = StringManager.strip(sReturn);
+	if sReturn and sReturn ~= '' then
+		Debug.console('if sReturn called')
+		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', sReturn);
+		if ActorManager.isPC(rActor) then
+			Debug.console('actorManager isPC ')
+			local nodeChar = ActorManager.getCreatureNode(rActor);
+			local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
+			Debug.console('nBaseSpeed = ' .. tostring(nBaseSpeed))
+			Debug.console('nBonusSpeed = ' .. tostring(nBonusSpeed))
+			DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
+			DB.setValue(nodeCharWtW, 'bonus', 'number', nBonusSpeed);
+			local nodeCharMNM = DB.getChild(nodeChar, "MNMCharacterSheetEffectsDisplay");
+			if nodeCharMNM then
+				DB.setValue(nodeCharMNM, 'BONUSSPEED', 'number', nBonusSpeed);
+				Debug.console('if nodeCharMNM called')
+			end
+		end
+		return true;
+	else
+		Debug.console("WalkThisWay.speedCalculator - no sReturn");
+		return false;
+	end
 end
 -- luacheck: pop
 
@@ -633,7 +664,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 
 	local sFGSpeed = DB.getValue(nodeCT, 'speed')
 	if not sFGSpeed then
-		Debug.console("WalkThisWay.speedCalculator - no base speed found");
+		Debug.console("WalkThisWay.parseBaseSpeed - no base speed found");
 		sFGSpeed = '30 ft.'
 	end
 
@@ -653,13 +684,13 @@ function parseBaseSpeed(nodeCT, bCalc)
 		local aSpdTypeSplit,_ = StringManager.split(sFGSpeed, ',;', true)
 		local sFinalUnits = '';
 		local sLngthUnits = '';
+		local sStripPattern = '';
 		local sUnitsGave = OptionsManager.getOption('DDCU');
 		for _,sSpdTypeSplit in ipairs(aSpdTypeSplit) do
 			local nodeSpeedRcrd = DB.createChild(nodeFGSpeed);
 			local sVelocity = string.match(sSpdTypeSplit, '%d+');
 			local sRemainder = string.gsub(sSpdTypeSplit, '%d+', '');
 			local sType;
-			local sStripPattern = '';
 			local bConverted = false;
 			local nConvFactor = 1;
 			if sLngthUnits == '' then
@@ -676,31 +707,32 @@ function parseBaseSpeed(nodeCT, bCalc)
 								bFound = true;
 							end
 						end
-						if bFound then
-							sLngthUnits = word;
-						end
+						if bFound then sLngthUnits = word end
 					end
 				end
 				if not bFound then sLngthUnits = sUnitsGave end
 				sFinalUnits = sLngthUnits
 				if string.lower(sFinalUnits) == 'ft' or string.lower(sFinalUnits) == 'ft.' then
-					sFinalUnits = 'ft.'
+					sFinalUnits = 'ft.';
 				end
 				if string.lower(sFinalUnits) == 'm.' or string.lower(sFinalUnits) == 'm' then
-					sFinalUnits = 'm'
+					sFinalUnits = 'm';
 				end
 				if string.lower(sFinalUnits) == 'tiles.' or string.lower(sFinalUnits) == 'tiles' then
-					sFinalUnits = 'tiles'
+					sFinalUnits = 'tiles';
 				end
 				if sFinalUnits ~= sUnitsGave then
 					nConvFactor = getConversionFactor(sFinalUnits, sUnitsGave);
 					sFinalUnits = sUnitsGave;
 					bConverted = true;
 				end
-				sStripPattern = string.gsub(sLngthUnits, '%.', '');
-				sStripPattern = sStripPattern .. '%.';
+				if string.match(sLngthUnits, '%.') then
+					sStripPattern = string.gsub(sLngthUnits, '%.', '');
+					sStripPattern = sStripPattern .. '%.';
+				end
+				if sStripPattern == '' then sStripPattern = sLngthUnits end
 			end
-			sType = string.gsub(sRemainder, sStripPattern, '');
+			sType,_ = string.gsub(sRemainder, sStripPattern, '');
 			sType = StringManager.strip(sType);
 			sType = StringManager.capitalize(sType);
 			if sType == '' then sType = 'Walk' end
@@ -720,10 +752,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 		bReturn = true;
 	end
 	if not DB.getValue(nodeCTWtW, 'currentSpeed') or bCalc then
-		local nNewSpeed = speedCalculator(nodeCT, true);
-		if nNewSpeed then
-			DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nNewSpeed));
-		end
+		speedCalculator(nodeCT, true);
 	end
 	return bReturn;
 end
@@ -818,7 +847,11 @@ function hasRoot(nodeCT)
 				return true
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Stunned") then
 				return true
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:?%s*none", false, true) then
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", false, true) then
+				return true
+			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:%s*0", false, true) then
+				return true
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", false, true) then
 				return true
 			else
 				return false
@@ -826,7 +859,11 @@ function hasRoot(nodeCT)
 		else
 			if EffectManager.hasCondition(nodeCT, "Unconscious") then
 				return true
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:?%s*none", false, true) then
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", false, true) then
+				return true
+			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:%s*0", false, true) then
+				return true
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", false, true) then
 				return true
 			else
 				return false
@@ -845,9 +882,11 @@ function hasRoot(nodeCT)
 			return true
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "DEATH") then
 			return true
+		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", false, true) then
+			return true
 		elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:?%s*0", false, true) then
 			return true
-		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:?%s*none", false, true) then
+		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", false, true) then
 			return true
 		else
 			return false
@@ -902,6 +941,7 @@ end
 --end
 
 --function handleItemTooHeavy(nodeCT)
+	--make option to turn this functionality off to save resources
 	--called by updated inventory
 	--root.charsheet.id-00002.inventorylist.id-00001
 		--carried = 2 --means equipped

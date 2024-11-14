@@ -17,14 +17,15 @@
 
 	<!-- Options -->
 	<string name="option_header_WtW">Walk this Way (GM)</string>
-	<string name="option_WtW_On">Enable Walk this Way Extension</string>
+	<string name="option_WtW_On">Enable Prone Reminder Window funcationality</string>
+	<string name="option_label_WESC">Enable SPEED effect calculations</string>
 	<string name="option_WtW_Delete_Whole">ON for delete entire Effect. OFF for delete only 'Prone' portion of effect.</string>
-	<string name="option_WtW_Allow_Player_Choice">Allow players to turn reminder windows on or off (requires restart)</string>
-	<string name="option_WtW_On_Player_Choice">Enable reminder window to stand when you are prone</string>
-	<string name="option_WtW_On_DM_Choice">Reminder windows for characters not owned by players</string>
+	<string name="option_WtW_Allow_Player_Choice">Allow players to turn prone reminder windows on or off (requires restart)</string>
+	<string name="option_WtW_On_Player_Choice">Reminder window to stand when you are prone</string>
+	<string name="option_WtW_On_DM_Choice">Prone reminder windows for characters not owned by players</string>
 	<string name="option_label_AOSW">Open speed details window on turn start</string>
-	<string name="option_label_DDLU">Preferred Distance Units For Display</string>
-	<string name="option_label_DDCU">Distance Units used in Spell Effect Calculation</string>
+	<string name="option_label_DDLU">Units for displaying Speed</string>
+	<string name="option_label_DDCU">Distance units used in spell effects (only change if you know what you're doing)</string>
 	<string name="option_val_meters">Meters</string>
 	<string name="option_val_tiles">Tiles</string>
 	<string name="option_val_feet">Feet</string>
