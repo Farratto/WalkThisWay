@@ -56,10 +56,12 @@ function checkBetterGoldPurity()
 	return sReturn
 end
 
--- luacheck: push ignore 561
-function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bStartsWith, bReturnString)
-	-- defaults: case sensitive, not starts with, not whole match, not returnString & not debug
+--function hasEffectFindString(rActor, sString, _bWholeMatch, bCaseInsensitive, _bStartsWith, bReturnString)
+function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString)
+	-- DEFAULTS: case sensitive, not returnString, & not debug
 	-- bWholeMatch, if true, overrides bStartsWith
+	-- bWholeMatch, bStartsWith will not work with pattern matching
+	-- when using bCaseInsensitive, make use of [^%] instead of %uppercase
 	if not rActor or not sString then
 		Debug.console("WtWCommon.hasEffectFindString - not rActor or not sString");
 		return;
@@ -101,23 +103,24 @@ function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bSt
 		if bGo then
 			local sLabel = DB.getValue(v, 'label', '');
 			local sFinalLabel = sLabel;
+			sFinalLabel = StringManager.strip(sFinalLabel)
 			if bCaseInsensitive then
 				sFinalLabel = string.lower(sLabel);
 			end
-			if bStartsWith and not bWholeMatch then
-				sFinalLabel = string.sub(sLabel, 1, #sString);
-			end
+			--if bStartsWith and not bWholeMatch then
+			--	sFinalLabel = string.sub(sLabel, 1, #sString);
+			--end
 
 			-- Check for match
-			if bWholeMatch or bStartsWith then
-				if sFinalLabel == sClause then
-					if bReturnString then
-						return sLabel;
-					else
-						return true;
-					end
-				end
-			else
+			--if bWholeMatch or bStartsWith then
+			--	if sFinalLabel == sClause then
+			--		if bReturnString then
+			--			return sLabel;
+			--		else
+			--			return true;
+			--		end
+			--	end
+			--else
 				local aFind = string.find(sFinalLabel, sClause)
 				if aFind then
 					if bReturnString then
@@ -126,14 +129,13 @@ function hasEffectFindString(rActor, sString, bWholeMatch, bCaseInsensitive, bSt
 						return true;
 					end
 				end
-			end
+			--end
 
 		end
 	end
 
 	return false;
 end
--- luacheck: pop
 
 -- luacheck: push ignore 561
 function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)

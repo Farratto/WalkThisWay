@@ -9,6 +9,7 @@
 		<name>Feature: Walk This Way</name>
 		<version>~dev_version~</version>
 		<loadorder>400</loadorder>
+<!--		<loadorder>100</loadorder> -->
 		<author>Farratto</author>
 		<description>Reminders for prone condition and movement.</description>
 	</properties>

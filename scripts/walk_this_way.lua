@@ -2,17 +2,52 @@
 -- attribution and copyright information.
 
 -- luacheck: globals clientGetOption checkProne checkHideousLaughter addEffectWtW speedCalculator setPQvalue
--- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild proneWindow
+-- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild turnStartChecks
 -- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery hasRoot
--- luacheck: globals accommKnownExtsSpeed updateEffectSpeedCalc openSpeedWindow getConversionFactor
+-- luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow getConversionFactor
 -- luacheck: globals parseBaseSpeed onRecordTypeEventWtW reparseBaseSpeed reparseAllBaseSpeeds recalcAllSpeeds
+-- luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
 
 OOB_MSGTYPE_PRONEQUERY = "pronequery";
 OOB_MSGTYPE_CLOSEQUERY = "closequery";
+OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 
 fonRecordTypeEvent = ''; --luacheck: ignore 111
 
 function onInit()
+	setOptions();
+	EffectManager.registerEffectCompType("SPEED", { bIgnoreTarget = true, bNoDUSE = true, bIgnoreOtherFilter = true, bIgnoreExpire = true });
+		--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE bIgnoreTarget
+		--continued: bSpell bOneShot bIgnoreExpire
+
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_SPEEDWINDOW, handleSpeedWindowClient);
+
+	if Session.IsHost then
+		DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
+		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent; --luacheck: ignore 111
+		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
+	end
+
+	if not OptionsManager.isOption('WESC', 'off') then
+		DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
+		--DB.addHandler('combattracker.list.*.effects.*.label', 'onDelete', updateEffectSpeedCalc);
+		DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
+	end
+end
+
+function onClose()
+	DB.removeHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
+	--DB.removeHandler('combattracker.list.*.effects.*.label', 'onDelete', updateEffectSpeedCalc);
+	DB.removeHandler('combattracker.list.*.effects','onChildDeleted',callSpeedCalcEffectDeleted);
+	OptionsManager.unregisterCallback('DDLU', recalcAllSpeeds);
+
+	DB.removeHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
+	OptionsManager.unregisterCallback('DDCU', reparseAllBaseSpeeds);
+	OptionsManager.unregisterCallback('WESC', recalcAllSpeeds);
+	CombatRecordManager.onRecordTypeEvent = fonRecordTypeEvent; --luacheck: ignore 113
+end
+
+function setOptions()
 -- DEFAULT BEHAVIORS FOR OPTIONS: sType = "option_entry_cycler", on|off, default = off
 --Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client"
 	--Old 4th = ("option_label_" .. sKey)
@@ -27,11 +62,6 @@ function onInit()
 	OptionsManager.registerOptionData({	sKey = 'WESC', sGroupRes = 'option_header_WtW', tCustom = { default = "on" } });
 	OptionsManager.registerOptionData({	sKey = 'AOSW', bLocal = true });
 	OptionsManager.registerOptionData({	sKey = 'DDCU', sGroupRes = "option_header_WtW",
-		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
-			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
-		}
-	});
-	OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
 		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
 			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
 		}
@@ -52,6 +82,11 @@ function onInit()
 		baseval = 'off',
 		default = 'off'
 	});
+	OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
+		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
+			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
+		}
+	});
 	if clientGetOption('APCW') == "on" then
 		OptionsManager.registerOption2('WTWONPLR', true, "option_header_client", 'option_WtW_On_Player_Choice',
 									   'option_entry_cycler', {
@@ -71,44 +106,19 @@ function onInit()
 			default = 'on'
 		});
 	end
+
 	if not OptionsManager.isOption('WTWON', 'off') then
-		CombatManager.setCustomTurnStart(proneWindow);
+		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(closeAllProneWindows);
 		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_PRONEQUERY, handleProneQueryClient);
 		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSEQUERY, handleCloseProneQuery);
 	end
 
-	EffectManager.registerEffectCompType("SPEED", { bIgnoreTarget = true, bNoDUSE = true, bIgnoreOtherFilter = true, bIgnoreExpire = true });
-		--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE bIgnoreTarget
-		--continued: bSpell bOneShot bIgnoreExpire
-
 	OptionsManager.registerCallback('DDLU', recalcAllSpeeds);
-
 	if Session.IsHost then
-		DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
 		OptionsManager.registerCallback('DDCU', reparseAllBaseSpeeds);
 		OptionsManager.registerCallback('WESC', recalcAllSpeeds);
-		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent; --luacheck: ignore 111
-		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
 	end
-
-	if not OptionsManager.isOption('WESC', 'off') then
-		DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', updateEffectSpeedCalc);
-		DB.addHandler('combattracker.list.*.effects.*.label', 'onDelete', updateEffectSpeedCalc);
-		--DB.addHandler('combattracker.list.*.effects.*.label', 'onAdd', updateEffectSpeedCalc);
-	end
-end
-
-function onClose()
-	DB.removeHandler('combattracker.list.*.effects.*.label', 'onUpdate', updateEffectSpeedCalc);
-	DB.removeHandler('combattracker.list.*.effects.*.label', 'onDelete', updateEffectSpeedCalc);
-	--DB.removeHandler('combattracker.list.*.effects.*.label', 'onAdd', updateEffectSpeedCalc);
-	OptionsManager.unregisterCallback('DDLU', recalcAllSpeeds);
-
-	DB.removeHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
-	OptionsManager.unregisterCallback('DDCU', reparseAllBaseSpeeds);
-	OptionsManager.unregisterCallback('WESC', recalcAllSpeeds);
-	CombatRecordManager.onRecordTypeEvent = fonRecordTypeEvent; --luacheck: ignore 113
 end
 
 function onRecordTypeEventWtW(sRecordType, tCustom)
@@ -116,12 +126,19 @@ function onRecordTypeEventWtW(sRecordType, tCustom)
 	parseBaseSpeed(tCustom.nodeCT, true);
 end
 
-function updateEffectSpeedCalc(nodeEffectLabel)
+function callSpeedCalcEffectUpdated(nodeEffectLabel)
 	if OptionsManager.isOption('WESC', 'off') then
 		return;
 	end
 	local nodeEffect = DB.getParent(nodeEffectLabel);
 	local nodeCT = DB.getChild(nodeEffect, '...');
+	speedCalculator(nodeCT);
+end
+function callSpeedCalcEffectDeleted(nodeEffects)
+	if OptionsManager.isOption('WESC', 'off') then
+		return;
+	end
+	local nodeCT = DB.getParent(nodeEffects)
 	speedCalculator(nodeCT);
 end
 
@@ -230,17 +247,19 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	end
 
 	local nHover = DB.getValue(nodeCTWtW, 'hover')
-	local sLngthUnits = DB.getValue(nodeCTWtW, 'units')
-	if not sLngthUnits or sLngthUnits == '' then
-		Debug.console("WalkThisWay.speedCalculator - units not in DB");
-		sLngthUnits = OptionsManager.getOption('DDCU');
-	end
-	if hasRoot(nodeCT) then
-		local sReturn = '0 ' .. sLngthUnits;
-		if nHover == 1 then
-			sReturn = sReturn .. ' (hover)';
+	local bHasRoot, bHasHover = hasRoot(nodeCT);
+	if bHasRoot then
+		local tRoot = {};
+		local tSpdRcrd = {};
+		tSpdRcrd['velocity'] = '0';
+		if nHover == 1 or bHasHover then
+			tSpdRcrd['type'] = 'Walk (hover)';
+		else
+			tSpdRcrd['type'] = 'Walk';
 		end
-		return sReturn;
+		table.insert(tRoot, tSpdRcrd);
+		local bReturn = updateDisplaySpeed(nodeCT, tRoot, nBaseSpeed);
+		return bReturn;
 	end
 
 	local rActor = ActorManager.resolveActor(nodeCT);
@@ -371,7 +390,11 @@ function speedCalculator(nodeCT, bCalledFromParse)
 									bFound = true;
 								end
 							end
-							if bFound then v.velocity = nMod end
+							if bFound then
+								if nMod > v.velocity then
+									v.velocity = nMod
+								end
+							end
 						end
 						if not bFound then
 							local tSpdRcrd = {};
@@ -477,29 +500,31 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	end
 
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
-		Debug.console('k1 = '.. tostring(k) .. '. tSpdRcrd.velocity = ' .. tostring(tSpdRcrd.velocity))
-
 		local nFGSpeed = tSpdRcrd['velocity'];
 		local nFGSpeedNew = nFGSpeed;
+		local bFound;
 		if not nFGSpeedNew then
 			for _,v in ipairs(tFGSpeedNew) do
 				if v.type == 'walk' or v.type == '' then
-					nFGSpeedNew = v.velocity
+					nFGSpeedNew = v.velocity;
+					nFGSpeedNew = tonumber(nFGSpeedNew);
+					bFound = true;
+				else
+					if not nFGSpeedNew and bFound then
+						nFGSpeedNew = v.velocity;
+						nFGSpeedNew = tonumber(nFGSpeedNew);
+						bFound = true;
+					end
 				end
 			end
 			if not nFGSpeedNew then nFGSpeedNew = tFGSpeedNew[1].velocity end
+			nFGSpeedNew = tonumber(nFGSpeedNew);
+			if not nFGSpeedNew then nFGSpeedNew = 30 end
+			--if not nFGSpeed then nFGSpeed = nFGSpeedNew end
 		end
 		for k,v in ipairs(tRebase) do
 			if k > 1 then
-				if (nFGSpeedNew < nFGSpeed) or (v < nFGSpeed) then
-					if v < nFGSpeedNew then
-						nFGSpeedNew = v;
-					end
-				else
-					if v > nFGSpeedNew then
-						nFGSpeedNew = v;
-					end
-				end
+				if v > nFGSpeedNew then nFGSpeedNew = v end
 			else
 				nFGSpeedNew = v;
 			end
@@ -532,8 +557,33 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		end
 	end
 
+	local bReturn = updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed);
+	return bReturn;
+end
+-- luacheck: pop
+
+function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed)
+	if not nodeCT then
+		Debug.console("WalkThisWay.updateDisplaySpeed - not nodeCT");
+		return;
+	end
+	if not tFGSpeedNew then
+		Debug.console("WalkThisWay.updateDisplaySpeed - not tFGSpeedNew");
+		return;
+	end
+	if not nBaseSpeed then
+		Debug.console("WalkThisWay.updateDisplaySpeed - not tFGSpeedNew");
+		return;
+	end
+
+	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	local sUnitsPrefer = OptionsManager.getOption('DDLU');
 	local nConvFactor = 1;
+	local sLngthUnits = DB.getValue(nodeCTWtW, 'units')
+	if not sLngthUnits or sLngthUnits == '' then
+		Debug.console("WalkThisWay.updateDisplaySpeed - units not in DB");
+		sLngthUnits = OptionsManager.getOption('DDCU');
+	end
 	if sLngthUnits ~= sUnitsPrefer then
 		nConvFactor = getConversionFactor(sLngthUnits, sUnitsPrefer);
 		if not nConvFactor then
@@ -560,16 +610,23 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				tSpdRcrd.velocity = tSpdRcrd.velocity * 0.75;
 			end
 		end
-		Debug.console('k2 = '.. tostring(k) .. '. tSpdRcrd.velocity = ' .. tostring(tSpdRcrd.velocity))
 
 		local sVelWithUnits = tostring(tSpdRcrd.velocity) .. ' ' .. sUnitsPrefer
-		if tSpdRcrd.type == '' or tSpdRcrd.type == 'Walk' then
+		if tSpdRcrd.type == '' or (string.match(tSpdRcrd.type, '^Walk')) then
 			nBonusSpeed = tSpdRcrd.velocity - nBaseSpeed
-			Debug.console('nBonusSpeed = ' .. tostring(nBonusSpeed))
-			if k == 1 then
-				sReturn = sVelWithUnits
+			local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$');
+			if sQualifier then
+				if k == 1 then
+					sReturn = sVelWithUnits .. ' ' .. sQualifier
+				else
+					sReturn = sVelWithUnits .. ' ' .. sQualifier .. ', ' .. sReturn
+				end
 			else
-				sReturn = sVelWithUnits .. ', ' .. sReturn
+				if k == 1 then
+					sReturn = sVelWithUnits
+				else
+					sReturn = sVelWithUnits .. ', ' .. sReturn
+				end
 			end
 		else
 			local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$');
@@ -591,29 +648,28 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	end
 	sReturn = StringManager.strip(sReturn);
 	if sReturn and sReturn ~= '' then
-		Debug.console('if sReturn called')
 		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', sReturn);
+		local rActor = ActorManager.resolveActor(nodeCT);
+		if not rActor then
+			Debug.console("WalkThisWay.updateDisplaySpeed - not rActor");
+			return;
+		end
 		if ActorManager.isPC(rActor) then
-			Debug.console('actorManager isPC ')
 			local nodeChar = ActorManager.getCreatureNode(rActor);
 			local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
-			Debug.console('nBaseSpeed = ' .. tostring(nBaseSpeed))
-			Debug.console('nBonusSpeed = ' .. tostring(nBonusSpeed))
 			DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
 			DB.setValue(nodeCharWtW, 'bonus', 'number', nBonusSpeed);
-			local nodeCharMNM = DB.getChild(nodeChar, "MNMCharacterSheetEffectsDisplay");
-			if nodeCharMNM then
-				DB.setValue(nodeCharMNM, 'BONUSSPEED', 'number', nBonusSpeed);
-				Debug.console('if nodeCharMNM called')
-			end
+			--local nodeCharMNM = DB.getChild(nodeChar, "MNMCharacterSheetEffectsDisplay");
+			--if nodeCharMNM then
+			--	DB.setValue(nodeCharMNM, 'BONUSSPEED', 'number', nBonusSpeed);
+			--end
 		end
 		return true;
 	else
-		Debug.console("WalkThisWay.speedCalculator - no sReturn");
+		Debug.console("WalkThisWay.updateDisplaySpeed - no sReturn");
 		return false;
 	end
 end
--- luacheck: pop
 
 function reparseAllBaseSpeeds()
 	if not Session.IsHost then
@@ -779,10 +835,10 @@ function accommKnownExtsSpeed(nodeCT)
 			end
 		end
 		--exhaustion (speed 0 & DEATH checks are in hasRoot)
-		if WtWCommon.hasEffectFindString(nodeCT, "Exhausted; Speed Halved", false, false, true) then
+		if WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; Speed Halved", false) then
 			nHalved = nHalved + 1;
 		end
-		local sExhaustStack = WtWCommon.hasEffectFindString(nodeCT, "Exhausted; Speed %-%d+ %(info only%)", false, false, false, true);
+		local sExhaustStack = WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; Speed %-%d+ %(info only%)$", false, true);
 		if sExhaustStack then
 			local sExhaustStack = sExhaustStack:gsub('^Exhausted; Speed %-', '');
 			local sExhaustStack = sExhaustStack:gsub('%s*%(%s*info only%s*%)$', '');
@@ -830,66 +886,80 @@ function hasRoot(nodeCT)
 	if Session.RulesetName ~= "5E" then
 		if EffectManagerPFRPG2 then
 			if EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Unconscious") then
-				return true
+				return true;
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Dead") then
-				return true
+				return true;
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Paralyzed") then
-				return true
+				return true;
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Dying") then
-				return true
+				return true;
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Immobilized") then
-				return true
+				return true;
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Petrified") then
-				return true
+				return true;
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Restrained") then
-				return true
+				return true;
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Grabbed") then
-				return true
+				return true;
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Stunned") then
-				return true
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", false, true) then
-				return true
-			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:%s*0", false, true) then
-				return true
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", false, true) then
-				return true
+				return true;
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
+				return true;
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*0%s*max", true) then
+				return true;
+			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:%s*0", true) then
+				return true;
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", true) then
+				return true;
 			else
-				return false
+				return false;
 			end
 		else
 			if EffectManager.hasCondition(nodeCT, "Unconscious") then
-				return true
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", false, true) then
-				return true
-			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:%s*0", false, true) then
-				return true
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", false, true) then
-				return true
+				return true;
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
+				return true;
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*0%s*max", true) then
+				return true;
+			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:%s*0", true) then
+				return true;
+			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", true) then
+				return true;
 			else
-				return false
+				return false;
 			end
 		end
 	else
+		local bReturn;
 		if EffectManager5E.hasEffectCondition(nodeCT, "Grappled") then
-			return true
+			bReturn = true;
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "Paralyzed") then
-			return true
+			bReturn = true;
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "Petrified") then
-			return true
+			bReturn = true;
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "Restrained") then
-			return true
+			bReturn = true;
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "Unconscious") then
-			return true
+			bReturn = true;
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "DEATH") then
-			return true
-		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", false, true) then
-			return true
-		elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:?%s*0", false, true) then
-			return true
-		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", false, true) then
-			return true
+			bReturn = true;
+		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*0%s*max", true) then
+			bReturn = true;
+		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
+			bReturn = true;
+		elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:?%s*0", true) then
+			bReturn = true;
+		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", true) then
+			bReturn = true;
 		else
-			return false
+			return false;
+		end
+		if bReturn then
+			if WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*%d*%s*type%s*%(%s*[%l%u]*%s*%(%s*hover%s*%)%s*%)", false, true) then
+				return true, true;
+			else
+				return true, false;
+			end
 		end
 	end
 end
@@ -968,7 +1038,7 @@ function checkProne(nodeCT)
 				return false
 			elseif hasRoot(nodeCT) then
 				return false
-			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", false, true) then
+			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
 				return false
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "NOSTAND") then
 				return false
@@ -980,7 +1050,7 @@ function checkProne(nodeCT)
 				return false
 			elseif hasRoot(nodeCT) then
 				return false
-			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", false, true) then
+			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
 				return false
 			elseif EffectManager.hasCondition(nodeCT, "NOSTAND") then
 				return false
@@ -993,7 +1063,7 @@ function checkProne(nodeCT)
 			return false
 			elseif hasRoot(nodeCT) then
 				return false
-		elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", false, true) then
+		elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
 			return false
 		elseif EffectManager5E.hasEffect(nodeCT, "NOSTAND") then
 			return false
@@ -1014,14 +1084,14 @@ function checkHideousLaughter(rActor)
 	local nMatch = 0;
 	local sClause = "Tasha's Hideous Laughter";
 		-- should return true, but only if it's not clause1
-	local sClause1 = "Tasha's Hideous Laughter; Prone";
+	local sClause1 = "^Tasha's Hideous Laughter; Prone$";
 		-- should return false, but only if none of the other trues are present
 		-- and also if the only sClause is the one contained within sClause1
-	local sClause2 = "Tasha's Hideous Laughter (C); Prone; Incapacitated";
+	local sClause2 = "^Tasha's Hideous Laughter %(C%); Prone; Incapacitated";
 		-- should return true, regardless of other clauses
 		-- starts with clause
 		-- Team Twohy with ongoing save extension
-	local sClause3 = "Tasha's Hideous Laughter; Incapacitated";
+	local sClause3 = "^Tasha's Hideous Laughter; Incapacitated$";
 		-- should return true, regardless of other clauses
 		-- whole clause
 		-- Team Twohy without ongoing save extension
@@ -1030,26 +1100,26 @@ function checkHideousLaughter(rActor)
 		-- whole clause
 		-- Team Twohy without ongoing save extension
 		-- lucky here. This one is a last check anyway, and it doesn't hit with any of the others.
-	local sClause5 = "Tasha's Hideous Laughter; (C)";
+	local sClause5 = "^Tasha's Hideous Laughter; %(C%)$";
 		-- should return false, if clauses 0, 2, or 3 are not present
 		-- should behave same as clause1
 		-- whole clause
 		-- 5eAE with self concentration
 
-	if WtWCommon.hasEffectFindString(rActor, sClause3, true) then
+	if WtWCommon.hasEffectFindString(rActor, sClause3) then
 		return true;
 	end
 
-	if WtWCommon.hasEffectFindString(rActor, sClause2, false, false, true) then
+	if WtWCommon.hasEffectFindString(rActor, sClause2, false) then
 		return true;
 	end
 
-	local hasClause1 = WtWCommon.hasEffectFindString(rActor, sClause1, true);
-	local hasClause5 = WtWCommon.hasEffectFindString(rActor, sClause5, true);
+	local hasClause1 = WtWCommon.hasEffectFindString(rActor, sClause1);
+	local hasClause5 = WtWCommon.hasEffectFindString(rActor, sClause5);
 	if hasClause1 or hasClause5 then
 		bClauseExceptFound = true;
 		nMatch = nMatch + 1;
-	elseif WtWCommon.hasEffectFindString(rActor, sClause, false, true) then
+	elseif WtWCommon.hasEffectFindString(rActor, sClause, true) then
 		nMatch = nMatch + 1;
 	end
 	if hasClause1 and hasClause5 then
@@ -1100,7 +1170,7 @@ function openSpeedWindow(nodeCT)
 	Interface.openWindow('speed_window', nodeCTWtW);
 end
 
-function proneWindow(nodeCT)
+function turnStartChecks(nodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
 		return;
 	end
@@ -1110,8 +1180,15 @@ function proneWindow(nodeCT)
 	local rSource = ActorManager.resolveActor(nodeCT);
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 
-	if OptionsManager.isOption('AOSW', 'on') then
-		openSpeedWindow(nodeCT);
+	if sOwner then
+		local msgOOB = {};
+		msgOOB.type = OOB_MSGTYPE_SPEEDWINDOW;
+		msgOOB.sCTNodeID = ActorManager.getCTNodeName(rSource);
+		Comm.deliverOOBMessage(msgOOB, sOwner);
+	else
+		if OptionsManager.isOption('AOSW', 'on') then
+			openSpeedWindow(nodeCT);
+		end
 	end
 
 	if not checkProne(rSource) then
@@ -1236,6 +1313,12 @@ function sendCloseWindowCmd(nodeCT)
 		Comm.deliverOOBMessage(msgOOB, sOwner);
 	else
 		ChatManager.SystemMessage(Interface.getString("msg_NotConnected"));
+	end
+end
+
+function handleSpeedWindowClient(msgOOB) -- luacheck: ignore 212
+	if OptionsManager.isOption('AOSW', 'on') then
+		openSpeedWindow(msgOOB.sCTNodeID);
 	end
 end
 

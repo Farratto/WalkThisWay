@@ -57,7 +57,7 @@
 				<script>
 					function onDoubleClick()
 						local nodeW = window.getDatabaseNode();
-						WalkThisWay.openSpeedWindow(nodeW)
+						WalkThisWay.openSpeedWindow(nodeW);
 					end
 				</script>
 				<readonly />
@@ -75,11 +75,144 @@
 				<script>
 					function onDoubleClick()
 						local nodeW = window.getDatabaseNode();
-						WalkThisWay.openSpeedWindow(nodeW)
+						WalkThisWay.openSpeedWindow(nodeW);
 					end
 				</script>
 				<readonly />
 			</string_ct>
 		</sheetdata>
 	</windowclass>
+	<windowclass name="charsheet_sensescombat" merge="join">
+		<sheetdata>
+			<number_charspeed name="speed" source="WalkThisWay.base">
+				<script>
+					function onDoubleClick()
+						local nodeW = window.getDatabaseNode();
+						local nodeCT = ActorManager.getCTNodeName(nodeW);
+						WalkThisWay.openSpeedWindow(nodeCT);
+					end
+				</script>
+			</number_charspeed>
+		</sheetdata>
+	</windowclass>
+	<windowclass name="npc_combat_top_2024" merge="join">
+		<sheetdata>
+			<string_content_column name="speed" merge="join">
+				<script>
+					function onDoubleClick()
+						local nodeW = window.getDatabaseNode();
+						local nodePath = DB.getPath(nodeW);
+						if string.match(nodePath, 'combattracker') then
+							WalkThisWay.openSpeedWindow(nodeW);
+						end
+					end
+				</script>			
+			</string_content_column>
+		</sheetdata>
+	</windowclass>
+	<windowclass name="npc_combat_top_2014" merge="join">
+		<sheetdata>
+			<string_content_column name="speed" merge="join">
+				<script>
+					function onDoubleClick()
+						local nodeW = window.getDatabaseNode();
+						local nodePath = DB.getPath(nodeW);
+						if string.match(nodePath, 'combattracker') then
+							WalkThisWay.openSpeedWindow(nodeW);
+						end
+					end
+				</script>			
+			</string_content_column>
+		</sheetdata>
+	</windowclass>
+	<template name = "wtw_green_light">
+		<stringcontrol name="value">
+			<anchored width="35" height ="25">
+				<top anchor="top"/>
+				<left anchor="right"/>
+			</anchored>	
+			<center />
+			<readonly />
+			<font>reference-h</font>
+			<script>		
+				local sDBPath = nil
+				local sLabel = nil
+				local sAnchor = nil
+				local sAbility = nil
+				
+				function onInit()					
+					sDBPath = self.getName()			
+					sAnchor = "speed"	
+					assignAnchor(sAnchor)	
+					refresh()
+				end
+				function assignAnchor(sAnchor)
+					setAnchor("top", sAnchor, "top")
+					setAnchor("left", sAnchor, "right","",-10)
+				end	
+				function onValueChanged()
+					refresh()
+				end
+				function refresh()					
+					local nodeChar = window.getDatabaseNode()					
+
+					--ADDED BY FARRATTO
+					local nValue = nil
+					local nBaseValue = nil
+					--if WalkThisWay then
+						local nodeCharWtW = DB.getChild(nodeChar, 'WalkThisWay')
+						if nodeCharWtW then
+							nBaseValue = DB.getValue(nodeCharWtW, 'base')
+							nValue = DB.getValue(nodeCharWtW, 'bonus')
+						end
+					--end
+					--if not nBaseValue or not nValue then
+					--	--ORIGINAL CODE MOVED BY FARRATTO
+					--	local nodeSpeed = DB.getChild(nodeChar,"speed")
+					--	nBaseValue = DB.getValue(nodeSpeed,"total")
+					--	local nodeCharExt = DB.getChild(nodeChar,"MNMCharacterSheetEffectsDisplay")
+					--	nValue = DB.getValue(nodeCharExt,sDBPath)
+					--	--END ORGINAL CODE MOVED BY FARRATTO
+					--end
+					--END ADDED BY FARRATTO
+					
+					if nValue &gt; 0 then
+						setFrame("fieldgreen")
+						setVisible(true)
+					elseif nValue &lt; 0 then
+						setFrame("fieldred")
+						setVisible(true)					
+					else
+						setVisible(false)
+					end		
+									
+					setValue(nBaseValue + nValue)				
+				end		
+			</script>								
+		</stringcontrol>	
+	</template>
+	<windowclass name="charsheet_sensescombat" merge="join">	
+		<sheetdata>
+			<wtw_green_light name = "WalkThisWay.bonus"/>
+		</sheetdata>		
+	</windowclass>		
+	<template name = "MNMBONUSSPEED" merge="join">
+		<stringcontrol name="value">
+			<invisible/>
+			<script merge="replace">		
+				function onInit()					
+					setVisible(false)
+					sAnchor = "speed"	
+					assignAnchor(sAnchor)	
+				end
+				function assignAnchor(sAnchor)
+					setAnchor("top", sAnchor, "top")
+					setAnchor("left", sAnchor, "right","",-10)
+				end	
+				function refresh()					
+					setVisible(false)
+				end		
+			</script>								
+		</stringcontrol>	
+	</template>
 </root>
