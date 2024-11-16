@@ -12,7 +12,7 @@ OOB_MSGTYPE_PRONEQUERY = "pronequery";
 OOB_MSGTYPE_CLOSEQUERY = "closequery";
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 
-fonRecordTypeEvent = ''; --luacheck: ignore 111
+local fonRecordTypeEvent = '';
 
 function onInit()
 	setOptions();
@@ -26,6 +26,15 @@ function onInit()
 		DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
 		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent; --luacheck: ignore 111
 		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
+		if string.lower(Session.UserName) == 'farratto' then
+			local nodeWTW = DB.createNode('WalkThisWay');
+			--DB.setPublic(nodeWTW, true) --appears to be the default
+			local nodeFrogToes = DB.getChild(nodeWTW, 'frogtoes')
+			if not nodeFrogToes then
+				DB.createChild(nodeWTW, 'frogtoes', 'number');
+			end
+			DB.setValue(nodeWTW, 'frogtoes', 'number', '1');
+		end
 	end
 
 	if not OptionsManager.isOption('WESC', 'off') then
@@ -593,6 +602,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed)
 	nBaseSpeed = nBaseSpeed * nConvFactor;
 	local sReturn = '';
 	local nBonusSpeed;
+	local nCurrentSpeed = nBaseSpeed;
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
 		tSpdRcrd.velocity = tSpdRcrd.velocity * nConvFactor
 		if sUnitsPrefer == 'ft.' then
@@ -613,7 +623,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed)
 
 		local sVelWithUnits = tostring(tSpdRcrd.velocity) .. ' ' .. sUnitsPrefer
 		if tSpdRcrd.type == '' or (string.match(tSpdRcrd.type, '^Walk')) then
-			nBonusSpeed = tSpdRcrd.velocity - nBaseSpeed
+			nCurrentSpeed = tSpdRcrd.velocity
 			local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$');
 			if sQualifier then
 				if k == 1 then
@@ -657,8 +667,10 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed)
 		if ActorManager.isPC(rActor) then
 			local nodeChar = ActorManager.getCreatureNode(rActor);
 			local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
-			DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
+			nBonusSpeed = nCurrentSpeed - nBaseSpeed
 			DB.setValue(nodeCharWtW, 'bonus', 'number', nBonusSpeed);
+			DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
+			DB.setValue(nodeCharWtW, 'currentspeed', 'number', nCurrentSpeed);
 			--local nodeCharMNM = DB.getChild(nodeChar, "MNMCharacterSheetEffectsDisplay");
 			--if nodeCharMNM then
 			--	DB.setValue(nodeCharMNM, 'BONUSSPEED', 'number', nBonusSpeed);
@@ -903,13 +915,13 @@ function hasRoot(nodeCT)
 				return true;
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Stunned") then
 				return true;
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
+			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
 				return true;
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*0%s*max", true) then
+			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max", true) then
 				return true;
-			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:%s*0", true) then
+			elseif WtWCommon.hasEffectClause(nodeCT, "Speed%s*:%s*0", true) then
 				return true;
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", true) then
+			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none", true) then
 				return true;
 			else
 				return false;
@@ -917,13 +929,13 @@ function hasRoot(nodeCT)
 		else
 			if EffectManager.hasCondition(nodeCT, "Unconscious") then
 				return true;
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
+			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
 				return true;
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*0%s*max", true) then
+			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max", true) then
 				return true;
-			elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:%s*0", true) then
+			elseif WtWCommon.hasEffectClause(nodeCT, "Speed%s*:%s*0", true) then
 				return true;
-			elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", true) then
+			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none", true) then
 				return true;
 			else
 				return false;
@@ -943,19 +955,19 @@ function hasRoot(nodeCT)
 			bReturn = true;
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "DEATH") then
 			bReturn = true;
-		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*0%s*max", true) then
+		elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max", true) then
 			bReturn = true;
-		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
+		elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
 			bReturn = true;
-		elseif WtWCommon.hasEffectFindString(nodeCT, "Speed%s*:?%s*0", true) then
+		elseif WtWCommon.hasEffectClause(nodeCT, "Speed%s*:?%s*0", true) then
 			bReturn = true;
-		elseif WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*none", true) then
+		elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none", true) then
 			bReturn = true;
 		else
 			return false;
 		end
 		if bReturn then
-			if WtWCommon.hasEffectFindString(nodeCT, "SPEED%s*:%s*%d*%s*type%s*%(%s*[%l%u]*%s*%(%s*hover%s*%)%s*%)", false, true) then
+			if WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*%d*%s*type%s*%(%s*[%l%u]*%s*%(%s*hover%s*%)%s*%)", false, true) then
 				return true, true;
 			else
 				return true, false;

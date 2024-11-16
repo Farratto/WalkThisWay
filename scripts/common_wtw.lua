@@ -3,11 +3,12 @@
 
 -- luacheck: globals checkBetterGoldPurity hasEffectFindString removeEffectClause handleApplyHostCommands
 -- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient removeEffectCaseInsensitive
--- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess
+-- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
+-- luacheck: globals hasEffectClause
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
-_sBetterGoldPurity = ''; --luacheck: ignore 111
-
+local _sBetterGoldPurity = '';
+local tExtensions = {};
 fhasCondition = ''; --luacheck: ignore 111
 fhasEffect = ''; --luacheck: ignore 111
 
@@ -40,6 +41,20 @@ function onInit()
 	if EffectManager5EBCE then
 		_sBetterGoldPurity = checkBetterGoldPurity(); --luacheck: ignore 111
 	end
+
+	if Session.IsHost then
+		tExtensions = Extension.getExtensions(); --luacheck: ignore 111
+	end
+end
+
+-- Matches on the filname/foldername or on the name defined in the extension.xml
+function hasExtension(sExtName)
+	for _,sExtension in ipairs(tExtensions) do --luacheck: ignore 113
+		if sExtension == sExtName then
+			return true;
+		end
+	end
+	return false;
 end
 
 function checkBetterGoldPurity()
@@ -59,8 +74,6 @@ end
 --function hasEffectFindString(rActor, sString, _bWholeMatch, bCaseInsensitive, _bStartsWith, bReturnString)
 function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString)
 	-- DEFAULTS: case sensitive, not returnString, & not debug
-	-- bWholeMatch, if true, overrides bStartsWith
-	-- bWholeMatch, bStartsWith will not work with pattern matching
 	-- when using bCaseInsensitive, make use of [^%] instead of %uppercase
 	if not rActor or not sString then
 		Debug.console("WtWCommon.hasEffectFindString - not rActor or not sString");
@@ -267,6 +280,118 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 
 	if #aMatch > 0 then
 		return true;
+	end
+	return false;
+end
+-- luacheck: pop
+
+-- luacheck: push ignore 561
+function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
+	-- when using pattern matching, make use of [^%] instead of %uppercase
+	if not rActor or not sClause then
+		return
+		Debug.console("WtWCommon.hasEffectClause - not rActor or not sClause")
+	end
+
+	local sLowerClause = sClause:lower();
+	local aEffects;
+	local tEffectCompParams;
+
+	if EffectManagerBCE then
+		tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
+	end
+	if TurboManager then
+		aEffects = TurboManager.getMatchedEffects(rActor, sClause);
+	else
+		aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
+	end
+
+	-- Iterate through each effect
+	for _, v in pairs(aEffects) do
+		local nActive = DB.getValue(v, 'isactive', 0);
+		local bGo = false
+		local bTargeted
+		local rConditionalHelper
+
+		if EffectManagerBCE then
+			rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
+
+			local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
+				(not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
+				(tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
+
+			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
+			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
+			  (EffectManagerADND.isValidCheckEffect(rActor, v) or (rTarget and EffectManagerADND.isValidCheckEffect(rTarget, v))))) then
+				bGo = true
+				rConditionalHelper.bTargeted = EffectManager.isTargetedEffect(v);
+			end
+		else
+			if nActive ~= 0 then
+				bGo = true
+				bTargeted = EffectManager.isTargetedEffect(v);
+			end
+		end
+
+		if bGo then
+			-- Parse each effect label
+			local sLabel = DB.getValue(v, 'label', '');
+			local aEffectComps = EffectManager.parseEffect(sLabel);
+
+			-- Iterate through each effect component looking for a type match
+			for _, sEffectComp in ipairs(aEffectComps) do
+				local rEffectComp
+				if EffectManager5E then
+					rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
+				elseif EffectManagerPFRPG2 then
+					rEffectComp = EffectManagerPFRPG2.parseEffectComp(sEffectComp);
+				else
+					rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
+				end
+				local sOriginalLower = string.lower(rEffectComp.original);
+				-- Handle conditionals
+				if _sBetterGoldPurity == 'gold' then --luacheck: ignore 113
+					EffectManager5EBCE.processConditional(rActor, rTarget, v, rEffectComp, rConditionalHelper);
+					-- Check for match
+					if rConditionalHelper.bProcessEffect and string.match(sOriginalLower, sLowerClause) then
+						if rConditionalHelper.bTargeted and not bIgnoreEffectTargets then
+							if EffectManager.isEffectTarget(v, rTarget) then
+								return true;
+							end
+						elseif not bTargetedOnly then
+							return true;
+						end
+					end
+				else
+					if EffectManager5E then
+						-- Handle conditionals
+						if rEffectComp.type == "IF" then
+							if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
+								break;
+							end
+						elseif rEffectComp.type == "IFT" then
+							if not rTarget then
+								break;
+							end
+							if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
+								break;
+							end
+						end
+					end
+					-- Check for match
+					local sOriginalLower = string.lower(rEffectComp.original);
+					if string.match(sOriginalLower, sLowerClause) then
+						if bTargeted and not bIgnoreEffectTargets then
+							if EffectManager.isEffectTarget(v, rTarget) then
+								return true;
+							end
+						elseif not bTargetedOnly then
+							return true;
+						end
+					end
+				end
+			end
+		end
 	end
 	return false;
 end
@@ -520,13 +645,14 @@ function processConditional(rActor, rTarget, rEffect, rEffectComp, rConditionalH
 
     if not rConditionalHelper.bSkipIF and rConditionalHelper.bProcessEffect then
         -- Handle conditionals
-        if rEffectComp.type == 'IF' or (EffectManagerUntrue and rEffectComp.type == 'IFN') then
+		local bUntrueExt = hasExtension('IF_NOT_untrue_effects_berwind');
+        if rEffectComp.type == 'IF' or (bUntrueExt and rEffectComp.type == 'IFN') then
             if not EffectManager5E.checkConditional(rActor, rEffect, rEffectComp.remainder) then
                 conditionalFail(rConditionalHelper, rEffectComp);
             else
                 conditionalSuccess(rConditionalHelper, rEffectComp);
             end
-        elseif rEffectComp.type == 'IFT' or (EffectManagerUntrue and rEffectComp.type == 'IFTN') then
+        elseif rEffectComp.type == 'IFT' or (bUntrueExt and rEffectComp.type == 'IFTN') then
             if not rTarget then
                 rConditionalHelper.bProcessEffect = false
             else

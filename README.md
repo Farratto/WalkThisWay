@@ -3,7 +3,7 @@
 **Current Version**: ~dev_version~ \
 **Updated**: ~date~
 
-This extension provides a small popup window at the start of a person's turn that asks if they want to stand up. It happens when a character is prone but does not have one of the conditions that prevents them from standing up.
+This extension provides a small popup window at the start of a person's turn that asks if they want to stand up, if they are prone. Version 2 of this extension now also calculates total effective speed after effects in combat tracker.
 
 ### Installation
 
@@ -13,17 +13,31 @@ You can ask questions at the [Fantasy Grounds Forum](https://www.fantasygrounds.
 
 ### Details
 
-On turn start, the extension will check the character, whose turn just started, for the prone condition.  If it finds it, it will check if that same actor has any of the following effects:
+The prone checker will also check for any conditions that dissalow a creature to stand up.  If it finds one, it will not ask the player if they want to stand up.  The following conditions are currently supported.
 
-* Grappled; Paralyzed; Petrified; Restrained; Unconscious; Tasha's Hideous Laughter; Unable to Stand; SPEED: none; NOSTAND
+* Grappled; Paralyzed; Petrified; Restrained; Unconscious; Tasha's Hideous Laughter; Unable to Stand; SPEED: none; NOSTAND; SPEED: max(0)
 
-If the actor has prone, but not any of the above effects, the extension will provide a small popup window to the screen of the party that controls that character.  The window asks if the person wants to stand up.  If they answer yes, the extension will remove the effect that contains prone and add an effect that says "SPEED: 0.5" that lasts until end of turn.  If they answer no, close the window, or ignore the window, the extension will do nothing. \
-The window can be moved and it remembers where it was.  It can be ignored and it will go away at the end of turn without consequences. \
-Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM
+The window asks if the person wants to stand up.  If they answer okay, the extension will remove the effect that contains prone and add an effect that says "SPEED: halved" that lasts until the end of turn.  If they answer cancel, close the window, or ignore the window, the extension will do nothing. \
+The window  can be ignored and it will go away at the end of turn without consequences. \
+The speed effects that are recognized: \
+* SPEED: none
+* SPEED: -10 or SPEED: 10 dec <decreases all speeds by 10>
+* SPEED: 10 inc <increases all speeds by 10>
+* SPEED: 60 <increases all speeds to 60 (speeds already above 60 will be unchanged>
+* SPEED: type(climb) <adds a new speed 'climb' and sets it to be the same as walking speed>
+* SPEED: 60 type(fly) <adds a new speed 'Fly' and sets only the new speed to 60>
+* SPEED: 5 max or SPEED: max(5) <none of the speeds can exceed 5>
+* SPEED: difficult <difficult terrain handling (halves all speeds (after inc/dec) except fly)>
+* SPEED: halved <halves all speeds (after inc/dec); stackable>
+* SPEED: doubled <doubles all speeds (after inc/dec); stackable>
+* Supports RAW encumbered (both standard and variant) and exhaustion rules
+* Coming soon: reduces speed when wearing armor you are not strong enough to wear
+
+Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance
 
 ### Other Rulesets
 
-This extension was designed with 5e in mind, but I have ported it to work on most (all?) rulesets.  If you're running a ruleset other than 5e, it will check for prone and much less specific settings for not being able to stand:
+This extension was designed with 5e in mind, but I have ported it to work on most (all?) rulesets.
 
 * Unable to Stand; SPEED: none; NOSTAND; Unconscious
 

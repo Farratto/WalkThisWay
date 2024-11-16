@@ -14,6 +14,7 @@
 			<minimum width="263" height="175" />
 			<dynamic />
 		</sizelimits>
+		<minimize>minimized_npc</minimize>
 		<sheetdata>
 			<windowtitlebar_utilitybox name="title">
 				<resource>speed_title</resource>
@@ -106,7 +107,7 @@
 							WalkThisWay.openSpeedWindow(nodeW);
 						end
 					end
-				</script>			
+				</script>
 			</string_content_column>
 		</sheetdata>
 	</windowclass>
@@ -121,98 +122,66 @@
 							WalkThisWay.openSpeedWindow(nodeW);
 						end
 					end
-				</script>			
+				</script>
 			</string_content_column>
 		</sheetdata>
 	</windowclass>
-	<template name = "wtw_green_light">
-		<stringcontrol name="value">
-			<anchored width="35" height ="25">
-				<top anchor="top"/>
-				<left anchor="right"/>
-			</anchored>	
-			<center />
-			<readonly />
-			<font>reference-h</font>
-			<script>		
-				local sDBPath = nil
-				local sLabel = nil
-				local sAnchor = nil
-				local sAbility = nil
-				
-				function onInit()					
-					sDBPath = self.getName()			
-					sAnchor = "speed"	
-					assignAnchor(sAnchor)	
-					refresh()
-				end
-				function assignAnchor(sAnchor)
-					setAnchor("top", sAnchor, "top")
-					setAnchor("left", sAnchor, "right","",-10)
-				end	
-				function onValueChanged()
-					refresh()
-				end
-				function refresh()					
-					local nodeChar = window.getDatabaseNode()					
 
-					--ADDED BY FARRATTO
-					local nValue = nil
-					local nBaseValue = nil
-					--if WalkThisWay then
-						local nodeCharWtW = DB.getChild(nodeChar, 'WalkThisWay')
-						if nodeCharWtW then
-							nBaseValue = DB.getValue(nodeCharWtW, 'base')
-							nValue = DB.getValue(nodeCharWtW, 'bonus')
-						end
-					--end
-					--if not nBaseValue or not nValue then
-					--	--ORIGINAL CODE MOVED BY FARRATTO
-					--	local nodeSpeed = DB.getChild(nodeChar,"speed")
-					--	nBaseValue = DB.getValue(nodeSpeed,"total")
-					--	local nodeCharExt = DB.getChild(nodeChar,"MNMCharacterSheetEffectsDisplay")
-					--	nValue = DB.getValue(nodeCharExt,sDBPath)
-					--	--END ORGINAL CODE MOVED BY FARRATTO
-					--end
-					--END ADDED BY FARRATTO
-					
-					if nValue &gt; 0 then
-						setFrame("fieldgreen")
-						setVisible(true)
-					elseif nValue &lt; 0 then
-						setFrame("fieldred")
-						setVisible(true)					
-					else
-						setVisible(false)
-					end		
-									
-					setValue(nBaseValue + nValue)				
-				end		
-			</script>								
-		</stringcontrol>	
-	</template>
-	<windowclass name="charsheet_sensescombat" merge="join">	
+	<windowclass name="charsheet_sensescombat" merge="join">
 		<sheetdata>
-			<wtw_green_light name = "WalkThisWay.bonus"/>
-		</sheetdata>		
-	</windowclass>		
+			<number_static name="speed_bonus" source="WalkThisWay.currentspeed">
+				<anchored to="speed" width="35" height ="25">
+					<top anchor="top"/>
+					<left anchor="right" offset="0,-10"/>
+				</anchored>
+				<center />
+				<readonly />
+				<invisible />
+				<script merge="join">
+					function onInit()
+						update();
+					end
+					function onValueChanged()
+						update();
+					end
+					function update()
+						local nodeChar = window.getDatabaseNode();
+						local nodeCharWtW = DB.getChild(nodeChar, 'WalkThisWay');
+						local nBonusSpeed = DB.getValue(nodeCharWtW, 'bonus');
+						local nodeWTW = DB.createNode('WalkThisWay');
+						local nodeFrogToes = DB.getChild(nodeWTW, 'frogtoes')
+						local nFrogToes;
+						if nodeFrogToes then
+							nFrogToes = DB.getValue(nodeFrogToes);
+						end
+						local bHasMNM = WtWCommon.hasExtension('MNM Character Sheet Effects Display');
+						if ((nFrogToes and nFrogToes == 1) or bHasMNM) and nBonusSpeed then
+							if nBonusSpeed &gt; 0 then
+								setFrame("headerpoweratwill")
+								setVisible(true)
+							elseif nBonusSpeed &lt; 0 then
+								setFrame("headerpowerenc")
+								setVisible(true)
+							else
+								setVisible(false)
+							end
+						end
+					end
+				</script>
+			</number_static>
+		</sheetdata>
+	</windowclass>
 	<template name = "MNMBONUSSPEED" merge="join">
 		<stringcontrol name="value">
 			<invisible/>
-			<script merge="replace">		
-				function onInit()					
+			<script merge="replace">
+				function onInit()
 					setVisible(false)
-					sAnchor = "speed"	
-					assignAnchor(sAnchor)	
 				end
-				function assignAnchor(sAnchor)
-					setAnchor("top", sAnchor, "top")
-					setAnchor("left", sAnchor, "right","",-10)
-				end	
-				function refresh()					
+				function refresh()
 					setVisible(false)
-				end		
-			</script>								
-		</stringcontrol>	
+				end
+			</script>
+		</stringcontrol>
 	</template>
 </root>
