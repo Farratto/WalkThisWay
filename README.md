@@ -1,5 +1,4 @@
 ## Walk This Way
-
 **Current Version**: ~dev_version~ \
 **Updated**: ~date~
 
@@ -19,19 +18,27 @@ The prone checker will also check for any conditions that dissalow a creature to
 
 The window asks if the person wants to stand up.  If they answer okay, the extension will remove the effect that contains prone and add an effect that says "SPEED: halved" that lasts until the end of turn.  If they answer cancel, close the window, or ignore the window, the extension will do nothing. \
 The window  can be ignored and it will go away at the end of turn without consequences. \
-The speed effects that are recognized: \
-* SPEED: none
-* SPEED: -10 or SPEED: 10 dec <decreases all speeds by 10>
-* SPEED: 10 inc <increases all speeds by 10>
-* SPEED: 60 <increases all speeds to 60 (speeds already above 60 will be unchanged>
-* SPEED: type(climb) <adds a new speed 'climb' and sets it to be the same as walking speed>
-* SPEED: 60 type(fly) <adds a new speed 'Fly' and sets only the new speed to 60>
-* SPEED: 5 max or SPEED: max(5) <none of the speeds can exceed 5>
-* SPEED: difficult <difficult terrain handling (halves all speeds (after inc/dec) except fly)>
-* SPEED: halved <halves all speeds (after inc/dec); stackable>
-* SPEED: doubled <doubles all speeds (after inc/dec); stackable>
-* Supports RAW encumbered (both standard and variant) and exhaustion rules
-* Coming soon: reduces speed when wearing armor you are not strong enough to wear
+The speed effects that are recognized:
+
+| Effect | Description |
+| :--- | :--- |
+| SPEED: none | rooted
+| SPEED: -10 or SPEED: 10 dec | decreases all speeds by 10 |
+| SPEED: 10 inc | increases all speeds by 10 |
+| SPEED: 60 | increases all speeds to 60 (speeds already above 60 will be unchanged) |
+| SPEED: type(climb) | adds a new speed 'climb' and sets it to be the same as walking speed |
+| SPEED: 60 type(fly) | adds a new speed 'Fly' and sets only the new speed to 60 |
+| SPEED: 5 max or SPEED: max(5) | none of the speeds can exceed 5
+| SPEED: difficult | difficult terrain handling (halves all speeds except fly) |
+| SPEED: halved | halves all speeds (after inc/dec); stackable |
+| SPEED: doubled | doubles all speeds (after inc/dec); stackable |
+
+Supports RAW encumbered (both standard and variant) and exhaustion rules. \
+Coming soon: reduces speed when wearing armor the character is not strong enough to wear.
+
+The extension updates all the speeds on the speed field in the combat tracker.  Character sheets still show base speed.  There is an optional window that shows all the speeds for a character.  Coming soon: it will list all the effect names that are affecting your speeds.  You can have the window open automatically on your turn through an option setting.  Or you can open the window at any time by double-clicking the speed field on a character sheet or the combat tracker.
+
+Option setting (for GM and players) to change the units that speed is displayed in.  Current choices are feet, meters, and tiles.  Automatically rounds final speed down to nearest half tile.  Another option for the GM to change the units that spell effect speeds work with.
 
 Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance
 

@@ -552,7 +552,6 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 		-- Check active
 		local nActive = DB.getValue(v, 'isactive', 0);
 		local rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
-		-- BCEManager.chat(v)
 		if (not EffectManagerADND and nActive ~= 0) or
 			(EffectManagerADND and ((EffectManagerADND.isValidCheckEffect(rActor, v) or
 					(rFilterActor and EffectManagerADND.isValidCheckEffect(rFilterActor, v))))) then
@@ -591,13 +590,11 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 								comp_match = false;
 							else
 								comp_match = true;
-								--BCEManager.chat('Match')
 							end
 						end
 
 						-- Match!
 						if comp_match then
-							--BCEManager.chat('Add: ', rEffectComp, sEffectType);
 							if nActive == 1 then
 								rMatchTable['clause'] = sEffectComp;
 								rMatchTable['label'] = v;

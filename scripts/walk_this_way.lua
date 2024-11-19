@@ -1,96 +1,106 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
--- luacheck: globals clientGetOption checkProne checkHideousLaughter addEffectWtW speedCalculator setPQvalue
--- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild turnStartChecks
+-- luacheck: globals clientGetOption checkProne checkHideousLaughter speedCalculator setPQvalue
+-- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild
 -- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery hasRoot
 -- luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow getConversionFactor
 -- luacheck: globals parseBaseSpeed onRecordTypeEventWtW reparseBaseSpeed reparseAllBaseSpeeds recalcAllSpeeds
 -- luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
+-- luacheck: globals turnStartChecks handleUpdateDisplaySpeedClient registerPreference getPreference
 
 OOB_MSGTYPE_PRONEQUERY = "pronequery";
 OOB_MSGTYPE_CLOSEQUERY = "closequery";
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
+OOB_MSGTYPE_UPDISPSPD = 'updatedisplayspeed';
 
 local fonRecordTypeEvent = '';
+local tClientPrefs = {};
 
 function onInit()
 	setOptions();
-	EffectManager.registerEffectCompType("SPEED", { bIgnoreTarget = true, bNoDUSE = true, bIgnoreOtherFilter = true, bIgnoreExpire = true });
-		--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE bIgnoreTarget
-		--continued: bSpell bOneShot bIgnoreExpire
 
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_SPEEDWINDOW, handleSpeedWindowClient);
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_UPDISPSPD, handleUpdateDisplaySpeedClient);
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_PRONEQUERY, handleProneQueryClient);
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSEQUERY, handleCloseProneQuery);
 
 	if Session.IsHost then
+		EffectManager.registerEffectCompType("SPEED", { bIgnoreTarget = true, bNoDUSE = true,
+			bIgnoreOtherFilter = true, bIgnoreExpire = true
+		});
+			--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE bIgnoreTarget
+			--continued: bSpell bOneShot bIgnoreExpire
 		DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
 		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent; --luacheck: ignore 111
 		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
 		if string.lower(Session.UserName) == 'farratto' then
 			local nodeWTW = DB.createNode('WalkThisWay');
-			--DB.setPublic(nodeWTW, true) --appears to be the default
-			local nodeFrogToes = DB.getChild(nodeWTW, 'frogtoes')
+			DB.setPublic(nodeWTW, true);
+			local nodeFrogToes = DB.getChild(nodeWTW, 'frogtoes');
 			if not nodeFrogToes then
 				DB.createChild(nodeWTW, 'frogtoes', 'number');
 			end
 			DB.setValue(nodeWTW, 'frogtoes', 'number', '1');
 		end
-	end
-
-	if not OptionsManager.isOption('WESC', 'off') then
-		DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
-		--DB.addHandler('combattracker.list.*.effects.*.label', 'onDelete', updateEffectSpeedCalc);
-		DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
+		if not OptionsManager.isOption('WESC', 'off') then
+			DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
+			DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
+		end
+		CombatManager.setCustomTurnStart(turnStartChecks);
+		CombatManager.setCustomTurnEnd(closeAllProneWindows);
 	end
 end
 
 function onClose()
-	DB.removeHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
-	--DB.removeHandler('combattracker.list.*.effects.*.label', 'onDelete', updateEffectSpeedCalc);
-	DB.removeHandler('combattracker.list.*.effects','onChildDeleted',callSpeedCalcEffectDeleted);
+	if Session.IsHost then
+		DB.removeHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
+		DB.removeHandler('combattracker.list.*.effects','onChildDeleted',callSpeedCalcEffectDeleted);
+		DB.removeHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
+		OptionsManager.unregisterCallback('DDCU', reparseAllBaseSpeeds);
+		OptionsManager.unregisterCallback('WESC', recalcAllSpeeds);
+		CombatRecordManager.onRecordTypeEvent = fonRecordTypeEvent; --luacheck: ignore 113
+	end
 	OptionsManager.unregisterCallback('DDLU', recalcAllSpeeds);
-
-	DB.removeHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
-	OptionsManager.unregisterCallback('DDCU', reparseAllBaseSpeeds);
-	OptionsManager.unregisterCallback('WESC', recalcAllSpeeds);
-	CombatRecordManager.onRecordTypeEvent = fonRecordTypeEvent; --luacheck: ignore 113
 end
 
 function setOptions()
 -- DEFAULT BEHAVIORS FOR OPTIONS: sType = "option_entry_cycler", on|off, default = off
 --Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client"
 	--Old 4th = ("option_label_" .. sKey)
-	OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
-								   'option_entry_cycler', {
-		labels = 'option_val_off',
-		values = 'off',
-		baselabel = 'option_val_on',
-		baseval = 'on',
-		default = 'on'
-	});
-	OptionsManager.registerOptionData({	sKey = 'WESC', sGroupRes = 'option_header_WtW', tCustom = { default = "on" } });
+	if Session.IsHost then
+		OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
+									'option_entry_cycler', {
+			labels = 'option_val_off',
+			values = 'off',
+			baselabel = 'option_val_on',
+			baseval = 'on',
+			default = 'on'
+		});
+		OptionsManager.registerOptionData({	sKey = 'WESC', sGroupRes = 'option_header_WtW', tCustom = { default = "on" } });
+		OptionsManager.registerOptionData({	sKey = 'DDCU', sGroupRes = "option_header_WtW",
+			tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
+				baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
+			}
+		});
+		OptionsManager.registerOption2('WHOLEEFFECT', false, 'option_header_WtW', 'option_WtW_Delete_Whole', 'option_entry_cycler', {
+			labels = 'option_val_on',
+			values = 'on',
+			baselabel = 'option_val_off',
+			baseval = 'off',
+			default = 'off'
+		});
+		OptionsManager.registerOption2('APCW', false, 'option_header_WtW', 'option_WtW_Allow_Player_Choice', 'option_entry_cycler', {
+			labels = 'option_val_on',
+			values = 'on',
+			baselabel = 'option_val_off',
+			baseval = 'off',
+			default = 'off'
+		});
+		OptionsManager.registerCallback('DDCU', reparseAllBaseSpeeds);
+		OptionsManager.registerCallback('WESC', recalcAllSpeeds);
+	end
 	OptionsManager.registerOptionData({	sKey = 'AOSW', bLocal = true });
-	OptionsManager.registerOptionData({	sKey = 'DDCU', sGroupRes = "option_header_WtW",
-		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
-			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
-		}
-	});
-	OptionsManager.registerOption2('WHOLEEFFECT', false, 'option_header_WtW', 'option_WtW_Delete_Whole',
-								   'option_entry_cycler', {
-		labels = 'option_val_on',
-		values = 'on',
-		baselabel = 'option_val_off',
-		baseval = 'off',
-		default = 'off'
-	});
-	OptionsManager.registerOption2('APCW', false, 'option_header_WtW', 'option_WtW_Allow_Player_Choice',
-								   'option_entry_cycler', {
-		labels = 'option_val_on',
-		values = 'on',
-		baselabel = 'option_val_off',
-		baseval = 'off',
-		default = 'off'
-	});
 	OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
 		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
 			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
@@ -116,23 +126,14 @@ function setOptions()
 		});
 	end
 
-	if not OptionsManager.isOption('WTWON', 'off') then
-		CombatManager.setCustomTurnStart(turnStartChecks);
-		CombatManager.setCustomTurnEnd(closeAllProneWindows);
-		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_PRONEQUERY, handleProneQueryClient);
-		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSEQUERY, handleCloseProneQuery);
-	end
-
 	OptionsManager.registerCallback('DDLU', recalcAllSpeeds);
-	if Session.IsHost then
-		OptionsManager.registerCallback('DDCU', reparseAllBaseSpeeds);
-		OptionsManager.registerCallback('WESC', recalcAllSpeeds);
-	end
 end
 
 function onRecordTypeEventWtW(sRecordType, tCustom)
 	fonRecordTypeEvent(sRecordType, tCustom); --luacheck: ignore 212 113
-	parseBaseSpeed(tCustom.nodeCT, true);
+	if Session.IsHost then
+		parseBaseSpeed(tCustom.nodeCT, true);
+	end
 end
 
 function callSpeedCalcEffectUpdated(nodeEffectLabel)
@@ -157,10 +158,10 @@ function clientGetOption(sKey)
 	end
 end
 
-function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg)
-	faddEffectOriginal(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg); --luacheck: ignore 113
-	speedCalculator(nodeCT);
-end
+--function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg)
+--	faddEffectOriginal(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg); --luacheck: ignore 113
+--	speedCalculator(nodeCT);
+--end
 
 function getConversionFactor(sCurrentUnits, sDesiredUnits)
 	if not sCurrentUnits or not sDesiredUnits or sCurrentUnits == sDesiredUnits then
@@ -209,6 +210,46 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 	end
 end
 
+function registerPreference(sOwner, sPref)
+	if not Session.IsHost then
+		Debug.console("WalkThisWay.registerPreference - not isHost");
+		return;
+	end
+	if not sOwner then
+		Debug.console("WalkThisWay.registerPreference - not sOwner");
+		return;
+	end
+	if not sPref then
+		Debug.console("WalkThisWay.registerPreference - not sPref");
+		return;
+	end
+	for k,_ in pairs(tClientPrefs) do
+		if k == sOwner then
+			tClientPrefs[k] = sPref;
+			return true;
+		end
+	end
+	tClientPrefs[sOwner] = sPref;
+	return true;
+end
+
+function getPreference(sOwner)
+	if not Session.IsHost then
+		Debug.console("WalkThisWay.getPreference - not isHost");
+		return;
+	end
+	if not sOwner then
+		Debug.console("WalkThisWay.getPreference - not sOwner");
+		return;
+	end
+	for k,v in pairs(tClientPrefs) do
+		if k == sOwner then
+			return v;
+		end
+	end
+	return false;
+end
+
 function recalcAllSpeeds()
 	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 		speedCalculator(nodeCT);
@@ -221,8 +262,12 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		Debug.console("WalkThisWay.speedCalculator - not nodeCT");
 		return;
 	end
+	if not Session.IsHost then
+		Debug.console("WalkThisWay.speedCalculator - not isHost");
+	end
 
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	--DB.setPublic(nodeCTWtW, true);
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
 	if not nodeFGSpeed then
 		if bCalledFromParse then
@@ -279,10 +324,12 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	local tSpeedEffects = {};
 	local nHalved = 0;
 	local tAccomSpeed = {};
+	local bProne = false;
 	if not OptionsManager.isOption('WESC', 'off') then
 		tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
 		tAccomSpeed = accommKnownExtsSpeed(nodeCT);
-		if WtWCommon.fhasCondition(rActor, "Prone") then
+		bProne = WtWCommon.fhasCondition(rActor, "Prone")
+		if bProne then
 			nHalved = nHalved + 1
 		end
 	end
@@ -311,9 +358,10 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		--WtW parsing
 		local sRemainder;
 		local bRecognizedRmndr = false;
-		local sVClauseLower = string.lower(v.clause);
-		local sMinusSpeed = sVClauseLower:gsub('^speed%s-:%s*', '');
-		--local sMod = string.match(sMinusSpeed, '^%-?%d+');
+		local sSpdMatch = string.match(v.clause, '^[Ss][Pp][Ee][Ee][Dd]%s*:%s*');
+		local sMinusSpeed = string.gsub(v.clause, sSpdMatch, '');
+		--local sVClauseLower = string.lower(v.clause);
+		--local sMinusSpeed = sVClauseLower:gsub('^speed%s-:%s*', '');
 		local sMod = string.match(sMinusSpeed, '^%S+');
 		local nMod = nil;
 		if DiceManager.isDiceString(sMod) then
@@ -328,13 +376,14 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		if not sRemainder and not nMod then
 			Debug.console("WalkThisWay.speedCalculator - Syntax Error");
 		end
+		local sRmndrLower = string.lower(sRemainder);
 
 		--start matching
-		if StringManager.startsWith(sRemainder, 'max') then
+		if StringManager.startsWith(sRmndrLower, 'max') then
 			bRecognizedRmndr = true;
 			local nMaxMod;
-			if string.match(sRemainder, '%)$') then
-				local sRmndrRemainder = sRemainder:gsub('^max%s*%(', '');
+			if string.match(sRmndrLower, '%)$') then
+				local sRmndrRemainder = sRmndrLower:gsub('^max%s*%(', '');
 				sRmndrRemainder = sRmndrRemainder:gsub('%s*%)$', '');
 				local nRmndrRemainder = tonumber(sRmndrRemainder);
 				if nRmndrRemainder then
@@ -344,6 +393,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				end
 				if nMod then
 					sRemainder = ''
+					sRmndrLower = ''
 				end
 			else
 				nMaxMod = nMod
@@ -357,55 +407,68 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				nSpeedMax = nMaxMod;
 			end
 		end
-		if sRemainder == "difficult" then
+		if sRmndrLower == "difficult" then
 			bRecognizedRmndr = true;
 			bDifficult = true;
 		end
-		if (sRemainder == "half" or sRemainder == "halved") then
+		if (sRmndrLower == "half" or sRmndrLower == "halved") then
 			bRecognizedRmndr = true;
 			nHalved = nHalved + 1;
 		end
-		if (sRemainder == "double" or sRemainder == "doubled") then
+		if (sRmndrLower == "double" or sRmndrLower == "doubled") then
 			bRecognizedRmndr = true;
 			nDoubled = nDoubled + 1;
 		end
-		if StringManager.startsWith(sRemainder, 'type') then
+		if not bProne and StringManager.startsWith(sRmndrLower, 'type') then
 			bRecognizedRmndr = true;
-			if not string.match(sRemainder, '%)$') then
+			if not string.match(sRmndrLower, '%)$') then
 				Debug.console("WalkThisWay.speedCalculator - Syntax error. Try SPEED: type(fly)");
 			else
-				local sType = nil;
-				if nMod then
-					if nMod <= 0 then
-						Debug.console("WalkThisWay.speedCalculator - Syntax Error");
-					else
-						local sRmndrRemainder = sRemainder:gsub('^type%s*%(', '');
-						sType = sRmndrRemainder:gsub('%)$', '');
-						local sTypeLower = string.lower(sType);
-						local sTypeFly = string.match(sTypeLower, 'fly')
-						local sTypeHover = string.match(sTypeLower, 'hover')
-						local bFound = false;
-						for _,v in ipairs(tFGSpeedNew) do
-							local vTypeLower = string.lower(v.type);
-							if sTypeFly then
-								if string.match(vTypeLower, 'fly') then
-									bFound = true;
-									if (nHover == 1) or sTypeHover then
-										v.type = 'Fly (hover)'
-									end
-								end
-							else
-								if vTypeLower == sTypeLower then
-									bFound = true;
-								end
-							end
-							if bFound then
-								if nMod > v.velocity then
-									v.velocity = nMod
-								end
+				--local sType = nil;
+				local sStrip = string.match(sRemainder, '^[Tt][Yy][Pp][Ee]%s*%(')
+				sStrip = string.gsub(sStrip, '%(', '%%(');
+				local sRmndrRemainder = sRemainder:gsub(sStrip, '');
+				--local sRmndrRemainder = sRmndrLower:gsub('^type%s*%(', '');
+				local sType = sRmndrRemainder:gsub('%)$', '');
+				local sTypeLower = string.lower(sType);
+				local sTypeFly = string.match(sTypeLower, 'fly')
+				local sTypeHover = string.match(sTypeLower, 'hover')
+				local nFound;
+				for k,value in ipairs(tFGSpeedNew) do
+					local vTypeLower = string.lower(value.type);
+					if sTypeFly then
+						if string.match(vTypeLower, 'fly') then
+							nFound = k;
+							if (nHover == 1) or sTypeHover then
+								value.type = 'Fly (hover)'
 							end
 						end
-						if not bFound then
+					else
+						if vTypeLower == sTypeLower then
+							nFound = k;
+						end
+					end
+				end
+
+				if nMod then
+					if nMod <= 0 or string.sub(sMod, 1, 1) == '+' then
+						if nFound then
+							tFGSpeedNew[nFound]['mod'] = nMod;
+						else
+							local tSpdRcrd = {};
+							tSpdRcrd['type'] = sType;
+							tSpdRcrd['mod'] = nMod;
+							table.insert(tFGSpeedNew, tSpdRcrd);
+						end
+					else
+						if nFound then
+							local nCurrentVel = tonumber(tFGSpeedNew[nFound]['velocity']);
+							if nCurrentVel then
+								if nMod > nCurrentVel then tFGSpeedNew[nFound]['velocity'] = nMod end
+							else
+								tFGSpeedNew[nFound]['velocity'] = nMod
+							end
+						else
 							local tSpdRcrd = {};
 							tSpdRcrd['type'] = sType;
 							tSpdRcrd['velocity'] = nMod;
@@ -414,30 +477,26 @@ function speedCalculator(nodeCT, bCalledFromParse)
 					end
 					nMod = nil;
 				else
-					if not sType then
-						local sRmndrRemainder = sRemainder:gsub('^type%s*%(', '');
-						sType = sRmndrRemainder:gsub('%s*%)$', '');
-					end
-					if string.match(sType, '^%-') then
-						local sRemoveType = string.sub(sType, 2)
-						local sRemoveTypeLower = string.lower(sRemoveType);
+					if string.match(sTypeLower, '^%-') then
+						local sRemoveType = string.sub(sTypeLower, 2)
+						--local sRemoveTypeLower = string.lower(sRemoveType);
 						local tCheckFGSpdTable = tFGSpeedNew;
-						for k,v in ipairs(tCheckFGSpdTable) do
-							local vTypeLower = string.lower(v.type);
-							if vTypeLower == sRemoveTypeLower then
+						for k,value in ipairs(tCheckFGSpdTable) do
+							local vTypeLower = string.lower(value.type);
+							if vTypeLower == sRemoveType then
 								table.remove(tFGSpeedNew, k)
 							end
 						end
 					else
-						local sTypeLower = string.lower(sType);
-						local bFound = false
-						for _,v in ipairs(tFGSpeedNew) do
-							local vTypeLower = string.lower(v.type);
-							if vTypeLower == sTypeLower then
-								bFound = true
-							end
-						end
-						if not bFound then
+						--local sTypeLower = string.lower(sType);
+						--local bFound = false
+						--for _,value in ipairs(tFGSpeedNew) do
+						--	local vTypeLower = string.lower(value.type);
+						--	if vTypeLower == sTypeLower then
+						--		bFound = true
+						--	end
+						--end
+						if not nFound then
 							local tSpdRcrd = {}
 							tSpdRcrd['type'] = sType;
 							table.insert(tFGSpeedNew, tSpdRcrd)
@@ -445,14 +504,19 @@ function speedCalculator(nodeCT, bCalledFromParse)
 					end
 				end
 			end
+		else
+			if bProne and StringManager.startsWith(sRmndrLower, 'type') then
+				bRecognizedRmndr = true;
+				nMod = nil;
+			end
 		end
-		if StringManager.startsWith(sRemainder, 'inc') then
+		if StringManager.startsWith(sRmndrLower, 'inc') then
 			bRecognizedRmndr = true;
-			if string.match(sRemainder, '%)$') then
+			if string.match(sRmndrLower, '%)$') then
 				if nMod then
 					Debug.console("WalkThisWay.speedCalculator - Syntax Error");
 				else
-					local sRmndrRemainder = sRemainder:gsub('^inc%s*%(', '');
+					local sRmndrRemainder = sRmndrLower:gsub('^inc%s*%(', '');
 					sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
 					local nSpeedInc = tonumber(sRmndrRemainder);
 					if not nSpeedInc then
@@ -466,13 +530,13 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				nMod = nil;
 			end
 		end
-		if StringManager.startsWith(sRemainder, 'dec') then
+		if StringManager.startsWith(sRmndrLower, 'dec') then
 			bRecognizedRmndr = true;
-			if string.match(sRemainder, '%)$') then
+			if string.match(sRmndrLower, '%)$') then
 				if nMod then
 					Debug.console("WalkThisWay.speedCalculator - Syntax Error");
 				else
-					local sRmndrRemainder = sRemainder:gsub('^dec%s*%(', '');
+					local sRmndrRemainder = sRmndrLower:gsub('^dec%s*%(', '');
 					sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
 					local nSpeedInc = tonumber(sRmndrRemainder);
 					if not nSpeedInc then
@@ -486,7 +550,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				nMod = nil;
 			end
 		end
-		if not bRecognizedRmndr and sRemainder ~= '' then
+		if not bRecognizedRmndr and sRmndrLower ~= '' then
 			Debug.console("WalkThisWay.speedCalculator - Syntax Error")
 		end
 		if nMod then
@@ -531,17 +595,23 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			if not nFGSpeedNew then nFGSpeedNew = 30 end
 			--if not nFGSpeed then nFGSpeed = nFGSpeedNew end
 		end
-		for k,v in ipairs(tRebase) do
-			if k > 1 then
+		for key,v in ipairs(tRebase) do
+			if key > 1 then
 				if v > nFGSpeedNew then nFGSpeedNew = v end
 			else
 				nFGSpeedNew = v;
 			end
 		end
 
-		local nSpeedFinal = nFGSpeedNew + nSpeedMod;
-		if nSpeedFinal < 0 then
-			tFGSpeedNew[k].velocity = '0'
+		local nLocalSpdMod = nSpeedMod
+		if tSpdRcrd.mod then nLocalSpdMod = nLocalSpdMod + tSpdRcrd.mod end
+		--local nSpeedFinal = nFGSpeedNew + nSpeedMod;
+		local nSpeedFinal = nFGSpeedNew + nLocalSpdMod;
+		if nSpeedFinal <= 0 then
+			tFGSpeedNew[k]['velocity'] = '0'
+			if string.match(string.lower(tFGSpeedNew[k]['type']), 'hover') then
+				tFGSpeedNew[k]['type'] = '(hover)'
+			end
 		else
 			local sTypeLower = string.lower(tSpdRcrd.type);
 			local nDoubledLocal = nDoubled
@@ -562,16 +632,32 @@ function speedCalculator(nodeCT, bCalledFromParse)
 					nSpeedFinal = nSpeedMax;
 				end
 			end
-			tFGSpeedNew[k].velocity = tostring(nSpeedFinal);
+			tFGSpeedNew[k]['velocity'] = tostring(nSpeedFinal);
 		end
 	end
 
-	local bReturn = updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed);
+	local sOwner = WtWCommon.getControllingClient(nodeCT);
+	local sPref;
+	if sOwner then
+		sPref = getPreference(sOwner);
+	else
+		sPref = OptionsManager.getOption('DDLU');
+	end
+
+	local bReturn = updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref);
 	return bReturn;
 end
 -- luacheck: pop
 
-function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed)
+function handleUpdateDisplaySpeedClient(msgOOB)
+	updateDisplaySpeed(msgOOB['nodeCT'], msgOOB.tFGSpeedNew, msgOOB.nBaseSpeed, msgOOB.bProne);
+end
+
+function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref)
+	if not Session.IsHost then
+		Debug.console("WalkThisWay.updateDisplaySpeed - not isHost");
+		return;
+	end
 	if not nodeCT then
 		Debug.console("WalkThisWay.updateDisplaySpeed - not nodeCT");
 		return;
@@ -581,14 +667,15 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed)
 		return;
 	end
 	if not nBaseSpeed then
-		Debug.console("WalkThisWay.updateDisplaySpeed - not tFGSpeedNew");
+		Debug.console("WalkThisWay.updateDisplaySpeed - not nBaseSpeed");
 		return;
 	end
 
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	local sUnitsPrefer = OptionsManager.getOption('DDLU');
+	--if Session.IsHost then DB.setPublic(nodeCTWtW, true) end
+	local sUnitsPrefer = sPref;
 	local nConvFactor = 1;
-	local sLngthUnits = DB.getValue(nodeCTWtW, 'units')
+	local sLngthUnits = DB.getValue(nodeCTWtW, 'units');
 	if not sLngthUnits or sLngthUnits == '' then
 		Debug.console("WalkThisWay.updateDisplaySpeed - units not in DB");
 		sLngthUnits = OptionsManager.getOption('DDCU');
@@ -622,36 +709,41 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed)
 		end
 
 		local sVelWithUnits = tostring(tSpdRcrd.velocity) .. ' ' .. sUnitsPrefer
-		if tSpdRcrd.type == '' or (string.match(tSpdRcrd.type, '^Walk')) then
-			nCurrentSpeed = tSpdRcrd.velocity
-			local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$');
-			if sQualifier then
-				if k == 1 then
-					sReturn = sVelWithUnits .. ' ' .. sQualifier
-				else
-					sReturn = sVelWithUnits .. ' ' .. sQualifier .. ', ' .. sReturn
-				end
-			else
-				if k == 1 then
-					sReturn = sVelWithUnits
-				else
-					sReturn = sVelWithUnits .. ', ' .. sReturn
-				end
-			end
+
+		if bProne then
+			sReturn = sVelWithUnits .. ' Crawl'
 		else
-			local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$');
-			if sQualifier then
-				local sTypeSansQual = string.gsub(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$', '');
-				if k == 1 then
-					sReturn = sTypeSansQual .. ' ' .. sVelWithUnits .. ' ' .. sQualifier
+			if tSpdRcrd.type == '' or (string.match(tSpdRcrd.type, '^Walk')) then
+				nCurrentSpeed = tSpdRcrd.velocity
+				local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$');
+				if sQualifier then
+					if k == 1 then
+						sReturn = sVelWithUnits .. ' ' .. sQualifier
+					else
+						sReturn = sVelWithUnits .. ' ' .. sQualifier .. ', ' .. sReturn
+					end
 				else
-					sReturn = sReturn .. ', ' .. sTypeSansQual .. ' ' .. sVelWithUnits .. ' ' .. sQualifier
+					if k == 1 then
+						sReturn = sVelWithUnits
+					else
+						sReturn = sVelWithUnits .. ', ' .. sReturn
+					end
 				end
 			else
-				if k == 1 then
-					sReturn = tSpdRcrd.type .. ' ' .. sVelWithUnits
+				local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$');
+				if sQualifier then
+					local sTypeSansQual = string.gsub(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$', '');
+					if k == 1 then
+						sReturn = sTypeSansQual .. ' ' .. sVelWithUnits .. ' ' .. sQualifier
+					else
+						sReturn = sReturn .. ', ' .. sTypeSansQual .. ' ' .. sVelWithUnits .. ' ' .. sQualifier
+					end
 				else
-					sReturn = sReturn .. ', ' .. tSpdRcrd.type .. ' ' .. sVelWithUnits
+					if k == 1 then
+						sReturn = tSpdRcrd.type .. ' ' .. sVelWithUnits
+					else
+						sReturn = sReturn .. ', ' .. tSpdRcrd.type .. ' ' .. sVelWithUnits
+					end
 				end
 			end
 		end
@@ -667,6 +759,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed)
 		if ActorManager.isPC(rActor) then
 			local nodeChar = ActorManager.getCreatureNode(rActor);
 			local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
+			--if Session.IsHost then DB.setPublic(nodeCharWtW, true) end
 			nBonusSpeed = nCurrentSpeed - nBaseSpeed
 			DB.setValue(nodeCharWtW, 'bonus', 'number', nBonusSpeed);
 			DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
@@ -695,7 +788,7 @@ end
 
 function reparseBaseSpeed(nodeSpeed, nodeCT)
 	if not Session.IsHost then
-		Debug.console("WalkThisWay.parseBaseSpeed - not host");
+		Debug.console("WalkThisWay.reparseBaseSpeed - not host");
 		return;
 	end
 
@@ -713,6 +806,7 @@ function reparseBaseSpeed(nodeSpeed, nodeCT)
 	end
 
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	--DB.setPublic(nodeCTWtW, true);
 	local nodeHover = DB.getChild(nodeCTWtW, 'hover');
 	if nodeHover then DB.deleteNode(nodeHover) end
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
@@ -737,6 +831,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 	end
 
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	--DB.setPublic(nodeCTWtW, true);
 	if not DB.getValue(nodeCTWtW, 'hover') then
 		if string.match(string.lower(sFGSpeed), 'hover') then
 			DB.setValue(nodeCTWtW, 'hover', 'number', 1);
@@ -967,7 +1062,7 @@ function hasRoot(nodeCT)
 			return false;
 		end
 		if bReturn then
-			if WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*%d*%s*type%s*%(%s*[%l%u]*%s*%(%s*hover%s*%)%s*%)", false, true) then
+			if WtWCommon.hasEffectClause(nodeCT, "^[Ss][Pp][Ee][Ee][Dd]%s*:%s*%d*%s*type%s*%(%s*[%l%u]*%s*%(%s*hover%s*%)%s*%)$") then
 				return true, true;
 			else
 				return true, false;
@@ -1148,10 +1243,11 @@ end
 
 function setPQvalue(sName)
 	local nodeWTW = DB.createNode('WalkThisWay');
---	DB.setPublic(nodeWTW, true) --appears to be the default
-	local nodePQ = DB.getChild(nodeWTW, 'proneQuery')
+	if Session.IsHost then DB.setPublic(nodeWTW, true) end
+	local nodePQ = DB.getChild(nodeWTW, 'proneQuery');
 	if not nodePQ then
 		nodePQ = DB.createChild(nodeWTW, 'proneQuery', 'string');
+		--DB.setPublic(nodeWTW, true); --I think it takes public status from parent node
 	end
 	local sMessage = tostring(sName) .. ' is prone.';
 	DB.setValue(nodeWTW, 'proneQuery', 'string', sMessage);
@@ -1172,6 +1268,7 @@ end
 
 function openSpeedWindow(nodeCT)
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	if Session.IsHost then DB.setPublic(nodeCTWtW, true) end
 	local rActor = ActorManager.resolveActor(nodeCT);
 	DB.setValue(nodeCTWtW, 'actorname', 'string', tostring(rActor.sName));
 	local sCurrentSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
@@ -1183,10 +1280,8 @@ function openSpeedWindow(nodeCT)
 end
 
 function turnStartChecks(nodeCT)
-	if OptionsManager.isOption('WTWON', 'off') then
-		return;
-	end
 	if not Session.IsHost then
+		Debug.console('WalkThisWay.turnStartchecks - not IsHost');
 		return;
 	end
 	local rSource = ActorManager.resolveActor(nodeCT);
@@ -1203,10 +1298,12 @@ function turnStartChecks(nodeCT)
 		end
 	end
 
+	if OptionsManager.isOption('WTWON', 'off') then
+		return;
+	end
 	if not checkProne(rSource) then
 		return;
 	end
-
 	if sOwner then
 		queryClient(nodeCT)
 		return;
@@ -1219,6 +1316,10 @@ function turnStartChecks(nodeCT)
 end
 
 function closeAllProneWindows(nodeCT)
+	if not Session.IsHost then
+		Debug.console('WalkThisWay.closeAllProneWindows - not IsHost');
+		return;
+	end
 	closeProneWindow();
 	if WtWCommon.getControllingClient(nodeCT) then
 		sendCloseWindowCmd(nodeCT);
@@ -1260,9 +1361,6 @@ function closeProneWindow()
 end
 
 function standUp()
-	if OptionsManager.isOption('WTWON', 'off') then
-		return;
-	end
 	local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
 	local rSource = ActorManager.getCTNode(rCurrent);
 
@@ -1317,6 +1415,10 @@ function queryClient(nodeCT)
 end
 
 function sendCloseWindowCmd(nodeCT)
+	if not Session.IsHost then
+		Debug.console('WalkThisWay.sendCloseWindowCmd - not IsHost');
+		return;
+	end
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 	if sOwner then
 		local msgOOB = {};
@@ -1328,18 +1430,17 @@ function sendCloseWindowCmd(nodeCT)
 	end
 end
 
-function handleSpeedWindowClient(msgOOB) -- luacheck: ignore 212
+function handleSpeedWindowClient(msgOOB)
 	if OptionsManager.isOption('AOSW', 'on') then
 		openSpeedWindow(msgOOB.sCTNodeID);
 	end
 end
-
-function handleProneQueryClient(msgOOB) -- luacheck: ignore 212
+function handleProneQueryClient()
 	if OptionsManager.isOption('WTWON', 'off') then
 		return;
 	end
 	openProneWindow();
 end
-function handleCloseProneQuery(msgOOB) -- luacheck: ignore 212
+function handleCloseProneQuery()
 	closeProneWindow();
 end
