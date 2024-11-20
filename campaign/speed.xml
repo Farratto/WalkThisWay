@@ -14,7 +14,7 @@
 			<minimum width="263" height="175" />
 			<dynamic />
 		</sizelimits>
-		<minimize>minimized_npc</minimize>
+		<minimize>minimized_WtW</minimize>
 		<sheetdata>
 			<windowtitlebar_utilitybox name="title">
 				<resource>speed_title</resource>
@@ -89,8 +89,10 @@
 				<script>
 					function onDoubleClick()
 						local nodeW = window.getDatabaseNode();
-						local nodeCT = ActorManager.getCTNodeName(nodeW);
-						WalkThisWay.openSpeedWindow(nodeCT);
+						local nodeCT = ActorManager.getCTNode(nodeW);
+						if nodeCT then
+							WalkThisWay.openSpeedWindow(nodeCT);
+						end
 					end
 				</script>
 			</number_charspeed>

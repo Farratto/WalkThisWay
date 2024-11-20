@@ -16,20 +16,21 @@
 	<base>
 		<includefile source="strings.xml" />
 		<includefile source="campaign/query.xml" />
-		<includefile source="campaign/speed.xml" />
+		<includefile source="campaign/speed.xml" ruleset="5E" />
 		<script name="WtWCommon" file="scripts/common_wtw.lua" />
 <!--
 		<script name="ProneManager" file="scripts/manager_prone.lua" />
 		<script name="SpeedManager" file="scripts/manager_speed.lua" />
 -->
 		<script name="WalkThisWay" file="scripts/walk_this_way.lua" />
-		<icon name="WtW_icon" file="graphics/shoe.png" />
+		<icon name="WtW_icon" file="graphics/shoe.webp" />
+		<icon name="minimized_WtW" file="graphics/minimized_WtW.webp" />
 		<framedef name="headerpoweratwill">
-			<bitmap file="graphics/headerpoweratwill.png" />
+			<bitmap file="graphics/headerpoweratwill.webp" />
 			<offset>11,16,15,16</offset>
 		</framedef>
 		<framedef name="headerpowerenc">
-			<bitmap file="graphics/headerpowerenc.png" />
+			<bitmap file="graphics/headerpowerenc.webp" />
 			<offset>11,16,15,16</offset>
 		</framedef>
 		<script name="PowerUpWtW">

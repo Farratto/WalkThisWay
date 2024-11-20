@@ -340,7 +340,7 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 
 			-- Iterate through each effect component looking for a type match
 			for _, sEffectComp in ipairs(aEffectComps) do
-				local rEffectComp
+				local rEffectComp;
 				if EffectManager5E then
 					rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
 				elseif EffectManagerPFRPG2 then
@@ -564,7 +564,14 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 
 				-- Look for type/subtype match
 				for _, sEffectComp in ipairs(aEffectComps) do
-					local rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
+					local rEffectComp;
+					if EffectManager5E then
+						rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
+					elseif EffectManagerPFRPG2 then
+						rEffectComp = EffectManagerPFRPG2.parseEffectComp(sEffectComp);
+					else
+						rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
+					end
 					local rMatchTable = {};
 
 					processConditional(rActor, rFilterActor, v, rEffectComp, rConditionalHelper);

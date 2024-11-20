@@ -9,6 +9,7 @@
 		<placement>
 			<size width="330" height="220" />
 		</placement>
+		<minimize>minimized_WtW</minimize>
 		<sizelimits >
 			<maximum width="450" height="300" />
 			<minimum width="263" height="175" />
@@ -34,67 +35,25 @@
 		</sheetdata>
 	</windowclass>
 
-	<windowclass name="prone_query_not5e">
-		<frame>utilitybox</frame>
-		<placement>
-			<size width="330" height="220" />
-		</placement>
-		<sizelimits >
-			<maximum width="450" height="300" />
-			<minimum width="263" height="175" />
-			<dynamic />
-		</sizelimits>
+	<windowclass name="prone_query_not5e" copy="prone_query_small">
 		<sheetdata>
-			<windowtitlebar_utilitybox name="title">
-				<resource>prone_standup</resource>
-			</windowtitlebar_utilitybox>
-			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
-			<anchor_title_charsheethelper name="contentanchor" />
-			<anchor_content_utilitybox_top />
-			<anchor_content_utilitybox_bottom />
-			<sub_content_buttons_bottom name="sub_buttons">
-				<class>prone_query_bottom</class>
-			</sub_content_buttons_bottom>
-			<area_content_framed_groupbox name="contentframe" />
-			<subwindow name="pronequerymsg">
+<!--			<anchor_title_charsheethelper name="contentanchor" /> -->
+			<subwindow name="pronequerymsg" merge="replace">
 				<anchored to="contentframe" position="over" />
 				<class>prone_query_msg_nocost</class>
 				<activate />
 			</subwindow>
-
-			<resize_utilitybox />
 		</sheetdata>
 	</windowclass>
 
-	<windowclass name="prone_query_pfrpg2">
-		<frame>utilitybox</frame>
-		<placement>
-			<size width="330" height="220" />
-		</placement>
-		<sizelimits >
-			<maximum width="450" height="300" />
-			<minimum width="263" height="175" />
-			<dynamic />
-		</sizelimits>
+	<windowclass name="prone_query_pfrpg2" copy="prone_query_small">
 		<sheetdata>
-			<windowtitlebar_utilitybox name="title">
-				<resource>prone_standup</resource>
-			</windowtitlebar_utilitybox>
-			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
-			<anchor_title_charsheethelper name="contentanchor" />
-			<anchor_content_utilitybox_top />
-			<anchor_content_utilitybox_bottom />
-			<sub_content_buttons_bottom name="sub_buttons">
-				<class>prone_query_bottom</class>
-			</sub_content_buttons_bottom>
-			<area_content_framed_groupbox name="contentframe" />
-			<subwindow name="pronequerymsg">
+<!--			<anchor_title_charsheethelper name="contentanchor" /> -->
+			<subwindow name="pronequerymsg" merge="replace">
 				<anchored to="contentframe" position="over" />
 				<class>prone_query_msg_pfrpg2</class>
 				<activate />
 			</subwindow>
-
-			<resize_utilitybox />
 		</sheetdata>
 	</windowclass>
 
