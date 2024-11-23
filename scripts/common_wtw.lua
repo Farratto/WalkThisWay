@@ -71,8 +71,7 @@ function checkBetterGoldPurity()
 	return sReturn
 end
 
---function hasEffectFindString(rActor, sString, _bWholeMatch, bCaseInsensitive, _bStartsWith, bReturnString)
-function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString)
+function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, bReturnNode, bFindAll)
 	-- DEFAULTS: case sensitive, not returnString, & not debug
 	-- when using bCaseInsensitive, make use of [^%] instead of %uppercase
 	if not rActor or not sString then
@@ -92,10 +91,12 @@ function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString)
 	end
 	aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
 
+	local tResults = {};
 	-- Iterate through each effect
 	for _, v in pairs(aEffects) do
 		local nActive = DB.getValue(v, 'isactive', 0);
 		local bGo = false;
+		local tResOne = {};
 
 		if EffectManagerBCE then
 			local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
@@ -120,32 +121,33 @@ function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString)
 			if bCaseInsensitive then
 				sFinalLabel = string.lower(sLabel);
 			end
-			--if bStartsWith and not bWholeMatch then
-			--	sFinalLabel = string.sub(sLabel, 1, #sString);
-			--end
 
 			-- Check for match
-			--if bWholeMatch or bStartsWith then
-			--	if sFinalLabel == sClause then
-			--		if bReturnString then
-			--			return sLabel;
-			--		else
-			--			return true;
-			--		end
-			--	end
-			--else
-				local aFind = string.find(sFinalLabel, sClause)
-				if aFind then
+			local aFind = string.find(sFinalLabel, sClause)
+			if aFind then
+				if bFindAll then
+					tResOne['label'] = sLabel;
+					tResOne['node'] = v;
+					table.insert(tResults, tResOne);
+				else
 					if bReturnString then
-						return sLabel;
+						if bReturnNode then
+							return sLabel, v;
+						else
+							return sLabel;
+						end
 					else
-						return true;
+						if bReturnNode then
+							return v;
+						else
+							return true;
+						end
 					end
 				end
-			--end
-
+			end
 		end
 	end
+	if tResults[1] then return tResults end
 
 	return false;
 end
@@ -519,6 +521,7 @@ end
 
 function removeEffectCaseInsensitive(nodeCTEntry, sEffPatternToRemove)
 	if not nodeCTEntry or ((sEffPatternToRemove or "") == "") then
+		Debug.console("WtWCommon.removeEffectCaseInsensitive - not nodeCTEntry");
 		return;
 	end
 
@@ -528,7 +531,6 @@ function removeEffectCaseInsensitive(nodeCTEntry, sEffPatternToRemove)
 		local sLgetValue = string.lower(DB.getValue(nodeEffect, "label", ""))
 		if sLgetValue:match(sLEffPatternToRemove) then
 			DB.deleteNode(nodeEffect);
-			return;
 		end
 	end
 end
@@ -618,74 +620,74 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 end
 
 function processConditional(rActor, rTarget, rEffect, rEffectComp, rConditionalHelper)
-    local bOR = table.remove(rConditionalHelper.aORStack);
+	local bOR = table.remove(rConditionalHelper.aORStack);
 
-    if rEffectComp.original == 'OR' then
-        if bOR and not rConditionalHelper.bProcessEffect then
-            rConditionalHelper.bSkipIF = false;
-            rConditionalHelper.bProcessEffect = true;
-            if next(rConditionalHelper.aELSEStack) then
-                table.remove(rConditionalHelper.aELSEStack);
-            end
-        elseif not bOR then
-            rConditionalHelper.bSkipIF = true;
-        end
+	if rEffectComp.original == 'OR' then
+		if bOR and not rConditionalHelper.bProcessEffect then
+			rConditionalHelper.bSkipIF = false;
+			rConditionalHelper.bProcessEffect = true;
+			if next(rConditionalHelper.aELSEStack) then
+				table.remove(rConditionalHelper.aELSEStack);
+			end
+		elseif not bOR then
+			rConditionalHelper.bSkipIF = true;
+		end
 
-    elseif rEffectComp.type == 'ELSE' then
-        if next(rConditionalHelper.aELSEStack) then
-            if rConditionalHelper.aELSEStack[1] == rEffectComp.mod then
-                table.remove(rConditionalHelper.aELSEStack, 1);
-                rConditionalHelper.bProcessEffect = true;
-            else
-                rConditionalHelper.bProcessEffect = false;
-            end
-        else
-            rConditionalHelper.bProcessEffect = false;
-        end
-        rConditionalHelper.aORStack = {};
-    elseif bOR and rEffectComp.original ~= 'OR' then
-        rConditionalHelper.bSkipIF = true;
-    end
+	elseif rEffectComp.type == 'ELSE' then
+		if next(rConditionalHelper.aELSEStack) then
+			if rConditionalHelper.aELSEStack[1] == rEffectComp.mod then
+				table.remove(rConditionalHelper.aELSEStack, 1);
+				rConditionalHelper.bProcessEffect = true;
+			else
+				rConditionalHelper.bProcessEffect = false;
+			end
+		else
+			rConditionalHelper.bProcessEffect = false;
+		end
+		rConditionalHelper.aORStack = {};
+	elseif bOR and rEffectComp.original ~= 'OR' then
+		rConditionalHelper.bSkipIF = true;
+	end
 
-    if not rConditionalHelper.bSkipIF and rConditionalHelper.bProcessEffect then
-        -- Handle conditionals
+	if not rConditionalHelper.bSkipIF and rConditionalHelper.bProcessEffect then
+		-- Handle conditionals
 		local bUntrueExt = hasExtension('IF_NOT_untrue_effects_berwind');
-        if rEffectComp.type == 'IF' or (bUntrueExt and rEffectComp.type == 'IFN') then
-            if not EffectManager5E.checkConditional(rActor, rEffect, rEffectComp.remainder) then
-                conditionalFail(rConditionalHelper, rEffectComp);
-            else
-                conditionalSuccess(rConditionalHelper, rEffectComp);
-            end
-        elseif rEffectComp.type == 'IFT' or (bUntrueExt and rEffectComp.type == 'IFTN') then
-            if not rTarget then
-                rConditionalHelper.bProcessEffect = false
-            else
-                if not EffectManager5E.checkConditional(rTarget, rEffect, rEffectComp.remainder, rActor) then
-                    conditionalFail(rConditionalHelper, rEffectComp);
-                else
-                    conditionalSuccess(rConditionalHelper, rEffectComp);
-                    rConditionalHelper.bTargeted = true;
-                end
-            end
-        end
-    end
-    if rEffectComp.original ~= 'OR' then
-        rConditionalHelper.bSkipIF = false;
-    end
+		if rEffectComp.type == 'IF' or (bUntrueExt and rEffectComp.type == 'IFN') then
+			if not EffectManager5E.checkConditional(rActor, rEffect, rEffectComp.remainder) then
+				conditionalFail(rConditionalHelper, rEffectComp);
+			else
+				conditionalSuccess(rConditionalHelper, rEffectComp);
+			end
+		elseif rEffectComp.type == 'IFT' or (bUntrueExt and rEffectComp.type == 'IFTN') then
+			if not rTarget then
+				rConditionalHelper.bProcessEffect = false
+			else
+				if not EffectManager5E.checkConditional(rTarget, rEffect, rEffectComp.remainder, rActor) then
+					conditionalFail(rConditionalHelper, rEffectComp);
+				else
+					conditionalSuccess(rConditionalHelper, rEffectComp);
+					rConditionalHelper.bTargeted = true;
+				end
+			end
+		end
+	end
+	if rEffectComp.original ~= 'OR' then
+		rConditionalHelper.bSkipIF = false;
+	end
 end
 
 function conditionalFail(rConditionalHelper, rEffectComp)
-    rConditionalHelper.bProcessEffect = false;
-    if rEffectComp.mod > 0 then
-        table.insert(rConditionalHelper.aELSEStack, rEffectComp.mod);
-    end
-    table.insert(rConditionalHelper.aORStack, true);
+	rConditionalHelper.bProcessEffect = false;
+	if rEffectComp.mod > 0 then
+		table.insert(rConditionalHelper.aELSEStack, rEffectComp.mod);
+	end
+	table.insert(rConditionalHelper.aORStack, true);
 end
 function conditionalSuccess(rConditionalHelper, rEffectComp)
-    for i = #rConditionalHelper.aELSEStack, 1, -1 do
-        if rConditionalHelper.aELSEStack[i] == rEffectComp.mod then
-            table.remove(rConditionalHelper.aELSEStack, i);
-        end
-    end
-    rConditionalHelper.bProcessEffect = true;
+	for i = #rConditionalHelper.aELSEStack, 1, -1 do
+		if rConditionalHelper.aELSEStack[i] == rEffectComp.mod then
+			table.remove(rConditionalHelper.aELSEStack, i);
+		end
+	end
+	rConditionalHelper.bProcessEffect = true;
 end

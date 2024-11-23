@@ -61,6 +61,7 @@
 						WalkThisWay.openSpeedWindow(nodeW);
 					end
 				</script>
+				<tooltip textres="tooltip_dclick_swindow" />
 				<readonly />
 			</string_ct>
 		</sheetdata>
@@ -79,6 +80,7 @@
 						WalkThisWay.openSpeedWindow(nodeW);
 					end
 				</script>
+				<tooltip textres="tooltip_dclick_swindow" />
 				<readonly />
 			</string_ct>
 		</sheetdata>
@@ -87,14 +89,28 @@
 		<sheetdata>
 			<number_charspeed name="speed" source="WalkThisWay.base">
 				<script>
-					function onDoubleClick()
-						local nodeW = window.getDatabaseNode();
+					local nodeW;
+					function onInit()
+						nodeW = window.getDatabaseNode();
 						local nodeCT = ActorManager.getCTNode(nodeW);
-						if nodeCT then
-							WalkThisWay.openSpeedWindow(nodeCT);
+						if not nodeCT then setTooltipText("") end
+					end
+					function onHover(state)
+						if state then
+							local nodeCT = ActorManager.getCTNode(nodeW);
+							if nodeCT then
+								setTooltipText(Interface.getString("tooltip_dclick_swindow"))
+							else
+								setTooltipText("");
+							end
 						end
 					end
+					function onDoubleClick()
+						local nodeCT = ActorManager.getCTNode(nodeW);
+						if nodeCT then WalkThisWay.openSpeedWindow(nodeCT) end
+					end
 				</script>
+				<tooltip textres="tooltip_dclick_swindow" />
 			</number_charspeed>
 		</sheetdata>
 	</windowclass>
@@ -102,14 +118,18 @@
 		<sheetdata>
 			<string_content_column name="speed" merge="join">
 				<script>
+					local nodeW, nodePath, bOnCT;
+					function onInit()
+						nodeW = window.getDatabaseNode();
+						nodePath = DB.getPath(nodeW);
+						bOnCT = string.match(nodePath, 'combattracker');
+						if not bOnCT then setTooltipText("") end
+					end
 					function onDoubleClick()
-						local nodeW = window.getDatabaseNode();
-						local nodePath = DB.getPath(nodeW);
-						if string.match(nodePath, 'combattracker') then
-							WalkThisWay.openSpeedWindow(nodeW);
-						end
+						if bOnCT then WalkThisWay.openSpeedWindow(nodeW) end
 					end
 				</script>
+				<tooltip textres="tooltip_dclick_swindow" />
 			</string_content_column>
 		</sheetdata>
 	</windowclass>
@@ -117,14 +137,18 @@
 		<sheetdata>
 			<string_content_column name="speed" merge="join">
 				<script>
+					local nodeW, nodePath, bOnCT;
+					function onInit()
+						nodeW = window.getDatabaseNode();
+						nodePath = DB.getPath(nodeW);
+						bOnCT = string.match(nodePath, 'combattracker');
+						if not bOnCT then setTooltipText("") end
+					end
 					function onDoubleClick()
-						local nodeW = window.getDatabaseNode();
-						local nodePath = DB.getPath(nodeW);
-						if string.match(nodePath, 'combattracker') then
-							WalkThisWay.openSpeedWindow(nodeW);
-						end
+						if bOnCT then WalkThisWay.openSpeedWindow(nodeW) end
 					end
 				</script>
+				<tooltip textres="tooltip_dclick_swindow" />
 			</string_content_column>
 		</sheetdata>
 	</windowclass>

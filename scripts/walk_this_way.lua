@@ -17,6 +17,8 @@ OOB_MSGTYPE_REGPREF = 'registerpreference';
 
 local fonRecordTypeEvent = '';
 local tClientPrefs = {};
+local bLoopProt;
+local nodeUbiquinated;
 
 function onInit()
 	setOptions();
@@ -96,6 +98,7 @@ function setOptions()
 					baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
 				}
 			});
+			OptionsManager.registerOptionData({	sKey = 'ADEC', sGroupRes = "option_header_WtW" });
 			OptionsManager.registerCallback('DDCU', reparseAllBaseSpeeds);
 			OptionsManager.registerCallback('WESC', recalcAllSpeeds);
 		end
@@ -153,19 +156,28 @@ function onRecordTypeEventWtW(sRecordType, tCustom)
 end
 
 function callSpeedCalcEffectUpdated(nodeEffectLabel)
+	if bLoopProt then return end
+	bLoopProt = true;
 	if OptionsManager.isOption('WESC', 'off') then
 		return;
 	end
+	local sNodeEffectLabel = DB.getValue(nodeEffectLabel);
 	local nodeEffect = DB.getParent(nodeEffectLabel);
 	local nodeCT = DB.getChild(nodeEffect, '...');
+	handleExhaustion(nodeCT, sNodeEffectLabel, nodeEffect);
 	speedCalculator(nodeCT);
+	bLoopProt = false;
 end
 function callSpeedCalcEffectDeleted(nodeEffects)
+	if bLoopProt then return end
+	bLoopProt = true;
 	if OptionsManager.isOption('WESC', 'off') then
 		return;
 	end
 	local nodeCT = DB.getParent(nodeEffects)
+	handleExhaustion(nodeCT);
 	speedCalculator(nodeCT);
+	bLoopProt = false;
 end
 
 function clientGetOption(sKey)
@@ -253,7 +265,6 @@ function handlePrefChange(sOptionKey)
 		sendPrefRegistration(sPref, true);
 	end
 end
-
 function registerPreference(sOwner, sPref)
 	if not Session.IsHost then
 		Debug.console("WalkThisWay.registerPreference - not isHost");
@@ -427,7 +438,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			sRemainder = sMinusSpeed;
 		end
 		if not sRemainder and not nMod then
-			Debug.console("WalkThisWay.speedCalculator - Syntax Error");
+			Debug.console("WalkThisWay.speedCalculator - Syntax Error 438");
 		end
 		local sRmndrLower = string.lower(sRemainder);
 
@@ -653,13 +664,13 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			bRecognizedRmndr = true;
 			if string.match(sRmndrLower, '%)$') then
 				if nMod then
-					Debug.console("WalkThisWay.speedCalculator - Syntax Error");
+					Debug.console("WalkThisWay.speedCalculator - Syntax Error 664");
 				else
 					local sRmndrRemainder = sRmndrLower:gsub('^inc%s*%(', '');
 					sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
 					local nSpeedInc = tonumber(sRmndrRemainder);
 					if not nSpeedInc then
-						Debug.console("WalkThisWay.speedCalculator - Syntax Error")
+						Debug.console("WalkThisWay.speedCalculator - Syntax Error 670")
 					else
 						nSpeedMod = nSpeedMod + nSpeedInc;
 					end
@@ -673,13 +684,13 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			bRecognizedRmndr = true;
 			if string.match(sRmndrLower, '%)$') then
 				if nMod then
-					Debug.console("WalkThisWay.speedCalculator - Syntax Error");
+					Debug.console("WalkThisWay.speedCalculator - Syntax Error 684");
 				else
 					local sRmndrRemainder = sRmndrLower:gsub('^dec%s*%(', '');
 					sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
 					local nSpeedInc = tonumber(sRmndrRemainder);
 					if not nSpeedInc then
-						Debug.console("WalkThisWay.speedCalculator - Syntax Error")
+						Debug.console("WalkThisWay.speedCalculator - Syntax Error 690")
 					else
 						nSpeedMod = nSpeedMod - nSpeedInc;
 					end
@@ -690,7 +701,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			end
 		end
 		if not bRecognizedRmndr and sRmndrLower ~= '' then
-			Debug.console("WalkThisWay.speedCalculator - Syntax Error")
+			Debug.console("WalkThisWay.speedCalculator - Syntax Error 701")
 		end
 		if nMod then
 			local sNMod = tostring(nMod)
@@ -1217,27 +1228,78 @@ function hasRoot(nodeCT)
 	end
 end
 
---still needs to be called.	 check how rhagelstrom calls his
---add option to turn off destroy
-function handleExhaustion(nodeCT)
-	--copied with slight mods from CombatManager2.onTurnStart.	don't know why it doesn't work
+function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
+	if not nodeCT then
+		Debug.console("WalkThisWay.handleExhaustion - not nodeCT");
+		return;
+	end
+	if nodeEffectLabel then
+		local sMatch = string.match(string.lower(nodeEffectLabel), '^%s*exhausted%s*;%s*');
+		if sMatch then
+			if string.match(nodeEffectLabel, "^Exhausted; Speed ") or string.match(
+				nodeEffectLabel, "^Exhausted; DEATH?")
+			then nodeUbiquinated = nodeEffect end
+			return;
+		end
+	end
+	if (OptionsManager.isOption('VERBOSE_EXHAUSTION', "mnm") or OptionsManager.isOption('VERBOSE_EXHAUSTION',
+		"verbose")) and not OptionsManager.isOption("GAVE", "2024"
+	) then return end
+
+	local sNewEffect;
+	local nSpeedAdjust;
 	local nExhaustMod,_ = EffectManager5E.getEffectsBonus(nodeCT, { "EXHAUSTION" }, true);
 	local bShowMsg = true;
+	local bExhausted;
 	if nExhaustMod > 5 then
-		EffectManager.addEffect("", "", nodeCT, { sName = 'Exhausted; DEATH; DESTROY' }, '');
-	end
-	if OptionsManager.isOption("GAVE", "2024") then
-		if nExhaustMod > 0 then
-			local nSpeedAdjust = nExhaustMod * 5;
-			EffectManager.addEffect("", "", nodeCT, { sName = "Exhausted; Speed: dec(" .. nSpeedAdjust .. ")" }, bShowMsg);
+		if OptionsManager.isOption('ADEC', 'on') then
+			sNewEffect = "Exhausted; DEATH; DESTROY";
+		else
+			sNewEffect = "Exhausted; DEAD";
 		end
+	elseif nExhaustMod < 1 then
+		bExhausted = false;
+	elseif OptionsManager.isOption("GAVE", "2024") then
+		nSpeedAdjust = nExhaustMod * 5;
+		sNewEffect = "Exhausted; SPEED: dec(" .. nSpeedAdjust .. ")";
+	elseif nExhaustMod > 4 then
+		sNewEffect = "Exhausted; SPEED: max(0); MAXHP: 0.5";
+	elseif nExhaustMod > 3 then
+		sNewEffect = "Exhausted; SPEED: halved; MAXHP: 0.5";
+	elseif nExhaustMod > 1 then
+		sNewEffect = "Exhausted; SPEED: halved";
 	else
-		if nExhaustMod > 4 then
-			EffectManager.addEffect("", "", nodeCT, { sName = "Exhausted; Speed: max(0), MAXHP: 0.5" }, bShowMsg);
-		elseif nExhaustMod > 3 then
-			EffectManager.addEffect("", "", nodeCT, { sName = "Exhausted; Speed: halved, MAXHP: 0.5" }, bShowMsg);
-		elseif nExhaustMod > 1 then
-			EffectManager.addEffect("", "", nodeCT, { sName = "Exhausted; Speed: halved" }, bShowMsg);
+		bExhausted = false;
+	end
+
+	local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, '^%s*exhausted%s*;%s*', true, false, false, true);
+	if bExhausted == false and tOldEffects and tOldEffects[1] then
+		for _,v in ipairs(tOldEffects) do
+			DB.deleteNode(v['node']);
+		end
+	end
+
+	if sNewEffect then
+		if tOldEffects and tOldEffects[1] then
+			local nFound;
+			for k,v in ipairs(tOldEffects) do
+				if v['label'] == sNewEffect then nFound = k end
+			end
+			if nFound then
+				for k,v in ipairs(tOldEffects) do
+					if k ~= nFound then DB.deleteNode(v['node']) end
+				end
+			else
+				for k,v in ipairs(tOldEffects) do
+					if k > 1 then
+						DB.deleteNode(v['node']);
+					else
+						DB.setValue(tOldEffects[1]['node'], 'label', 'string', sNewEffect);
+					end
+				end
+			end
+		else
+			EffectManager.addEffect("", "", nodeCT, { sName = sNewEffect }, bShowMsg);
 		end
 	end
 end
@@ -1348,7 +1410,7 @@ function checkHideousLaughter(rActor)
 		-- should return true, regardless of other clauses
 		-- whole clause
 		-- Team Twohy without ongoing save extension
---	local sClause4 = "Tasha's Hideous Laughter (C)";
+	--local sClause4 = "Tasha's Hideous Laughter (C)";
 		-- should return false, if all other clauses are not found
 		-- whole clause
 		-- Team Twohy without ongoing save extension
@@ -1434,6 +1496,10 @@ function turnStartChecks(nodeCT)
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 
 	if Session.RulesetName == "5E" then
+		if nodeUbiquinated then
+			DB.deleteNode(nodeUbiquinated);
+			nodeUbiquinated = nil;
+		end
 		if sOwner then
 			local msgOOB = {};
 			msgOOB.type = OOB_MSGTYPE_SPEEDWINDOW;
