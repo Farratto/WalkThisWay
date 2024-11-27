@@ -4,7 +4,7 @@
 -- luacheck: globals checkBetterGoldPurity hasEffectFindString removeEffectClause handleApplyHostCommands
 -- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient removeEffectCaseInsensitive
 -- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
--- luacheck: globals hasEffectClause
+-- luacheck: globals hasEffectClause cleanString getEffectName
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 local _sBetterGoldPurity = '';
@@ -535,6 +535,22 @@ function removeEffectCaseInsensitive(nodeCTEntry, sEffPatternToRemove)
 	end
 end
 
+function cleanString(s)
+	if not s then return end
+	local sReturn = StringManager.strip(s);
+	sReturn = string.gsub(sReturn, '^%s+', '');
+	sReturn = string.gsub(sReturn, '%s+$', '');
+	return sReturn;
+end
+
+function getEffectName(nodeEffect, sLabel)
+	if not nodeEffect and not sLabel then return end
+	if not sLabel then sLabel = DB.getValue(nodeEffect, 'label') end
+	if not sLabel or sLabel == '' then return end
+	local aClauses = StringManager.split(sLabel, ';');
+	return cleanString(aClauses[1]);
+end
+
 --note: if using caseInsensitivity, use all uppercase for literal character matches.
 function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTargetedOnly, bCaseSensitive) --luacheck: ignore 212
 	if not rActor then
@@ -606,7 +622,7 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 						if comp_match then
 							if nActive == 1 then
 								rMatchTable['clause'] = sEffectComp;
-								rMatchTable['label'] = v;
+								if sLabel ~= '' then rMatchTable['label'] = sLabel end
 								table.insert(results, rMatchTable);
 							end
 						end

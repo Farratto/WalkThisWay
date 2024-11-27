@@ -70,7 +70,9 @@
 			<anchor_content_top />
 			<string_content_noframe_static_top name="proneQuery">
 				<center />
+				<font>reference-page-header</font>
 			</string_content_noframe_static_top>
+			<spacer_content_top />
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<static textres="query_msg_2" />
@@ -83,7 +85,9 @@
 			<anchor_content_top />
 			<string_content_noframe_static_top name="proneQuery">
 				<center />
+				<font>reference-page-header</font>
 			</string_content_noframe_static_top>
+			<spacer_content_top />
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<static textres="query_msg_pfrpg2" />
@@ -96,7 +100,9 @@
 			<anchor_content_top />
 			<string_content_noframe_static_top name="proneQuery">
 				<center />
+				<font>reference-page-header</font>
 			</string_content_noframe_static_top>
+			<spacer_content_top />
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<static textres="query_msg_nocost" />
@@ -109,7 +115,7 @@
 			<anchored>
 				<left anchor="center" offset="15" />
 			</anchored>
-			<text>Okay</text>
+			<text>Stand Up</text>
 			<script>
 				function onButtonPress()
 					WalkThisWay.standUp();
@@ -124,7 +130,7 @@
 			<anchored>
 				<right anchor="center" offset="-15" />
 			</anchored>
-			<text>Cancel</text>
+			<text>Stay Prone</text>
 			<script>
 				function onButtonPress()
 					WalkThisWay.closeProneWindow();

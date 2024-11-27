@@ -7,7 +7,7 @@
 	<windowclass name="speed_window">
 		<frame>utilitybox</frame>
 		<placement>
-			<size width="330" height="220" />
+			<size width="330" height="240" />
 		</placement>
 		<sizelimits >
 			<maximum width="450" height="300" />
@@ -34,16 +34,42 @@
 	<windowclass name="speed_window_content">
 		<sheetdata>
 			<anchor_content_top />
+			<anchor_listitem_left name="leftanchor" />
 			<string_content_noframe_static_top name="actorname">
+				<font>reference-page-header</font>
 				<center />
 			</string_content_noframe_static_top>
-			<stringc_content_noframe_noscroll_static_top>
+<!--			<stringc_content_noframe_noscroll_static_top> -->
+			<header_content_framed_headersimple>
 				<center />
 				<static textres="speed_title" />
-			</stringc_content_noframe_noscroll_static_top>
+<!--			</stringc_content_noframe_noscroll_static_top> -->
+			</header_content_framed_headersimple>
 			<string_content_noframe_static_top name="currentSpeed">
 				<center />
 			</string_content_noframe_static_top>
+			<header_content_framed_headersimple name="speedeffectstitle">
+				<center />
+				<static textres="speed_effects_title" />
+			</header_content_framed_headersimple>
+			<windowlist name="effect_name_list">
+				<anchored>
+					<top parent="speedeffectstitle" anchor="bottom" />
+					<left parent="leftanchor" />
+				</anchored>
+				<datasource>.effectNames</datasource>
+				<class>effect_names</class>
+			</windowlist>
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="effect_names">
+		<sheetdata>
+			<anchor_listitem_left name="leftanchor" />
+			<anchor_listitem_left name="rightanchor" />
+			<string_listitem_left_static name="name" >
+				<anchored width="280" />
+			</string_listitem_left_static >
 		</sheetdata>
 	</windowclass>
 
@@ -52,7 +78,6 @@
 			<string_ct name="speed" merge="delete" />
 			<string_ct name="WalkThisWay.currentSpeed">
 				<anchored to="speedlabel" position="righthigh" offset="5,0" height="20">
-<!--					<right parent="anchor_section" offset="-15" /> -->
 					<right parent="anchor_section" />
 				</anchored>
 				<script>
@@ -71,7 +96,6 @@
 			<string_ct name="speed" merge="delete" />
 			<string_ct name="WalkThisWay.currentSpeed">
 				<anchored to="speedlabel" position="righthigh" offset="5,0" height="20">
-<!--					<right parent="anchor_section" offset="-15" /> -->
 					<right parent="anchor_section" />
 				</anchored>
 				<script>

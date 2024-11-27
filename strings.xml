@@ -11,6 +11,7 @@
 	<string name="query_msg_pfrpg2">Would you like to expend an action to stand up?</string>
 	<string name="query_msg_nocost">Would you like to stand up?</string>
 	<string name="speed_title">Available Movement</string>
+	<string name="speed_effects_title">Effects Affecting Your Speed</string>
 	<string name="tooltip_dclick_swindow">Double click to open speed window</string>
 
 	<!-- Chat Messages -->

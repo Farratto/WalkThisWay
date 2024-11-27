@@ -8,7 +8,7 @@
 -- luacheck: globals parseBaseSpeed onRecordTypeEventWtW reparseBaseSpeed reparseAllBaseSpeeds recalcAllSpeeds
 -- luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
 -- luacheck: globals turnStartChecks registerPreference getPreference sendPrefRegistration handlePrefRegistration
--- luacheck: globals handlePrefChange
+-- luacheck: globals handlePrefChange checkFitness parseSpeedType
 
 OOB_MSGTYPE_PRONEQUERY = "pronequery";
 OOB_MSGTYPE_CLOSEQUERY = "closequery";
@@ -37,6 +37,10 @@ function onInit()
 				--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE bIgnoreTarget
 				--continued: bSpell bOneShot bIgnoreExpire
 			DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
+			DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
+			DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
+			--DB.addHandler("charsheet.*.inventorylist.*.carried", "onUpdate", checkFitness);
+			--DB.addHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent; --luacheck: ignore 111
 			CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
 			if string.lower(Session.UserName) == 'farratto' then
@@ -47,10 +51,6 @@ function onInit()
 					DB.createChild(nodeWTW, 'frogtoes', 'number');
 				end
 				DB.setValue(nodeWTW, 'frogtoes', 'number', '1');
-			end
-			if not OptionsManager.isOption('WESC', 'off') then
-				DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
-				DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
 			end
 			OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
 		end
@@ -70,6 +70,8 @@ function onClose()
 			DB.removeHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
 			DB.removeHandler('combattracker.list.*.effects','onChildDeleted',callSpeedCalcEffectDeleted);
 			DB.removeHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
+			--DB.removeHandler("charsheet.*.inventorylist.*.carried", "onUpdate", checkFitness);
+			--DB.removeHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			OptionsManager.unregisterCallback('DDCU', reparseAllBaseSpeeds);
 			OptionsManager.unregisterCallback('WESC', recalcAllSpeeds);
 			CombatRecordManager.onRecordTypeEvent = fonRecordTypeEvent; --luacheck: ignore 113
@@ -364,7 +366,9 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	end
 
 	local nHover = DB.getValue(nodeCTWtW, 'hover')
-	local bHasRoot, bHasHover = hasRoot(nodeCT);
+	local bHasRoot, bHasHover, sRootEffectName = hasRoot(nodeCT);
+	local tEffectNames = {};
+	if sRootEffectName then table.insert(tEffectNames, sRootEffectName) end
 	if bHasRoot then
 		local tRoot = {};
 		local tSpdRcrd = {};
@@ -375,7 +379,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			tSpdRcrd['type'] = 'Walk';
 		end
 		table.insert(tRoot, tSpdRcrd);
-		local bReturn = updateDisplaySpeed(nodeCT, tRoot, nBaseSpeed, false, sPref);
+		local bReturn = updateDisplaySpeed(nodeCT, tRoot, nBaseSpeed, false, sPref, tEffectNames);
 		return bReturn;
 	end
 
@@ -394,6 +398,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		bProne = WtWCommon.fhasCondition(rActor, "Prone")
 		if bProne then
 			nHalved = nHalved + 1
+			table.insert(tEffectNames, "Prone");
 		end
 	end
 
@@ -413,12 +418,20 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		if tAccomSpeed['nSpeedMod'] then
 			nSpeedMod = nSpeedMod + tonumber(tAccomSpeed['nSpeedMod'])
 		end
+		if tAccomSpeed['tEffectNames'] then
+			for _,sEffectName in ipairs(tAccomSpeed['tEffectNames']) do
+				table.insert(tEffectNames, sEffectName);
+			end
+		end
 	end
 
 	local bDifficult = false;
 	local tRebase = {};
 	local nRecheck;
-	for _,v in ipairs(tSpeedEffects) do
+	local sRecheckLabel;
+	local tBannedTypes;
+	local tModdedTypes;
+	for key,v in ipairs(tSpeedEffects) do
 		--WtW parsing
 		local sRemainder;
 		local bRecognizedRmndr = false;
@@ -452,6 +465,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				local nRmndrRemainder = tonumber(sRmndrRemainder);
 				if nRmndrRemainder then
 					nMaxMod = nRmndrRemainder
+					table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 				else
 					Debug.console("WalkThisWay.speedCalculator - Syntax Error. Try SPEED: max(5)");
 				end
@@ -462,33 +476,38 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			else
 				nMaxMod = nMod
 				nMod = nil
+				table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 			end
 			if nSpeedMax then
 				if nMaxMod < nSpeedMax then
 					nSpeedMax = nMaxMod;
+					table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 				end
 			else
 				nSpeedMax = nMaxMod;
+				table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 			end
 		end
 		if sRmndrLower == "difficult" then
 			bRecognizedRmndr = true;
 			bDifficult = true;
+			table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 		end
 		if (sRmndrLower == "half" or sRmndrLower == "halved") then
 			bRecognizedRmndr = true;
 			nHalved = nHalved + 1;
+			table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 		end
 		if (sRmndrLower == "double" or sRmndrLower == "doubled") then
 			bRecognizedRmndr = true;
 			nDoubled = nDoubled + 1;
+			table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 		end
 		if not bProne and StringManager.startsWith(sRmndrLower, 'type') then
 			bRecognizedRmndr = true;
 			if not string.match(sRmndrLower, '%)$') then
 				Debug.console("WalkThisWay.speedCalculator - Syntax error. Try SPEED: type(fly)");
 			else
-				--local sType = nil;
 				local sStrip = string.match(sRemainder, '^%s*[Tt][Yy][Pp][Ee]%s*%(%s*')
 				sStrip = string.gsub(sStrip, '%(', '%%(');
 				local sRmndrRemainder = sRemainder:gsub(sStrip, '');
@@ -499,72 +518,67 @@ function speedCalculator(nodeCT, bCalledFromParse)
 					sType = string.sub(sType, 2)
 				end
 				local sTypeLower = string.lower(sType);
-				local sMatch = string.gsub(sTypeLower, '%(', '%%(');
-				sMatch = string.gsub(sMatch, '%)', '%%)');
-				local sSTypeLowerStripped = string.gsub(sTypeLower, '%s*[%(%)]%s*', '[%(%)]');
-				local sTypeFly = string.match(sTypeLower, 'fly')
-				local sTypeHover = string.match(sTypeLower, 'hover')
-				local sTypeSpider = string.match(sTypeLower, 'spider climb')
-				local nFound;
-				local bMatchSpider = false;
-				local bExactMatch = false;
-				local sQualifier;
-				--local sQualifierSimplified;
-				for k,value in ipairs(tFGSpeedNew) do
-					local vTypeLower = string.lower(value.type);
-					local sVQualifier = string.match(value.type, '%(%s*%S*%s*%)%s*$');
-					local sVQualifierSimplified;
-					if sVQualifier then
-						sVQualifierSimplified = string.gsub(sVQualifier, '%s*[%(%)]%s*', '[%(%)]');
-						sVQualifierSimplified = string.lower(sVQualifierSimplified);
-						if sVQualifierSimplified == '(hover)' then
-							sVQualifier = false;
-							--sVQualifierSimplified = false;
-						end
-					end
-					local sVTypeLowerStripped = string.gsub(vTypeLower, '%s*[%(%)]%s*', '[%(%)]');
-					if sTypeFly then
-						if string.match(vTypeLower, 'fly') then
-							nFound = k;
-						end
-						if sTypeHover then
-							if string.match(vTypeLower, 'hover') then
-								nFound = k;
-							end
-						end
-					elseif sTypeSpider then
-						if string.match(vTypeLower, 'climb') then
-							nFound = k;
-							if string.match(vTypeLower, 'spider climb') then
-								bMatchSpider = true;
-							end
-						end
-					end
-					if string.match(vTypeLower, sMatch) then
-						nFound = k;
-						if sVTypeLowerStripped == sSTypeLowerStripped then
-							bExactMatch = true;
-						end
-					end
-					if nFound then
-						sQualifier = sVQualifier;
-						--sQualifierSimplified = sVQualifierSimplified;
-					end
-				end
-
+				local nFound, bExactMatch, sQualifier, sTypeFly, sTypeHover, sTypeSpider, bMatchSpider =
+					parseSpeedType(sType, tFGSpeedNew, true);
+				
 				if nMod then
 					if nMod <= 0 or string.sub(sMod, 1, 1) == '+' then
 						if nFound then
 							if sTypeFly or (sTypeSpider and bMatchSpider) then
 								tFGSpeedNew[nFound]['mod'] = nMod;
+								table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 							else
 								if not sTypeHover and not sTypeSpider then
 									tFGSpeedNew[nFound]['mod'] = nMod;
+									table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+								end
+							end
+						else
+							local rModdedType['type'] = sType;
+							rModdedType['mod'] = nMod;
+							rModdedType['name'] = WtWCommon.getEffectName(_,v.label);
+							table.insert(tModdedTypes, rModdedType);
+						end
+					else
+						local bBanned;
+						if tBannedTypes[1] then
+							for _,value in ipairs(tBannedTypes) do
+								if string.match(sTypeLower, string.lower(value)) then
+									local _,_,_, sLocFly, sLocHover, sLocSpider, bLocSpider = parseSpeedType(
+										value.type, tFGSpeedNew, false
+									);
+									if sLocHover and not sLocFly and sTypeHover then
+										if sTypeFly then
+											sType = string.gsub(sType, '%s*%(%s*[Hh][Oo][Vv][Ee][Rr]%s*%)%s*', '');
+											table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+										end
+									end
+									bBanned = true;
+									table.insert(tEffectNames, WtWCommon.getEffectName(_,value.name));
 								end
 							end
 						end
-					else
-						if nFound then
+						if tModdedTypes[1] then
+							for _,value in ipairs(tModdedTypes) do
+								if string.match(sTypeLower, string.lower(value)) then
+									local _,_,_, sLocFly, sLocHover, sLocSpider, bLocSpider = parseSpeedType(
+										value.type, tFGSpeedNew, false
+									);
+									if sLocFly or (sLocSpider and bTypeSpider) then
+										nMod = nMod + value.mod;
+										table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+										table.insert(tEffectNames, WtWCommon.getEffectName(_,value.name));
+									else
+										if not sTypeHover and not sTypeSpider then
+											nMod = nMod + value.mod;
+											table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+											table.insert(tEffectNames, WtWCommon.getEffectName(_,value.name));
+										end
+									end
+								end
+							end						
+						end
+						if nFound and not bBanned then
 							local bFaster;
 							local nCurrentVel = tonumber(tFGSpeedNew[nFound]['velocity']);
 							if nCurrentVel then
@@ -576,52 +590,80 @@ function speedCalculator(nodeCT, bCalledFromParse)
 								if sQualifier then
 									if bFaster then
 										table.remove(tFGSpeedNew, nFound);
+										table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 									end
 									nFound = false;
 								else
 									if sTypeFly then
 										if (nHover == 1) or sTypeHover then
 											tFGSpeedNew[nFound]['type'] = 'Fly (hover)'
+											table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 										end
 									elseif sTypeSpider and not bMatchSpider then
 										tFGSpeedNew[nFound]['type'] = 'Spider Climb'
+										table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 									else
 										nFound = false;
 									end
 								end
 							end
-
-							if nFound and bFaster then tFGSpeedNew[nFound]['velocity'] = nMod end
+							if nFound and bFaster then
+								tFGSpeedNew[nFound]['velocity'] = nMod
+								table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+							end
 						end
-						if not nFound then
+						if not nFound and not bBanned then
 							local tSpdRcrd = {};
 							tSpdRcrd['type'] = sType;
 							tSpdRcrd['velocity'] = nMod;
 							table.insert(tFGSpeedNew, tSpdRcrd);
+							table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 						end
 					end
 					nMod = nil;
 				else
 					if bRemoveType then
-						--local tCheckFGSpdTable = tFGSpeedNew;
 						if nFound then
 							if sTypeHover and not sTypeFly then
 								local sNewType = string.gsub(tFGSpeedNew[nFound]['type'], '%s*[Ff][Ll][Yy]%s*', '');
 								tFGSpeedNew[nFound]['type'] = sNewType;
+								table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 							elseif sTypeSpider and not bMatchSpider then --luacheck: ignore 542
 								--do nothing;
 							else
 								table.remove(tFGSpeedNew, nFound);
+								table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+							end
+						else
+							local rBannedType['type'] = sType;
+							rBannedType['name'] = WtWCommon.getEffectName(_,v.label);
+							table.insert(tBannedTypes, rBannedType);
+						end
+					else
+						local bBanned;
+						if tBannedTypes[1] then
+							for _,value in ipairs(tBannedTypes) do
+								if string.match(sTypeLower, string.lower(value)) then
+									local _,_,_, sLocFly, sLocHover, sLocSpider, bLocSpider = parseSpeedType(
+										value.type, tFGSpeedNew, false
+									);
+									if sLocHover and not sLocFly and sTypeHover then
+										if sTypeFly then
+											sType = string.gsub(sType, '%s*%(%s*[Hh][Oo][Vv][Ee][Rr]%s*%)%s*', '');
+											table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+										end
+									end
+									bBanned = true;
+									table.insert(tEffectNames, WtWCommon.getEffectName(_,value.name));
+								end
 							end
 						end
-						--for k,value in ipairs(tCheckFGSpdTable) do
-						--	local vTypeLower = string.lower(value.type);
-						--	if vTypeLower == sRemoveType then
-						--		table.remove(tFGSpeedNew, k)
-						--	end
-						--end
-					else
-						if nFound then
+						if tModdedTypes[1] then
+							for _,value in ipairs(tModdedTypes) do
+							
+							end						
+						end
+						if nFound and not bBanned then
 							local bFaster;
 							local nCurrentVel = tonumber(tFGSpeedNew[nFound]['velocity']);
 							if nBaseSpeed >= nCurrentVel then bFaster = true end
@@ -629,27 +671,32 @@ function speedCalculator(nodeCT, bCalledFromParse)
 								if sQualifier then
 									if bFaster then
 										table.remove(tFGSpeedNew, nFound);
+										table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 									else
 										nRecheck = nFound;
+										sRecheckLabel = WtWCommon.getEffectName(_,v.label);
 									end
 									nFound = false;
 								else
 									if sTypeFly then
 										if (nHover == 1) or sTypeHover then
 											tFGSpeedNew[nFound]['type'] = 'Fly (hover)'
+											table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 										end
 									elseif sTypeSpider and not bMatchSpider then
 										tFGSpeedNew[nFound]['type'] = 'Spider Climb'
+										table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 									else
 										nFound = false;
 									end
 								end
 							end
 						end
-						if not nFound then
+						if not nFound and not bBanned then
 							local tSpdRcrd = {}
 							tSpdRcrd['type'] = sType;
 							table.insert(tFGSpeedNew, tSpdRcrd)
+							table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 						end
 					end
 				end
@@ -673,11 +720,13 @@ function speedCalculator(nodeCT, bCalledFromParse)
 						Debug.console("WalkThisWay.speedCalculator - Syntax Error 670")
 					else
 						nSpeedMod = nSpeedMod + nSpeedInc;
+						table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 					end
 				end
 			else
 				nSpeedMod = nSpeedMod + nMod;
 				nMod = nil;
+				table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 			end
 		end
 		if StringManager.startsWith(sRmndrLower, 'dec') then
@@ -693,11 +742,13 @@ function speedCalculator(nodeCT, bCalledFromParse)
 						Debug.console("WalkThisWay.speedCalculator - Syntax Error 690")
 					else
 						nSpeedMod = nSpeedMod - nSpeedInc;
+						table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 					end
 				end
 			else
 				nSpeedMod = nSpeedMod - nMod;
 				nMod = nil;
+				table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 			end
 		end
 		if not bRecognizedRmndr and sRmndrLower ~= '' then
@@ -710,6 +761,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			else
 				table.insert(tRebase, nMod)
 			end
+			table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 		end
 	end
 
@@ -726,6 +778,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	end
 	if nRecheck and nRebase and nRebase >= tFGSpeedNew[nRecheck]['velocity'] then
 		table.remove(tFGSpeedNew, nRebase);
+		if sRecheckLabel then table.insert(tEffectNames, sRecheckLabel) end
 	end
 
 	if nDoubled > 0 then
@@ -758,20 +811,11 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			if not nFGSpeedNew then nFGSpeedNew = tFGSpeedNew[1].velocity end
 			nFGSpeedNew = tonumber(nFGSpeedNew);
 			if not nFGSpeedNew then nFGSpeedNew = 30 end
-			--if not nFGSpeed then nFGSpeed = nFGSpeedNew end
 		end
 		if nRebase and nRebase > nFGSpeedNew then nFGSpeedNew = nRebase end
-		--for key,v in ipairs(tRebase) do
-		--	if key > 1 then
-		--		if v > nFGSpeedNew then nFGSpeedNew = v end
-		--	else
-		--		nFGSpeedNew = v;
-		--	end
-		--end
 
 		local nLocalSpdMod = nSpeedMod
 		if tSpdRcrd.mod then nLocalSpdMod = nLocalSpdMod + tSpdRcrd.mod end
-		--local nSpeedFinal = nFGSpeedNew + nSpeedMod;
 		local nSpeedFinal = nFGSpeedNew + nLocalSpdMod;
 		if nSpeedFinal <= 0 then
 			tFGSpeedNew[k]['velocity'] = '0'
@@ -802,12 +846,71 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		end
 	end
 
-	local bReturn = updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref);
+	local bReturn = updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames);
 	return bReturn;
 end
 -- luacheck: pop
 
-function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref)
+function parseSpeedType(sType, tFGSpeedNew, bMatch)
+	local sTypeLower = string.lower(sType);
+	local sMatch = string.gsub(sTypeLower, '%(', '%%(');
+	sMatch = string.gsub(sMatch, '%)', '%%)');
+	local sSTypeLowerStripped = string.gsub(sTypeLower, '%s*[%(%)]%s*', '[%(%)]');
+	local sTypeFly = string.match(sTypeLower, 'fly')
+	local sTypeHover = string.match(sTypeLower, 'hover')
+	local sTypeSpider = string.match(sTypeLower, 'spider climb')
+	local nFound;
+	local bMatchSpider = false;
+	local bExactMatch = false;
+	local sQualifier;
+	--local sQualifierSimplified;
+	if bMatch then
+		for k,value in ipairs(tFGSpeedNew) do
+			local vTypeLower = string.lower(value.type);
+			local sVQualifier = string.match(value.type, '%(%s*%S*%s*%)%s*$');
+			local sVQualifierSimplified;
+			if sVQualifier then
+				sVQualifierSimplified = string.gsub(sVQualifier, '%s*[%(%)]%s*', '[%(%)]');
+				sVQualifierSimplified = string.lower(sVQualifierSimplified);
+				if sVQualifierSimplified == '(hover)' then
+					sVQualifier = false;
+					--sVQualifierSimplified = false;
+				end
+			end
+			local sVTypeLowerStripped = string.gsub(vTypeLower, '%s*[%(%)]%s*', '[%(%)]');
+			if sTypeFly then
+				if string.match(vTypeLower, 'fly') then
+					nFound = k;
+				end
+				if sTypeHover then
+					if string.match(vTypeLower, 'hover') then
+						nFound = k;
+					end
+				end
+			elseif sTypeSpider then
+				if string.match(vTypeLower, 'climb') then
+					nFound = k;
+					if string.match(vTypeLower, 'spider climb') then
+						bMatchSpider = true;
+					end
+				end
+			end
+			if string.match(vTypeLower, sMatch) then
+				nFound = k;
+				if sVTypeLowerStripped == sSTypeLowerStripped then
+					bExactMatch = true;
+				end
+			end
+			if nFound then
+				sQualifier = sVQualifier;
+				--sQualifierSimplified = sVQualifierSimplified;
+			end
+		end
+	end
+	return nFound, bExactMatch, sQualifier, sTypeFly, sTypeHover, sTypeSpider, bMatchSpider;
+end
+
+function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames)
 	if not Session.IsHost then
 		Debug.console("WalkThisWay.updateDisplaySpeed - not isHost");
 		return;
@@ -867,11 +970,15 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref)
 
 		local sVelWithUnits = tostring(tSpdRcrd.velocity) .. ' ' .. sUnitsPrefer
 
-		if bProne then
-			sReturn = sVelWithUnits .. ' Crawl'
-		else
+		--if bProne then
+		--	sReturn = sVelWithUnits .. ' Crawl'
+		--else
 			if tSpdRcrd.type == '' or (string.match(tSpdRcrd.type, '^Walk')) then
 				nCurrentSpeed = tSpdRcrd.velocity
+				if bProne then
+					sReturn = sVelWithUnits .. ' Crawl'
+					break;
+				end
 				local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$');
 				if sQualifier then
 					if k == 1 then
@@ -903,7 +1010,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref)
 					end
 				end
 			end
-		end
+		--end
 	end
 	sReturn = StringManager.strip(sReturn);
 	if sReturn and sReturn ~= '' then
@@ -912,6 +1019,18 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref)
 		if not rActor then
 			Debug.console("WalkThisWay.updateDisplaySpeed - not rActor");
 			return;
+		end
+		local nodeEffectNames = DB.getChild(nodeCTWtW, 'effectNames');
+		if nodeEffectNames then
+			DB.deleteChildren(nodeEffectNames);
+		else
+			nodeEffectNames = DB.createChild(nodeCTWtW, 'effectNames');
+		end
+		if tEffectNames then
+			for _,sEffectName in ipairs(tEffectNames) do
+				local nodeEffectNameID = DB.createChild(nodeEffectNames);
+				DB.setValue(nodeEffectNameID, 'name', 'string', sEffectName);
+			end
 		end
 		if ActorManager.isPC(rActor) then
 			local nodeChar = ActorManager.getCreatureNode(rActor);
@@ -1082,25 +1201,31 @@ function accommKnownExtsSpeed(nodeCT)
 	local nHalved = 0;
 	local nSpeedMax;
 	local nSpeedMod = 0;
-	local tReturn = {}
+	local tReturn = {};
+	local tEffectNames = {};
 	if Session.RulesetName == "5E" then
 		if EffectManager5E.hasEffectCondition(nodeCT, 'Dash') then
 			nDoubled = nDoubled + 1
+			table.insert(tEffectNames, "Dash");
 		end
 		--encumbrance
 		if EffectManager5E.hasEffect(nodeCT, "Exceeds Maximum Carrying Capacity") then
 			nSpeedMax = 5;
+			table.insert(tEffectNames, "Exceeds Maximum Carrying Capacity");
 		end
 		if EffectManager5E.hasEffect(nodeCT, "Heavily Encumbered") then
 			nSpeedMod = nSpeedMod - 20;
+			table.insert(tEffectNames, "Heavily Encumbered");
 		else
 			if EffectManager5E.hasEffect(nodeCT, "Lightly Encumbered") or EffectManager5E.hasEffect(nodeCT, "Encumbered") then
 				nSpeedMod = nSpeedMod - 10;
+				table.insert(tEffectNames, "Lightly Encumbered");
 			end
 		end
 		--exhaustion (speed 0 & DEATH checks are in hasRoot)
 		if WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; Speed Halved", false) then
 			nHalved = nHalved + 1;
+			table.insert(tEffectNames, "Exhaustion");
 		end
 		local sExhaustStack = WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; Speed %-%d+ %(info only%)$", false, true);
 		if sExhaustStack then
@@ -1109,9 +1234,11 @@ function accommKnownExtsSpeed(nodeCT)
 			local nExhaustSpd = tonumber(sExhaustStack);
 			if nExhaustSpd then
 				nSpeedMod = nSpeedMod - nExhaustSpd;
+				table.insert(tEffectNames, "Exhaustion");
 			end
 		end
 	end
+	tReturn['tEffectNames'] = tEffectNames;
 
 	local bReturn = false
 	if nDoubled > 0 then
@@ -1150,79 +1277,90 @@ function hasRoot(nodeCT)
 	if Session.RulesetName ~= "5E" then
 		if EffectManagerPFRPG2 then
 			if EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Unconscious") then
-				return true;
+				return true, false, 'Unconscious';
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Dead") then
-				return true;
+				return true, false, 'Dead';
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Paralyzed") then
-				return true;
+				return true, false, 'Paralyzed';
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Dying") then
-				return true;
+				return true, false, 'Dying';
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Immobilized") then
-				return true;
+				return true, false, 'Immobilized';
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Petrified") then
-				return true;
+				return true, false, 'Petrified';
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Restrained") then
-				return true;
+				return true, false, 'Restrained';
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Grabbed") then
-				return true;
+				return true, false, 'Grabbed';
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Stunned") then
-				return true;
+				return true, false, 'Stunned';
 			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
-				return true;
+				return true, false, 'SPEED: max(0)';
 			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max", true) then
-				return true;
+				return true, false, 'SPEED: 0 max';
 			elseif WtWCommon.hasEffectClause(nodeCT, "Speed%s*:%s*0", true) then
-				return true;
+				return true, false, 'SPEED: 0';
 			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none", true) then
-				return true;
+				return true, false, 'SPEED: none';
 			else
 				return false;
 			end
 		else
 			if EffectManager.hasCondition(nodeCT, "Unconscious") then
-				return true;
+				return true, false, 'Unconscious';
 			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
-				return true;
+				return true, false, 'SPEED: max(0)';
 			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max", true) then
-				return true;
+				return true, false, 'SPEED: 0 max';
 			elseif WtWCommon.hasEffectClause(nodeCT, "Speed%s*:%s*0", true) then
-				return true;
+				return true, false, 'SPEED: 0';
 			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none", true) then
-				return true;
+				return true, false, 'SPEED: none';
 			else
 				return false;
 			end
 		end
 	else
 		local bReturn;
+		local sEffectName;
 		if EffectManager5E.hasEffectCondition(nodeCT, "Grappled") then
 			bReturn = true;
+			sEffectName = 'Grappled';
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "Paralyzed") then
 			bReturn = true;
+			sEffectName = 'Paralyzed';
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "Petrified") then
 			bReturn = true;
+			sEffectName = 'Petrified';
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "Restrained") then
 			bReturn = true;
+			sEffectName = 'Restrained';
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "Unconscious") then
 			bReturn = true;
+			sEffectName = 'Unconscious';
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "DEATH") then
 			bReturn = true;
+			sEffectName = 'DEATH';
 		elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max", true) then
 			bReturn = true;
+			sEffectName = 'SPEED: 0 max';
 		elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
 			bReturn = true;
+			sEffectName = 'SPEED: max(0)';
 		elseif WtWCommon.hasEffectClause(nodeCT, "Speed%s*:?%s*0", true) then
 			bReturn = true;
+			sEffectName = 'SPEED: 0';
 		elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none", true) then
 			bReturn = true;
+			sEffectName = 'SPEED: none';
 		else
 			return false;
 		end
 		if bReturn then
 			if WtWCommon.hasEffectClause(nodeCT, "^[Ss][Pp][Ee][Ee][Dd]%s*:%s*%d*%s*type%s*%(%s*[%l%u]*%s*%(%s*hover%s*%)%s*%)$") then
-				return true, true;
+				return true, true, sEffectName;
 			else
-				return true, false;
+				return true, false, sEffectName;
 			end
 		end
 	end
@@ -1319,13 +1457,9 @@ end
 	--standard encumbrance rules:
 		--excedes carrying capacity
 			--SPEED: <= 5 ft.
-	--5e: auto encumbrance
-		--Exceeds Maximum Carrying Capacity; Speed=5
-		--Heavily Encumbered; Speed-20; DISCHK: strength,dexterity,constitution; DISATK; DISSAV: strength,dexterity,constitution
-		--Lightly Encumbered; Speed-10
 --end
 
---function handleItemTooHeavy(nodeCT)
+function checkFitness()
 	--make option to turn this functionality off to save resources
 	--called by updated inventory
 	--root.charsheet.id-00002.inventorylist.id-00001
@@ -1336,7 +1470,11 @@ end
 		--<strength type="string">Str 13</strength>
 	--in traits, speed: your speed is not reduced by wearing heavy armor.
 		--2024 dwarf
---end
+	--check if item has str requirement, return if no
+	--add handler to watch str
+	--add handler to DB to remove onClose
+	--add buff that is like ITEM too heavy, make sure check for identified tag
+end
 
 function checkProne(nodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
