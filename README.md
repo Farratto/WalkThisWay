@@ -28,6 +28,8 @@ The speed effects that are recognized:
 | SPEED: 60 | increases all speeds to 60 (speeds already above 60 will be unchanged) |
 | SPEED: type(climb) | adds a new speed 'climb' and sets it to be the same as walking speed |
 | SPEED: 60 type(fly) | adds a new speed 'Fly' and sets only the new speed to 60 |
+| SPEED: -30 type(fly) | decreases fly speed by 30 |
+| SPEED: type(-fly) | removes fly speed |
 | SPEED: 5 max or SPEED: max(5) | none of the speeds can exceed 5
 | SPEED: difficult | difficult terrain handling (halves all speeds except fly) |
 | SPEED: halved | halves all speeds (after inc/dec); stackable |
@@ -36,7 +38,7 @@ The speed effects that are recognized:
 Supports RAW encumbered (both standard and variant) and exhaustion rules. \
 Coming soon: reduces speed when wearing armor the character is not strong enough to wear.
 
-The extension updates all the speeds on the speed field in the combat tracker.  Character sheets still show base speed.  There is an optional window that shows all the speeds for a character.  Coming soon: it will list all the effect names that are affecting your speeds.  You can have the window open automatically on your turn through an option setting.  Or you can open the window at any time by double-clicking the speed field on a character sheet or the combat tracker.
+The extension updates all the speeds on the speed field in the combat tracker.  Character sheets still show base speed.  There is an optional window that shows all the speeds for a character and all the effects affecting their speed.You can have the window open automatically on your turn through an option setting.  Or you can open the window at any time by double-clicking the speed field on a character sheet or the combat tracker.
 
 Option setting (for GM and players) to change the units that speed is displayed in.  Current choices are feet, meters, and tiles.  Automatically rounds final speed down to nearest half tile.  Another option for the GM to change the units that spell effect speeds work with.
 
@@ -79,4 +81,4 @@ SmiteWorks owns rights to code sections copied from their rulesets by permission
 * v1.3.3: Made query window more theme-friendly.
 * v1.3.2: Added Support for Team Twohy's 5e Effects Coding. Made changes under the hood to improve accuracy and efficiency.
 * v1.2.5: New Options allowing players to individually disable the reminder windows (if DM allows).
-* v1.2.0: Now will only delete entire effect line if you ask it to. Added a toggle option to turn the extension on/off live. Full support added for BCE & FZ.
+* v1.2.0: Full support added for BCE & FZ.

@@ -2,9 +2,9 @@
 -- attribution and copyright information.
 
 -- luacheck: globals checkBetterGoldPurity hasEffectFindString removeEffectClause handleApplyHostCommands
--- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient removeEffectCaseInsensitive
+-- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 -- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
--- luacheck: globals hasEffectClause cleanString getEffectName
+-- luacheck: globals hasEffectClause
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 local _sBetterGoldPurity = '';
@@ -155,8 +155,8 @@ end
 -- luacheck: push ignore 561
 function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
 	if not rActor or not sClause then
-		return
-		Debug.console("WtWCommon.removeEffectClause - not rActor or not sClause")
+		Debug.console("WtWCommon.removeEffectClause - not rActor or not sClause");
+		return;
 	end
 
 	local sLowerClause = sClause:lower();
@@ -176,9 +176,9 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 	-- Iterate through each effect
 	for _, v in pairs(aEffects) do
 		local nActive = DB.getValue(v, 'isactive', 0);
-		local bGo = false
-		local bTargeted
-		local rConditionalHelper
+		local bGo = false;
+		local bTargeted;
+		local rConditionalHelper;
 
 		if EffectManagerBCE then
 			rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
@@ -195,7 +195,7 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 			end
 		else
 			if nActive ~= 0 then
-				bGo = true
+				bGo = true;
 				bTargeted = EffectManager.isTargetedEffect(v);
 			end
 		end
@@ -204,10 +204,12 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 			-- Parse each effect label
 			local sLabel = DB.getValue(v, 'label', '');
 			local aEffectComps = EffectManager.parseEffect(sLabel);
+			local nEffectComps = 0;
 
 			-- Iterate through each effect component looking for a type match
-			local nMatch = 0;
+			local tMatch = {};
 			for kEffectComp, sEffectComp in ipairs(aEffectComps) do
+				nEffectComps = nEffectComps + 1
 				local rEffectComp
 				if EffectManager5E then
 					rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
@@ -223,10 +225,10 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 					if rConditionalHelper.bProcessEffect and rEffectComp.original:lower() == sLowerClause then
 						if rConditionalHelper.bTargeted and not bIgnoreEffectTargets then
 							if EffectManager.isEffectTarget(v, rTarget) then
-								nMatch = kEffectComp;
+								table.insert(tMatch, 1, kEffectComp);
 							end
 						elseif not bTargetedOnly then
-							nMatch = kEffectComp;
+							table.insert(tMatch, 1, kEffectComp);
 						end
 					end
 				else
@@ -249,31 +251,46 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 					if rEffectComp.original:lower() == sLowerClause then
 						if bTargeted and not bIgnoreEffectTargets then
 							if EffectManager.isEffectTarget(v, rTarget) then
-								nMatch = kEffectComp;
+								table.insert(tMatch, 1, kEffectComp);
 							end
 						elseif not bTargetedOnly then
-							nMatch = kEffectComp;
+							table.insert(tMatch, 1, kEffectComp);
 						end
 					end
 				end
 			end
 
 			-- If matched, then remove Clause
-			if nMatch > 0 then
-				if nActive == 2 then
-					DB.setValue(v, 'isactive', 'number', 1);
-				else
+			if tMatch[1] then
+				if nEffectComps <= (#tMatch + 1) then
 					table.insert(aMatch, v);
 					if Session.IsHost then
-						local nodeEffect = v
-						local nodeActor = DB.getChild(nodeEffect, "...");
-						if not nodeActor then
-							ChatManager.SystemMessage(Interface.getString("ct_error_effectmissingactor") .. " ( ... )");
-							return;
-						end
-						EffectManager.expireEffect(nodeActor, nodeEffect, tonumber(nMatch) or 0);
+						DB.deleteNode(v);
 					else
-						EffectManager.notifyExpire(v, nMatch, true);
+						local nRepeats = #aEffectComps;
+						while nRepeats > 0 do
+							EffectManager.notifyExpire(v, nRepeats, true);
+							nRepeats = nRepeats - 1
+						end
+					end
+				elseif nActive == 2 then
+					DB.setValue(v, 'isactive', 'number', 1);
+				else
+					for _,nMatch in ipairs(tMatch) do
+						table.insert(aMatch, v);
+						if Session.IsHost then
+							local nodeEffect = v
+							local nodeActor = DB.getChild(nodeEffect, "...");
+							if not nodeActor then
+								ChatManager.SystemMessage(Interface.getString("ct_error_effectmissingactor") ..
+									" ( ... )"
+								);
+								return;
+							end
+							EffectManager.expireEffect(nodeActor, nodeEffect, tonumber(nMatch) or 0);
+						else
+							EffectManager.notifyExpire(v, nMatch, true);
+						end
 					end
 				end
 			end
@@ -288,11 +305,11 @@ end
 -- luacheck: pop
 
 -- luacheck: push ignore 561
-function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
+function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets, bReturnLabel)
 	-- when using pattern matching, make use of [^%] instead of %uppercase
 	if not rActor or not sClause then
-		return
-		Debug.console("WtWCommon.hasEffectClause - not rActor or not sClause")
+		Debug.console("WtWCommon.hasEffectClause - not rActor or not sClause");
+		return;
 	end
 
 	local sLowerClause = sClause:lower();
@@ -311,9 +328,9 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 	-- Iterate through each effect
 	for _, v in pairs(aEffects) do
 		local nActive = DB.getValue(v, 'isactive', 0);
-		local bGo = false
-		local bTargeted
-		local rConditionalHelper
+		local bGo = false;
+		local bTargeted;
+		local rConditionalHelper;
 
 		if EffectManagerBCE then
 			rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
@@ -325,12 +342,12 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
 			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
 			  (EffectManagerADND.isValidCheckEffect(rActor, v) or (rTarget and EffectManagerADND.isValidCheckEffect(rTarget, v))))) then
-				bGo = true
+				bGo = true;
 				rConditionalHelper.bTargeted = EffectManager.isTargetedEffect(v);
 			end
 		else
 			if nActive ~= 0 then
-				bGo = true
+				bGo = true;
 				bTargeted = EffectManager.isTargetedEffect(v);
 			end
 		end
@@ -358,10 +375,18 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 					if rConditionalHelper.bProcessEffect and string.match(sOriginalLower, sLowerClause) then
 						if rConditionalHelper.bTargeted and not bIgnoreEffectTargets then
 							if EffectManager.isEffectTarget(v, rTarget) then
-								return true;
+								if bReturnLabel then
+									return true, sLabel
+								else
+									return true;
+								end
 							end
 						elseif not bTargetedOnly then
-							return true;
+							if bReturnLabel then
+								return true, sLabel
+							else
+								return true;
+							end
 						end
 					end
 				else
@@ -385,10 +410,18 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 					if string.match(sOriginalLower, sLowerClause) then
 						if bTargeted and not bIgnoreEffectTargets then
 							if EffectManager.isEffectTarget(v, rTarget) then
-								return true;
+								if bReturnLabel then
+									return true, sLabel
+								else
+									return true;
+								end
 							end
 						elseif not bTargetedOnly then
-							return true;
+							if bReturnLabel then
+								return true, sLabel
+							else
+								return true;
+							end
 						end
 					end
 				end
@@ -421,8 +454,8 @@ function handleApplyHostCommands(msgOOB)
 	-- Requesting the remove effect action on host
 	elseif iAction == 1 then
 		-- remove an effect
-		-- EffectManager.removeEffect(rNodeCT, msgOOB.sEffect);
-		removeEffectCaseInsensitive(rNodeCT, msgOOB.sEffect);
+		EffectManager.removeEffect(rNodeCT, msgOOB.sEffect);
+		--removeEffectCaseInsensitive(rNodeCT, msgOOB.sEffect);
 	else
 		ChatManager.SystemMessage("[ERROR] manager_combat_wtw:handleApplyHostCommands; Unsupported iAction("
 			.. tostring(iAction) .. ")"
@@ -517,22 +550,6 @@ function getControllingClient(nodeCT)
 		end
 	end
 	return nil;
-end
-
-function removeEffectCaseInsensitive(nodeCTEntry, sEffPatternToRemove)
-	if not nodeCTEntry or ((sEffPatternToRemove or "") == "") then
-		Debug.console("WtWCommon.removeEffectCaseInsensitive - not nodeCTEntry");
-		return;
-	end
-
-	local sLEffPatternToRemove = string.lower(sEffPatternToRemove)
-
-	for _,nodeEffect in ipairs(DB.getChildList(nodeCTEntry, "effects")) do
-		local sLgetValue = string.lower(DB.getValue(nodeEffect, "label", ""))
-		if sLgetValue:match(sLEffPatternToRemove) then
-			DB.deleteNode(nodeEffect);
-		end
-	end
 end
 
 function cleanString(s)

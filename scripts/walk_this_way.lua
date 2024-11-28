@@ -104,13 +104,6 @@ function setOptions()
 			OptionsManager.registerCallback('DDCU', reparseAllBaseSpeeds);
 			OptionsManager.registerCallback('WESC', recalcAllSpeeds);
 		end
-		OptionsManager.registerOption2('WHOLEEFFECT', false, 'option_header_WtW', 'option_WtW_Delete_Whole', 'option_entry_cycler', {
-			labels = 'option_val_on',
-			values = 'on',
-			baselabel = 'option_val_off',
-			baseval = 'off',
-			default = 'off'
-		});
 		OptionsManager.registerOption2('APCW', false, 'option_header_WtW', 'option_WtW_Allow_Player_Choice', 'option_entry_cycler', {
 			labels = 'option_val_on',
 			values = 'on',
@@ -429,9 +422,9 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	local tRebase = {};
 	local nRecheck;
 	local sRecheckLabel;
-	local tBannedTypes;
-	local tModdedTypes;
-	for key,v in ipairs(tSpeedEffects) do
+	local tBannedTypes = {};
+	local tModdedTypes = {};
+	for _,v in ipairs(tSpeedEffects) do
 		--WtW parsing
 		local sRemainder;
 		local bRecognizedRmndr = false;
@@ -520,7 +513,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				local sTypeLower = string.lower(sType);
 				local nFound, bExactMatch, sQualifier, sTypeFly, sTypeHover, sTypeSpider, bMatchSpider =
 					parseSpeedType(sType, tFGSpeedNew, true);
-				
+
 				if nMod then
 					if nMod <= 0 or string.sub(sMod, 1, 1) == '+' then
 						if nFound then
@@ -534,7 +527,8 @@ function speedCalculator(nodeCT, bCalledFromParse)
 								end
 							end
 						else
-							local rModdedType['type'] = sType;
+							local rModdedType = {};
+							rModdedType['type'] = sType;
 							rModdedType['mod'] = nMod;
 							rModdedType['name'] = WtWCommon.getEffectName(_,v.label);
 							table.insert(tModdedTypes, rModdedType);
@@ -543,10 +537,8 @@ function speedCalculator(nodeCT, bCalledFromParse)
 						local bBanned;
 						if tBannedTypes[1] then
 							for _,value in ipairs(tBannedTypes) do
-								if string.match(sTypeLower, string.lower(value)) then
-									local _,_,_, sLocFly, sLocHover, sLocSpider, bLocSpider = parseSpeedType(
-										value.type, tFGSpeedNew, false
-									);
+								if string.match(sTypeLower, string.lower(value.type)) then
+									local _,_,_,sLocFly,sLocHover = parseSpeedType(value.type, tFGSpeedNew, false);
 									if sLocHover and not sLocFly and sTypeHover then
 										if sTypeFly then
 											sType = string.gsub(sType, '%s*%(%s*[Hh][Oo][Vv][Ee][Rr]%s*%)%s*', '');
@@ -560,11 +552,10 @@ function speedCalculator(nodeCT, bCalledFromParse)
 						end
 						if tModdedTypes[1] then
 							for _,value in ipairs(tModdedTypes) do
-								if string.match(sTypeLower, string.lower(value)) then
-									local _,_,_, sLocFly, sLocHover, sLocSpider, bLocSpider = parseSpeedType(
-										value.type, tFGSpeedNew, false
-									);
-									if sLocFly or (sLocSpider and bTypeSpider) then
+								if string.match(sTypeLower, string.lower(value.type)) then
+									local _,_,_, sLocFly, _, sLocSpider = parseSpeedType(value.type, tFGSpeedNew,
+									false);
+									if sLocFly or (sLocSpider and bMatchSpider) then
 										nMod = nMod + value.mod;
 										table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 										table.insert(tEffectNames, WtWCommon.getEffectName(_,value.name));
@@ -576,7 +567,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 										end
 									end
 								end
-							end						
+							end
 						end
 						if nFound and not bBanned then
 							local bFaster;
@@ -635,7 +626,8 @@ function speedCalculator(nodeCT, bCalledFromParse)
 								table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 							end
 						else
-							local rBannedType['type'] = sType;
+							local rBannedType = {};
+							rBannedType['type'] = sType;
 							rBannedType['name'] = WtWCommon.getEffectName(_,v.label);
 							table.insert(tBannedTypes, rBannedType);
 						end
@@ -643,10 +635,8 @@ function speedCalculator(nodeCT, bCalledFromParse)
 						local bBanned;
 						if tBannedTypes[1] then
 							for _,value in ipairs(tBannedTypes) do
-								if string.match(sTypeLower, string.lower(value)) then
-									local _,_,_, sLocFly, sLocHover, sLocSpider, bLocSpider = parseSpeedType(
-										value.type, tFGSpeedNew, false
-									);
+								if string.match(sTypeLower, string.lower(value.type)) then
+									local _,_,_,sLocFly,sLocHover = parseSpeedType(value.type, tFGSpeedNew, false);
 									if sLocHover and not sLocFly and sTypeHover then
 										if sTypeFly then
 											sType = string.gsub(sType, '%s*%(%s*[Hh][Oo][Vv][Ee][Rr]%s*%)%s*', '');
@@ -660,8 +650,19 @@ function speedCalculator(nodeCT, bCalledFromParse)
 						end
 						if tModdedTypes[1] then
 							for _,value in ipairs(tModdedTypes) do
-							
-							end						
+								if string.match(sTypeLower, string.lower(value.type)) then
+									local _,_,_, sLocFly, _, sLocSpider = parseSpeedType(value.type, tFGSpeedNew, false);
+									if sLocFly or (sLocSpider and bMatchSpider) then
+										tFGSpeedNew[nFound]['mod'] = value.mod;
+										table.insert(tEffectNames, WtWCommon.getEffectName(_,value.name));
+									else
+										if not sTypeHover and not sTypeSpider then
+											tFGSpeedNew[nFound]['mod'] = value.mod;
+											table.insert(tEffectNames, WtWCommon.getEffectName(_,value.name));
+										end
+									end
+								end
+							end
 						end
 						if nFound and not bBanned then
 							local bFaster;
@@ -1223,20 +1224,21 @@ function accommKnownExtsSpeed(nodeCT)
 			end
 		end
 		--exhaustion (speed 0 & DEATH checks are in hasRoot)
-		if WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; Speed Halved", false) then
-			nHalved = nHalved + 1;
-			table.insert(tEffectNames, "Exhaustion");
-		end
-		local sExhaustStack = WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; Speed %-%d+ %(info only%)$", false, true);
-		if sExhaustStack then
-			local sExhaustStack = sExhaustStack:gsub('^Exhausted; Speed %-', '');
-			local sExhaustStack = sExhaustStack:gsub('%s*%(%s*info only%s*%)$', '');
-			local nExhaustSpd = tonumber(sExhaustStack);
-			if nExhaustSpd then
-				nSpeedMod = nSpeedMod - nExhaustSpd;
-				table.insert(tEffectNames, "Exhaustion");
-			end
-		end
+		--no longer need because Im replacing these now
+		--if WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; Speed Halved", false) then
+		--	nHalved = nHalved + 1;
+		--	table.insert(tEffectNames, "Exhaustion");
+		--end
+		--local sExhaustStack = WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; Speed %-%d+ %(info only%)$", false, true);
+		--if sExhaustStack then
+		--	local sExhaustStack = sExhaustStack:gsub('^Exhausted; Speed %-', '');
+		--	local sExhaustStack = sExhaustStack:gsub('%s*%(%s*info only%s*%)$', '');
+		--	local nExhaustSpd = tonumber(sExhaustStack);
+		--	if nExhaustSpd then
+		--		nSpeedMod = nSpeedMod - nExhaustSpd;
+		--		table.insert(tEffectNames, "Exhaustion");
+		--	end
+		--end
 	end
 	tReturn['tEffectNames'] = tEffectNames;
 
@@ -1294,30 +1296,70 @@ function hasRoot(nodeCT)
 				return true, false, 'Grabbed';
 			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Stunned") then
 				return true, false, 'Stunned';
-			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
-				return true, false, 'SPEED: max(0)';
-			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max", true) then
-				return true, false, 'SPEED: 0 max';
-			elseif WtWCommon.hasEffectClause(nodeCT, "Speed%s*:%s*0", true) then
-				return true, false, 'SPEED: 0';
-			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none", true) then
-				return true, false, 'SPEED: none';
 			else
-				return false;
+				local bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
+					, true,	false, false, true
+				);
+				if bHas then
+					return true, false, WtWCommon.getEffectName(_,sLabel);
+				else
+					bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
+						, true,	false, false, true
+					);
+					if bHas then
+						return true, false, WtWCommon.getEffectName(_,sLabel);
+					else
+						bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "Speed%s*:%s*0"
+							, true,	false, false, true
+						);
+						if bHas then
+							return true, false, WtWCommon.getEffectName(_,sLabel);
+						else
+							bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none"
+								, true,	false, false, true
+							);
+							if bHas then
+								return true, false, WtWCommon.getEffectName(_,sLabel);
+							else
+								return false;
+							end
+						end
+					end
+				end
 			end
 		else
 			if EffectManager.hasCondition(nodeCT, "Unconscious") then
 				return true, false, 'Unconscious';
-			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
-				return true, false, 'SPEED: max(0)';
-			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max", true) then
-				return true, false, 'SPEED: 0 max';
-			elseif WtWCommon.hasEffectClause(nodeCT, "Speed%s*:%s*0", true) then
-				return true, false, 'SPEED: 0';
-			elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none", true) then
-				return true, false, 'SPEED: none';
 			else
-				return false;
+				local bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
+					, true,	false, false, true
+				);
+				if bHas then
+					return true, false, WtWCommon.getEffectName(_,sLabel);
+				else
+					bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
+						, true,	false, false, true
+					);
+					if bHas then
+						return true, false, WtWCommon.getEffectName(_,sLabel);
+					else
+						bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "Speed%s*:%s*0"
+							, true,	false, false, true
+						);
+						if bHas then
+							return true, false, WtWCommon.getEffectName(_,sLabel);
+						else
+							bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none"
+								, true,	false, false, true
+							);
+							if bHas then
+								return true, false, WtWCommon.getEffectName(_,sLabel);
+							else
+								return false;
+							end
+						end
+					end
+				end
 			end
 		end
 	else
@@ -1341,20 +1383,40 @@ function hasRoot(nodeCT)
 		elseif EffectManager5E.hasEffectCondition(nodeCT, "DEATH") then
 			bReturn = true;
 			sEffectName = 'DEATH';
-		elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max", true) then
-			bReturn = true;
-			sEffectName = 'SPEED: 0 max';
-		elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)", true) then
-			bReturn = true;
-			sEffectName = 'SPEED: max(0)';
-		elseif WtWCommon.hasEffectClause(nodeCT, "Speed%s*:?%s*0", true) then
-			bReturn = true;
-			sEffectName = 'SPEED: 0';
-		elseif WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none", true) then
-			bReturn = true;
-			sEffectName = 'SPEED: none';
 		else
-			return false;
+			local bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
+				, true,	false, false, true
+			);
+			if bHas then
+				bReturn = true;
+				sEffectName = WtWCommon.getEffectName(_,sLabel);
+			else
+				bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
+					, true,	false, false, true
+				);
+				if bHas then
+					bReturn = true;
+					sEffectName = WtWCommon.getEffectName(_,sLabel);
+				else
+					bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "Speed%s*:%s*0"
+						, true,	false, false, true
+					);
+					if bHas then
+						bReturn = true;
+						sEffectName = WtWCommon.getEffectName(_,sLabel);
+					else
+						bHas, sLabel = WtWCommon.hasEffectClause(nodeCT, "SPEED%s*:%s*none"
+							, true,	false, false, true
+						);
+						if bHas then
+							bReturn = true;
+							sEffectName = WtWCommon.getEffectName(_,sLabel);
+						else
+							return false;
+						end
+					end
+				end
+			end
 		end
 		if bReturn then
 			if WtWCommon.hasEffectClause(nodeCT, "^[Ss][Pp][Ee][Ee][Dd]%s*:%s*%d*%s*type%s*%(%s*[%l%u]*%s*%(%s*hover%s*%)%s*%)$") then
@@ -1718,13 +1780,8 @@ function standUp()
 
 	local sStoodUp = 'Stood Up; SPEED: halved';
 
-	if not OptionsManager.isOption('WHOLEEFFECT', 'on') then
-		WtWCommon.removeEffectClause(rSource, "Prone");
-	end
+	WtWCommon.removeEffectClause(rSource, "Prone");
 	if Session.IsHost then
-		if OptionsManager.isOption('WHOLEEFFECT', 'on') then
-			WtWCommon.removeEffectCaseInsensitive(rSource, "Prone");
-		end
 		if Session.RulesetName == "5E" then
 			EffectManager.addEffect("", "", rSource, {
 				sName = sStoodUp, nDuration = 1, sChangeState = "rts" }, "");
@@ -1733,9 +1790,6 @@ function standUp()
 				sName = 'Stood Up', nDuration = 1 }, "");
 		end
 	else
-		if OptionsManager.isOption('WHOLEEFFECT', 'on') then
-			WtWCommon.notifyApplyHostCommands(rSource, 1, "Prone");
-		end
 		if Session.RulesetName == "5E" then
 			WtWCommon.notifyApplyHostCommands(rSource, 0, {
 				sName = sStoodUp, nDuration = 1, sChangeState = "rts" });
