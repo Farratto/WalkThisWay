@@ -4,7 +4,7 @@
 -- luacheck: globals checkBetterGoldPurity hasEffectFindString removeEffectClause handleApplyHostCommands
 -- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 -- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
--- luacheck: globals hasEffectClause
+-- luacheck: globals hasEffectClause hasRoot
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 local _sBetterGoldPurity = '';
@@ -465,19 +465,10 @@ end
 
 function notifyApplyHostCommands(nodeCT, iAction, rValues)
 	local msgOOB = {};
-	-- msgOOB.type
-	--		OOB_MSGTYPE_APPLYHGACMDS
-	-- msgOOB.sNodeCT - combat tracker entry to have the iAction applied - ex. combattracker.list.id-00010
-	-- msgOOB.iAction
-	--		0 - EffectManager.addEffect - add an effect
-				-- (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
-	--				 msgOOB[*] type,value - list of aEffectVarMap effects to add
-	--		1 - EffectManager.removeEffect
-	--				msgOOB.sEffect - text of effect to remove
 	msgOOB.type = OOB_MSGTYPE_APPLYHCMDS;
-
 	msgOOB.iAction = iAction;
 	msgOOB.sNodeCT = DB.getPath(nodeCT);
+
 	if msgOOB.iAction == 0 then
 		for k,_ in pairs(rValues) do
 			if aEffectVarMap[k] then
@@ -538,7 +529,6 @@ function getControllingClient(nodeCT)
 			if sPCNode then
 				if "charsheet." .. value == sPCNode then
 					return User.getIdentityOwner(value)
-					--return DB.getOwner(sPCNode);
 				end
 			end
 			if sNPCowner then
@@ -723,4 +713,159 @@ function conditionalSuccess(rConditionalHelper, rEffectComp)
 		end
 	end
 	rConditionalHelper.bProcessEffect = true;
+end
+
+function hasRoot(nodeCT)
+	if Session.RulesetName ~= "5E" then
+		if EffectManagerPFRPG2 then
+			if EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Unconscious") then
+				return true, false, 'Unconscious';
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Dead") then
+				return true, false, 'Dead';
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Paralyzed") then
+				return true, false, 'Paralyzed';
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Dying") then
+				return true, false, 'Dying';
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Immobilized") then
+				return true, false, 'Immobilized';
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Petrified") then
+				return true, false, 'Petrified';
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Restrained") then
+				return true, false, 'Restrained';
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Grabbed") then
+				return true, false, 'Grabbed';
+			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Stunned") then
+				return true, false, 'Stunned';
+			else
+				local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
+					, true,	false, false, true
+				);
+				if bHas then
+					return true, false, WtWCommon.getEffectName(_,sLabel);
+				else
+					bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
+						, true,	false, false, true
+					);
+					if bHas then
+						return true, false, WtWCommon.getEffectName(_,sLabel);
+					else
+						bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
+							, true,	false, false, true
+						);
+						if bHas then
+							return true, false, WtWCommon.getEffectName(_,sLabel);
+						else
+							bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
+								, true,	false, false, true
+							);
+							if bHas then
+								return true, false, getEffectName(_,sLabel);
+							else
+								return false;
+							end
+						end
+					end
+				end
+			end
+		else
+			if EffectManager.hasCondition(nodeCT, "Unconscious") then
+				return true, false, 'Unconscious';
+			else
+				local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
+					, true,	false, false, true
+				);
+				if bHas then
+					return true, false, getEffectName(_,sLabel);
+				else
+					bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
+						, true,	false, false, true
+					);
+					if bHas then
+						return true, false, getEffectName(_,sLabel);
+					else
+						bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
+							, true,	false, false, true
+						);
+						if bHas then
+							return true, false, getEffectName(_,sLabel);
+						else
+							bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
+								, true,	false, false, true
+							);
+							if bHas then
+								return true, false, getEffectName(_,sLabel);
+							else
+								return false;
+							end
+						end
+					end
+				end
+			end
+		end
+	else
+		local bReturn;
+		local sEffectName;
+		if EffectManager5E.hasEffectCondition(nodeCT, "Grappled") then
+			bReturn = true;
+			sEffectName = 'Grappled';
+		elseif EffectManager5E.hasEffectCondition(nodeCT, "Paralyzed") then
+			bReturn = true;
+			sEffectName = 'Paralyzed';
+		elseif EffectManager5E.hasEffectCondition(nodeCT, "Petrified") then
+			bReturn = true;
+			sEffectName = 'Petrified';
+		elseif EffectManager5E.hasEffectCondition(nodeCT, "Restrained") then
+			bReturn = true;
+			sEffectName = 'Restrained';
+		elseif EffectManager5E.hasEffectCondition(nodeCT, "Unconscious") then
+			bReturn = true;
+			sEffectName = 'Unconscious';
+		elseif EffectManager5E.hasEffectCondition(nodeCT, "DEATH") then
+			bReturn = true;
+			sEffectName = 'DEATH';
+		else
+			local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
+				, true,	false, false, true
+			);
+			if bHas then
+				bReturn = true;
+				sEffectName = getEffectName(_,sLabel);
+			else
+				bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
+					, true,	false, false, true
+				);
+				if bHas then
+					bReturn = true;
+					sEffectName = getEffectName(_,sLabel);
+				else
+					bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
+						, true,	false, false, true
+					);
+					if bHas then
+						bReturn = true;
+						sEffectName = getEffectName(_,sLabel);
+					else
+						bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
+							, true,	false, false, true
+						);
+						if bHas then
+							bReturn = true;
+							sEffectName = getEffectName(_,sLabel);
+						else
+							return false;
+						end
+					end
+				end
+			end
+		end
+		if bReturn then
+			if hasEffectClause(nodeCT,
+				"^[Ss][Pp][Ee][Ee][Dd]%s*:%s*%d*%s*type%s*%(%s*[%l%u]*%s*%(%s*hover%s*%)%s*%)$"
+			) then
+				return true, true, sEffectName;
+			else
+				return true, false, sEffectName;
+			end
+		end
+	end
 end

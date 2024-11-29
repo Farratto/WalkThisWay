@@ -83,7 +83,7 @@
 				<script>
 					function onDoubleClick()
 						local nodeW = window.getDatabaseNode();
-						WalkThisWay.openSpeedWindow(nodeW);
+						SpeedManager.openSpeedWindow(nodeW);
 					end
 				</script>
 				<tooltip textres="tooltip_dclick_swindow" />
@@ -101,7 +101,7 @@
 				<script>
 					function onDoubleClick()
 						local nodeW = window.getDatabaseNode();
-						WalkThisWay.openSpeedWindow(nodeW);
+						SpeedManager.openSpeedWindow(nodeW);
 					end
 				</script>
 				<tooltip textres="tooltip_dclick_swindow" />
@@ -131,7 +131,7 @@
 					end
 					function onDoubleClick()
 						local nodeCT = ActorManager.getCTNode(nodeW);
-						if nodeCT then WalkThisWay.openSpeedWindow(nodeCT) end
+						if nodeCT then SpeedManager.openSpeedWindow(nodeCT) end
 					end
 				</script>
 				<tooltip textres="tooltip_dclick_swindow" />
@@ -150,7 +150,7 @@
 						if not bOnCT then setTooltipText("") end
 					end
 					function onDoubleClick()
-						if bOnCT then WalkThisWay.openSpeedWindow(nodeW) end
+						if bOnCT then SpeedManager.openSpeedWindow(nodeW) end
 					end
 				</script>
 				<tooltip textres="tooltip_dclick_swindow" />
@@ -169,7 +169,7 @@
 						if not bOnCT then setTooltipText("") end
 					end
 					function onDoubleClick()
-						if bOnCT then WalkThisWay.openSpeedWindow(nodeW) end
+						if bOnCT then SpeedManager.openSpeedWindow(nodeW) end
 					end
 				</script>
 				<tooltip textres="tooltip_dclick_swindow" />
