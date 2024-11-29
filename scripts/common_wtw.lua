@@ -741,25 +741,25 @@ function hasRoot(nodeCT)
 					, true,	false, false, true
 				);
 				if bHas then
-					return true, false, WtWCommon.getEffectName(_,sLabel);
+					return true, false, WtWCommon.getEffectName(false, sLabel);
 				else
 					bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
 						, true,	false, false, true
 					);
 					if bHas then
-						return true, false, WtWCommon.getEffectName(_,sLabel);
+						return true, false, WtWCommon.getEffectName(false, sLabel);
 					else
 						bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
 							, true,	false, false, true
 						);
 						if bHas then
-							return true, false, WtWCommon.getEffectName(_,sLabel);
+							return true, false, WtWCommon.getEffectName(false, sLabel);
 						else
 							bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
 								, true,	false, false, true
 							);
 							if bHas then
-								return true, false, getEffectName(_,sLabel);
+								return true, false, getEffectName(false, sLabel);
 							else
 								return false;
 							end
@@ -775,25 +775,25 @@ function hasRoot(nodeCT)
 					, true,	false, false, true
 				);
 				if bHas then
-					return true, false, getEffectName(_,sLabel);
+					return true, false, getEffectName(false, sLabel);
 				else
 					bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
 						, true,	false, false, true
 					);
 					if bHas then
-						return true, false, getEffectName(_,sLabel);
+						return true, false, getEffectName(false, sLabel);
 					else
 						bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
 							, true,	false, false, true
 						);
 						if bHas then
-							return true, false, getEffectName(_,sLabel);
+							return true, false, getEffectName(false, sLabel);
 						else
 							bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
 								, true,	false, false, true
 							);
 							if bHas then
-								return true, false, getEffectName(_,sLabel);
+								return true, false, getEffectName(false, sLabel);
 							else
 								return false;
 							end
@@ -829,28 +829,28 @@ function hasRoot(nodeCT)
 			);
 			if bHas then
 				bReturn = true;
-				sEffectName = getEffectName(_,sLabel);
+				sEffectName = getEffectName(false, sLabel);
 			else
 				bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
 					, true,	false, false, true
 				);
 				if bHas then
 					bReturn = true;
-					sEffectName = getEffectName(_,sLabel);
+					sEffectName = getEffectName(false, sLabel);
 				else
 					bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
 						, true,	false, false, true
 					);
 					if bHas then
 						bReturn = true;
-						sEffectName = getEffectName(_,sLabel);
+						sEffectName = getEffectName(false, sLabel);
 					else
 						bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
 							, true,	false, false, true
 						);
 						if bHas then
 							bReturn = true;
-							sEffectName = getEffectName(_,sLabel);
+							sEffectName = getEffectName(false, sLabel);
 						else
 							return false;
 						end

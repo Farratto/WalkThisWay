@@ -118,8 +118,8 @@
 			<text>Stand Up</text>
 			<script>
 				function onButtonPress()
-					WalkThisWay.standUp();
-					WalkThisWay.closeProneWindow();
+					ProneManager.standUp();
+					ProneManager.closeProneWindow();
 				end
 			</script>
 		</button_boolean>
@@ -133,7 +133,7 @@
 			<text>Stay Prone</text>
 			<script>
 				function onButtonPress()
-					WalkThisWay.closeProneWindow();
+					ProneManager.closeProneWindow();
 				end
 			</script>
 		</button_boolean>

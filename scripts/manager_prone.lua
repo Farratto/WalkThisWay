@@ -74,7 +74,7 @@ function checkProne(nodeCT)
 		return;
 	end
 	if not nodeCT then
-		Debug.console("WalkThisWay.checkProne - not nodeCT");
+		Debug.console("ProneManager.checkProne - not nodeCT");
 		return;
 	end
 
@@ -123,7 +123,7 @@ end
 
 function checkHideousLaughter(rActor)
 	if not rActor then
-		Debug.console("WalkThisWay.checkHideousLaughter - not rActor");
+		Debug.console("ProneManager.checkHideousLaughter - not rActor");
 		return;
 	end
 	local bClauseExceptFound = false;
@@ -207,7 +207,7 @@ end
 
 function closeAllProneWindows(nodeCT)
 	if not Session.IsHost then
-		Debug.console('WalkThisWay.closeAllProneWindows - not IsHost');
+		Debug.console('ProneManager.closeAllProneWindows - not IsHost');
 		return;
 	end
 	closeProneWindow();
@@ -298,7 +298,7 @@ end
 
 function sendCloseWindowCmd(nodeCT)
 	if not Session.IsHost then
-		Debug.console('WalkThisWay.sendCloseWindowCmd - not IsHost');
+		Debug.console('ProneManager.sendCloseWindowCmd - not IsHost');
 		return;
 	end
 	local sOwner = WtWCommon.getControllingClient(nodeCT);

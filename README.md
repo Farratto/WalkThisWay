@@ -72,6 +72,7 @@ SmiteWorks owns rights to code sections copied from their rulesets by permission
 
 ### Change Log
 
+* v2.0.0: Speed Calculator. Condition Detection/Removal Improvement. UI Improvements.
 * v1.4.6: Bug with BCE: fixed.
 * v1.4.5: Assistant GM support. Minor Performance improvement.
 * v1.4.3: Pets extension support. Query Window Improved.
