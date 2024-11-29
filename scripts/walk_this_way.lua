@@ -56,6 +56,7 @@ function onInit()
 		end
 		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(closeAllProneWindows);
+		reparseAllBaseSpeeds();
 	else
 		if Session.RulesetName == "5E" then
 			local sPref = OptionsManager.getOption('DDLU');
