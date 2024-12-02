@@ -1,7 +1,7 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
--- luacheck: globals speedCalculator handleExhaustion
+-- luacheck: globals speedCalculator handleExhaustion setAllCharSheetSpeeds setCharSheetSpeed
 -- luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow getConversionFactor
 -- luacheck: globals parseBaseSpeed onRecordTypeEventWtW reparseBaseSpeed reparseAllBaseSpeeds recalcAllSpeeds
 -- luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
@@ -33,6 +33,7 @@ function onInit()
 			DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
 			DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
 			DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
+			DB.addHandler('charsheet.*.speed','onUpdate', setCharSheetSpeed);
 			--DB.addHandler("charsheet.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			--DB.addHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent; --luacheck: ignore 111
@@ -47,6 +48,8 @@ function onInit()
 				DB.setValue(nodeWTW, 'frogtoes', 'number', '1');
 			end
 			OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
+			setAllCharSheetSpeeds();
+			reparseAllBaseSpeeds();
 		end
 		CombatManager.setCustomTurnStart(turnStartChecks);
 	else
@@ -1137,6 +1140,54 @@ function parseBaseSpeed(nodeCT, bCalc)
 		speedCalculator(nodeCT, true);
 	end
 	return bReturn;
+end
+
+function setAllCharSheetSpeeds()
+	if not Session.IsHost then
+		Debug.console("SpeedManager.setAllCharSheetSpeeds - not host");
+		return;
+	end
+	local nodeCharSheets = DB.createNode('charsheet');
+	local tNodeChars = DB.getChildList(nodeCharSheets);
+	for _,nodeChar in ipairs(tNodeChars) do
+
+		setCharSheetSpeed(nil, nodeChar);
+
+		--local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
+		--local nBase = DB.getValue(nodeCharWtW, 'base');
+		--if (not nBase) or (nBase == 0) then
+		--	local nodeSpeed = DB.getChild(nodeChar, 'speed');
+		--	local nBaseSpeed = DB.getValue(nodeSpeed, 'total');
+		--	DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
+		--end
+	end
+end
+function setCharSheetSpeed(nodeSpeed, nodeChar)
+	if not Session.IsHost then
+		Debug.console("SpeedManager.setCharSheetSpeed - not host");
+		return;
+	end
+	if not nodeSpeed and not nodeChar then
+		Debug.console("SpeedManager.setCharSheetSpeed - not nodeSpeed and not nodeChar");
+		return;
+	end
+	if not nodeChar then
+		nodeChar = DB.getParent(nodeSpeed);
+	end
+	local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
+	local nBase = DB.getValue(nodeCharWtW, 'base');
+	if (not nBase) or (nBase == 0) then
+		if not nodeSpeed then nodeSpeed = DB.getChild(nodeChar, 'speed') end
+		local nBaseSpeed = DB.getValue(nodeSpeed, 'total');
+		if (not nBaseSpeed) or (nBaseSpeed == 0) then
+			nBaseSpeed = DB.getValue(nodeSpeed, 'base');
+		end
+		if (not nBaseSpeed) or (nBaseSpeed == 0) then
+			nBaseSpeed = 30;
+			Debug.console("SpeedManager.setCharSheetSpeed - not nBaseSpeed or nBaseSpeed is 0");
+		end
+		DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
+	end
 end
 
 function accommKnownExtsSpeed(nodeCT)
