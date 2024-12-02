@@ -72,6 +72,7 @@ SmiteWorks owns rights to code sections copied from their rulesets by permission
 
 ### Change Log
 
+* v2.1.0: First Run Display Bugs: Fixed. Windows not coming to front: Fixed.
 * v2.0.0: Speed Calculator. Condition Detection/Removal Improvement. UI Improvements.
 * v1.4.6: Bug with BCE: fixed.
 * v1.4.5: Assistant GM support. Minor Performance improvement.

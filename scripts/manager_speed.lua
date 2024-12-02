@@ -6,7 +6,7 @@
 -- luacheck: globals parseBaseSpeed onRecordTypeEventWtW reparseBaseSpeed reparseAllBaseSpeeds recalcAllSpeeds
 -- luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
 -- luacheck: globals turnStartChecks registerPreference getPreference sendPrefRegistration handlePrefRegistration
--- luacheck: globals handlePrefChange checkFitness parseSpeedType
+-- luacheck: globals handlePrefChange checkFitness parseSpeedType onTabletopInit
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_REGPREF = 'regpreference';
@@ -33,7 +33,9 @@ function onInit()
 			DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
 			DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
 			DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
-			DB.addHandler('charsheet.*.speed','onUpdate', setCharSheetSpeed);
+			DB.addHandler('charsheet.*.speed.total','onUpdate', setCharSheetSpeed);
+			DB.addHandler('charsheet.*.speed.base','onUpdate', setCharSheetSpeed);
+			--DB.addHandler('charsheet.*.speed.special','onUpdate', reparseBaseSpeed);
 			--DB.addHandler("charsheet.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			--DB.addHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent; --luacheck: ignore 111
@@ -48,8 +50,6 @@ function onInit()
 				DB.setValue(nodeWTW, 'frogtoes', 'number', '1');
 			end
 			OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
-			setAllCharSheetSpeeds();
-			reparseAllBaseSpeeds();
 		end
 		CombatManager.setCustomTurnStart(turnStartChecks);
 	else
@@ -60,12 +60,25 @@ function onInit()
 	end
 end
 
+function onTabletopInit()
+	if Session.IsHost then
+		if Session.RulesetName == "5E" then
+			reparseAllBaseSpeeds();
+			setAllCharSheetSpeeds();
+			recalcAllSpeeds();
+		end
+	end
+end
+
 function onClose()
 	if Session.RulesetName == "5E" then
 		if Session.IsHost then
 			DB.removeHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
 			DB.removeHandler('combattracker.list.*.effects','onChildDeleted',callSpeedCalcEffectDeleted);
 			DB.removeHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
+			DB.removeHandler('charsheet.*.speed.total','onUpdate', setCharSheetSpeed);
+			DB.removeHandler('charsheet.*.speed.base','onUpdate', setCharSheetSpeed);
+			--DB.removeHandler('charsheet.*.speed.special','onUpdate', reparseBaseSpeed);
 			--DB.removeHandler("charsheet.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			--DB.removeHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			OptionsManager.unregisterCallback('DDCU', reparseAllBaseSpeeds);
@@ -1053,6 +1066,15 @@ function parseBaseSpeed(nodeCT, bCalc)
 		sFGSpeed = '30 ft.'
 	end
 
+	if ActorManager.isPC(nodeCT) then
+		local nodeChar = ActorManager.getCreatureNode(nodeCT);
+		local nodeSpeed = DB.getChild(nodeChar, 'speed');
+		local nodeFGSpeedSpecial = DB.getValue(nodeSpeed, 'special');
+		if nodeFGSpeedSpecial and nodeFGSpeedSpecial ~= '' then
+			sFGSpeed = sFGSpeed .. '; ' .. nodeFGSpeedSpecial;
+		end
+	end
+
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	if not DB.getValue(nodeCTWtW, 'hover') then
 		if string.match(string.lower(sFGSpeed), 'hover') then
@@ -1150,43 +1172,49 @@ function setAllCharSheetSpeeds()
 	local nodeCharSheets = DB.createNode('charsheet');
 	local tNodeChars = DB.getChildList(nodeCharSheets);
 	for _,nodeChar in ipairs(tNodeChars) do
-
 		setCharSheetSpeed(nil, nodeChar);
-
-		--local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
-		--local nBase = DB.getValue(nodeCharWtW, 'base');
-		--if (not nBase) or (nBase == 0) then
-		--	local nodeSpeed = DB.getChild(nodeChar, 'speed');
-		--	local nBaseSpeed = DB.getValue(nodeSpeed, 'total');
-		--	DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
-		--end
 	end
 end
-function setCharSheetSpeed(nodeSpeed, nodeChar)
+function setCharSheetSpeed(nodeUpdated, nodeChar)
 	if not Session.IsHost then
 		Debug.console("SpeedManager.setCharSheetSpeed - not host");
 		return;
 	end
-	if not nodeSpeed and not nodeChar then
-		Debug.console("SpeedManager.setCharSheetSpeed - not nodeSpeed and not nodeChar");
+	if not nodeUpdated and not nodeChar then
+		Debug.console("SpeedManager.setCharSheetSpeed - not nodeUpdated and not nodeChar");
 		return;
 	end
+
+	local nodeSpeed;
 	if not nodeChar then
+		nodeSpeed = DB.getParent(nodeUpdated);
 		nodeChar = DB.getParent(nodeSpeed);
 	end
-	local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
-	local nBase = DB.getValue(nodeCharWtW, 'base');
-	if (not nBase) or (nBase == 0) then
-		if not nodeSpeed then nodeSpeed = DB.getChild(nodeChar, 'speed') end
-		local nBaseSpeed = DB.getValue(nodeSpeed, 'total');
+	if not nodeSpeed then nodeSpeed = DB.getChild(nodeChar, 'speed') end
+	local nTotalSpeed = DB.getValue(nodeSpeed, 'total');
+	local nBaseSpeed;
+	local nSpeedSet;
+
+	if (not nTotalSpeed) or (nTotalSpeed == 0) then
+		nBaseSpeed = DB.getValue(nodeSpeed, 'base');
 		if (not nBaseSpeed) or (nBaseSpeed == 0) then
-			nBaseSpeed = DB.getValue(nodeSpeed, 'base');
-		end
-		if (not nBaseSpeed) or (nBaseSpeed == 0) then
-			nBaseSpeed = 30;
+			nSpeedSet = 30;
 			Debug.console("SpeedManager.setCharSheetSpeed - not nBaseSpeed or nBaseSpeed is 0");
+		else
+			nSpeedSet = nBaseSpeed;
 		end
-		DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
+	else
+		nSpeedSet = nTotalSpeed;
+	end
+
+	local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
+	local nBaseWtW = DB.getValue(nodeCharWtW, 'base');
+	if (not nBaseWtW) or (nBaseWtW == 0) then
+		DB.setValue(nodeCharWtW, 'base', 'number', nSpeedSet);
+	else
+		if nBaseWtW ~= nSpeedSet then
+			DB.setValue(nodeCharWtW, 'base', 'number', nSpeedSet);
+		end
 	end
 end
 
@@ -1372,7 +1400,13 @@ function openSpeedWindow(nodeCT)
 		local nFGSpeed = DB.getValue(nodeCT, 'speed');
 		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nFGSpeed));
 	end
-	Interface.openWindow('speed_window', nodeCTWtW);
+
+	local wSpeed = Interface.findWindow('speed_window', nodeCTWtW);
+	if wSpeed then
+		wSpeed.bringToFront();
+	else
+		Interface.openWindow('speed_window', nodeCTWtW);
+	end
 end
 
 function turnStartChecks(nodeCT)
