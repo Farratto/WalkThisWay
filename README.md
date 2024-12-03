@@ -9,7 +9,7 @@ This extension provides a small popup window at the start of a person's turn tha
 Install from the [Fantasy Grounds Forge](https://forge.fantasygrounds.com/shop/items/1940/view). \
 You can find the source code at Farratto's [GitHub](https://github.com/Farratto/WalkThisWay/releases). \
 You can ask questions at the [Fantasy Grounds Forum](https://www.fantasygrounds.com/forums/showthread.php?82914-Walk-this-Way-for-5e). \
-Video explaining how to use at [YouTube] (https://youtu.be/FmA9JoUoXps).
+Video explaining how to use at [YouTube](https://youtu.be/FmA9JoUoXps).
 
 ### Details
 
@@ -73,7 +73,8 @@ SmiteWorks owns rights to code sections copied from their rulesets by permission
 
 ### Change Log
 
-* 2.1.1: Erroneous calc with new speedless type: Fixed. Rare Error: Fixed. Small aesthetic improvement.
+* v2.1.2: Negative Interaction with Turbo: Fixed.
+* v2.1.1: Erroneous calc with new speedless type: Fixed. Rare Error: Fixed. Small aesthetic improvement.
 * v2.1.0: First Run Display Bugs: Fixed. Windows not coming to front: Fixed.
 * v2.0.0: Speed Calculator. Condition Detection/Removal Improvement. UI Improvements.
 * v1.4.6: Bug with BCE: fixed.

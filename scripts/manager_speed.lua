@@ -134,6 +134,7 @@ function callSpeedCalcEffectUpdated(nodeEffectLabel)
 	local sNodeEffectLabel = DB.getValue(nodeEffectLabel);
 	local nodeEffect = DB.getParent(nodeEffectLabel);
 	local nodeCT = DB.getChild(nodeEffect, '...');
+	if TurboManager then TurboManager.registerEffect(nodeEffect, nodeEffectLabel) end
 	handleExhaustion(nodeCT, sNodeEffectLabel, nodeEffect);
 	speedCalculator(nodeCT);
 	bLoopProt = false;
@@ -370,9 +371,6 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	if tAccomSpeed then
 		if tAccomSpeed['nDoubled'] then
 			nDoubled = nDoubled + tonumber(tAccomSpeed['nDoubled'])
-		end
-		if tAccomSpeed['nHalved'] then
-			nHalved = nHalved + tonumber(tAccomSpeed['nHalved'])
 		end
 		if tAccomSpeed['nSpeedMax'] then
 			nSpeedMax = tonumber(tAccomSpeed['nSpeedMax'])
@@ -1228,20 +1226,20 @@ function setCharSheetSpeed(nodeUpdated, nodeChar)
 end
 
 function accommKnownExtsSpeed(nodeCT)
-	local nDoubled = 0;
-	local nHalved = 0;
-	local nSpeedMax;
 	local nSpeedMod = 0;
 	local tReturn = {};
 	local tEffectNames = {};
+	local bReturn = false;
 	if Session.RulesetName == "5E" then
 		if EffectManager5E.hasEffectCondition(nodeCT, 'Dash') then
-			nDoubled = nDoubled + 1
+			tReturn['nDoubled'] = 1
+			bReturn = true;
 			table.insert(tEffectNames, "Dash");
 		end
 		--encumbrance
 		if EffectManager5E.hasEffect(nodeCT, "Exceeds Maximum Carrying Capacity") then
-			nSpeedMax = 5;
+			tReturn['nSpeedMax'] = 5;
+			bReturn = true;
 			table.insert(tEffectNames, "Exceeds Maximum Carrying Capacity");
 		end
 		if EffectManager5E.hasEffect(nodeCT, "Heavily Encumbered") then
@@ -1256,30 +1254,9 @@ function accommKnownExtsSpeed(nodeCT)
 	end
 	tReturn['tEffectNames'] = tEffectNames;
 
-	local bReturn = false
-	if nDoubled > 0 then
-		if nHalved > 0 then
-			local nDoubledOrigin = nDoubled;
-			local NHalvedOrigin = nHalved;
-			nDoubled = nDoubled - NHalvedOrigin;
-			nHalved = nHalved - nDoubledOrigin;
-		end
-		if nDoubled > 0 then
-			tReturn['nDoubled'] = nDoubled
-			bReturn = true
-		end
-	end
-	if nHalved > 0 then
-		tReturn['nHalved'] = nHalved
-		bReturn = true
-	end
-	if nSpeedMax then
-		tReturn['nSpeedMax'] = nSpeedMax
-		bReturn = true
-	end
 	if nSpeedMod ~= 0 then
-		tReturn['nSpeedMod'] = nSpeedMod
-		bReturn = true
+		tReturn['nSpeedMod'] = nSpeedMod;
+		bReturn = true;
 	end
 
 	if bReturn then

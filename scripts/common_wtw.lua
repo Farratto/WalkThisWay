@@ -153,7 +153,7 @@ function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, b
 end
 
 -- luacheck: push ignore 561
-function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
+function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets, bNoTurbo)
 	if not rActor or not sClause then
 		Debug.console("WtWCommon.removeEffectClause - not rActor or not sClause");
 		return;
@@ -167,7 +167,7 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 	if EffectManagerBCE then
 		tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
 	end
-	if TurboManager then
+	if TurboManager and not bNoTurbo then
 		aEffects = TurboManager.getMatchedEffects(rActor, sClause);
 	else
 		aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
@@ -313,17 +313,12 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 	end
 
 	local sLowerClause = sClause:lower();
-	local aEffects;
 	local tEffectCompParams;
 
 	if EffectManagerBCE then
 		tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
 	end
-	if TurboManager then
-		aEffects = TurboManager.getMatchedEffects(rActor, sClause);
-	else
-		aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
-	end
+	local aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
 
 	-- Iterate through each effect
 	for _, v in pairs(aEffects) do
@@ -565,12 +560,7 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 	end
 	local results = {};
 
-	local aEffects;
-	if TurboManager then
-		aEffects = TurboManager.getMatchedEffects(rActor, sEffectType);
-	else
-		aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
-	end
+	local aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
 
 	-- Iterate through effects
 	for _, v in pairs(aEffects) do
