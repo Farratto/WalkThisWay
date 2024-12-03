@@ -636,7 +636,8 @@ function speedCalculator(nodeCT, bCalledFromParse)
 						if nFound and not bBanned then
 							local bFaster;
 							local nCurrentVel = tonumber(tFGSpeedNew[nFound]['velocity']);
-							if nBaseSpeed >= nCurrentVel then bFaster = true end
+							if not nCurrentVel then bFaster = true end
+							if nCurrentVel and (nBaseSpeed >= nCurrentVel) then bFaster = true end
 							if not bExactMatch then
 								if sQualifier then
 									if bFaster then
@@ -764,55 +765,63 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		local nFGSpeed = tSpdRcrd['velocity'];
 		local nFGSpeedNew = nFGSpeed;
 		local bFound;
+		local nWalkSpeed;
 		if not nFGSpeedNew then
 			for _,v in ipairs(tFGSpeedNew) do
 				if v.type == 'walk' or v.type == '' then
-					nFGSpeedNew = v.velocity;
-					nFGSpeedNew = tonumber(nFGSpeedNew);
+					nWalkSpeed = v.velocity;
+					nWalkSpeed = tonumber(nWalkSpeed);
 					bFound = true;
 				else
-					if not nFGSpeedNew and bFound then
-						nFGSpeedNew = v.velocity;
-						nFGSpeedNew = tonumber(nFGSpeedNew);
+					if not nWalkSpeed and bFound then
+						nWalkSpeed = v.velocity;
+						nWalkSpeed = tonumber(nWalkSpeed);
 						bFound = true;
 					end
 				end
 			end
-			if not nFGSpeedNew then nFGSpeedNew = tFGSpeedNew[1].velocity end
-			nFGSpeedNew = tonumber(nFGSpeedNew);
-			if not nFGSpeedNew then nFGSpeedNew = 30 end
+			if not nWalkSpeed then nWalkSpeed = tFGSpeedNew[1].velocity end
+			nWalkSpeed = tonumber(nWalkSpeed);
+			if nWalkSpeed then
+				tFGSpeedNew[k]['velocity'] = tostring(nWalkSpeed);
+			else
+				nFGSpeedNew = 30;
+				Debug.console("SpeedManager.speedCalculator - not nWalkSpeed.");
+			end
 		end
-		if nRebase and nRebase > nFGSpeedNew then nFGSpeedNew = nRebase end
+		if nFGSpeedNew then
+			if nRebase and (nRebase > nFGSpeedNew) then nFGSpeedNew = nRebase end
 
-		local nLocalSpdMod = nSpeedMod
-		if tSpdRcrd.mod then nLocalSpdMod = nLocalSpdMod + tSpdRcrd.mod end
-		local nSpeedFinal = nFGSpeedNew + nLocalSpdMod;
-		if nSpeedFinal <= 0 then
-			tFGSpeedNew[k]['velocity'] = '0'
-			if string.match(string.lower(tFGSpeedNew[k]['type']), 'hover') then
-				tFGSpeedNew[k]['type'] = '(hover)'
-			end
-		else
-			local sTypeLower = string.lower(tSpdRcrd.type);
-			local nDoubledLocal = nDoubled
-			local nHalvedLocal = nHalved
-			if (not string.match(sTypeLower, 'fly')) and (not string.match(sTypeLower, 'hover')) then
-				if bDifficult then nHalvedLocal = nHalvedLocal + 1 end
-			end
-			while nDoubledLocal > 0 do
-				nSpeedFinal = nSpeedFinal * 2;
-				nDoubledLocal = nDoubledLocal - 1;
-			end
-			while nHalvedLocal > 0 do
-				nSpeedFinal = nSpeedFinal / 2;
-				nHalvedLocal = nHalvedLocal - 1;
-			end
-			if nSpeedMax then
-				if nSpeedFinal > nSpeedMax then
-					nSpeedFinal = nSpeedMax;
+			local nLocalSpdMod = nSpeedMod
+			if tSpdRcrd.mod then nLocalSpdMod = nLocalSpdMod + tSpdRcrd.mod end
+			local nSpeedFinal = nFGSpeedNew + nLocalSpdMod;
+			if nSpeedFinal <= 0 then
+				tFGSpeedNew[k]['velocity'] = '0'
+				if string.match(string.lower(tFGSpeedNew[k]['type']), 'hover') then
+					tFGSpeedNew[k]['type'] = '(hover)'
 				end
+			else
+				local sTypeLower = string.lower(tSpdRcrd.type);
+				local nDoubledLocal = nDoubled
+				local nHalvedLocal = nHalved
+				if (not string.match(sTypeLower, 'fly')) and (not string.match(sTypeLower, 'hover')) then
+					if bDifficult then nHalvedLocal = nHalvedLocal + 1 end
+				end
+				while nDoubledLocal > 0 do
+					nSpeedFinal = nSpeedFinal * 2;
+					nDoubledLocal = nDoubledLocal - 1;
+				end
+				while nHalvedLocal > 0 do
+					nSpeedFinal = nSpeedFinal / 2;
+					nHalvedLocal = nHalvedLocal - 1;
+				end
+				if nSpeedMax then
+					if nSpeedFinal > nSpeedMax then
+						nSpeedFinal = nSpeedMax;
+					end
+				end
+				tFGSpeedNew[k]['velocity'] = tostring(nSpeedFinal);
 			end
-			tFGSpeedNew[k]['velocity'] = tostring(nSpeedFinal);
 		end
 	end
 
@@ -942,7 +951,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		if tSpdRcrd.type == '' or (string.match(tSpdRcrd.type, '^Walk')) then
 			nCurrentSpeed = tSpdRcrd.velocity
 			if bProne then
-				sReturn = sVelWithUnits .. ' Crawl'
+				sReturn = "Crawl " .. sVelWithUnits;
 				break;
 			end
 			local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$');
