@@ -334,6 +334,8 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 				(not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
 				(tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
 
+			Debug.console("rTarget = "..tostring(rTarget));
+			Debug.printstack();
 			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
 			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
 			  (EffectManagerADND.isValidCheckEffect(rActor, v) or (rTarget and EffectManagerADND.isValidCheckEffect(rTarget, v))))) then
@@ -554,7 +556,7 @@ function getEffectName(nodeEffect, sLabel)
 end
 
 --note: if using caseInsensitivity, use all uppercase for literal character matches.
-function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTargetedOnly, bCaseSensitive) --luacheck: ignore 212
+function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly, bCaseSensitive)
 	if not rActor then
 		return;
 	end
@@ -574,7 +576,7 @@ function getEffectsByTypeWtW(rActor, sEffectType, aFilter, rFilterActor, bTarget
 			-- IF COMPONENT WE ARE LOOKING FOR SUPPORTS TARGETS, THEN CHECK AGAINST OUR TARGET
 			rConditionalHelper.bTargeted = EffectManager.isTargetedEffect(v);
 
-			if not rConditionalHelper.bTargeted or EffectManager.isEffectTarget(v, rFilterActor) then
+			if not rConditionalHelper.bTargeted or (rFilterActor and EffectManager.isEffectTarget(v, rFilterActor)) then
 				local aEffectComps = EffectManager.parseEffect(sLabel);
 
 				-- Look for type/subtype match
@@ -728,25 +730,25 @@ function hasRoot(nodeCT)
 				return true, false, 'Stunned';
 			else
 				local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
-					, true,	false, false, true
+					, nil, false, true, true
 				);
 				if bHas then
 					return true, false, WtWCommon.getEffectName(false, sLabel);
 				else
 					bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
-						, true,	false, false, true
+						, nil, false, true, true
 					);
 					if bHas then
 						return true, false, WtWCommon.getEffectName(false, sLabel);
 					else
 						bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
-							, true,	false, false, true
+							, nil, false, true, true
 						);
 						if bHas then
 							return true, false, WtWCommon.getEffectName(false, sLabel);
 						else
 							bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
-								, true,	false, false, true
+								, nil, false, true, true
 							);
 							if bHas then
 								return true, false, getEffectName(false, sLabel);
@@ -762,25 +764,25 @@ function hasRoot(nodeCT)
 				return true, false, 'Unconscious';
 			else
 				local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
-					, true,	false, false, true
+					, nil, false, true, true
 				);
 				if bHas then
 					return true, false, getEffectName(false, sLabel);
 				else
 					bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
-						, true,	false, false, true
+						, nil, false, true, true
 					);
 					if bHas then
 						return true, false, getEffectName(false, sLabel);
 					else
 						bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
-							, true,	false, false, true
+							, nil, false, true, true
 						);
 						if bHas then
 							return true, false, getEffectName(false, sLabel);
 						else
 							bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
-								, true,	false, false, true
+								, nil, false, true, true
 							);
 							if bHas then
 								return true, false, getEffectName(false, sLabel);
@@ -815,28 +817,28 @@ function hasRoot(nodeCT)
 			sEffectName = 'DEATH';
 		else
 			local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
-				, true,	false, false, true
+				, nil, false, true, true
 			);
 			if bHas then
 				bReturn = true;
 				sEffectName = getEffectName(false, sLabel);
 			else
 				bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
-					, true,	false, false, true
+					, nil, false, true, true
 				);
 				if bHas then
 					bReturn = true;
 					sEffectName = getEffectName(false, sLabel);
 				else
 					bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
-						, true,	false, false, true
+						, nil, false, true, true
 					);
 					if bHas then
 						bReturn = true;
 						sEffectName = getEffectName(false, sLabel);
 					else
 						bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
-							, true,	false, false, true
+							, nil, false, true, true
 						);
 						if bHas then
 							bReturn = true;
