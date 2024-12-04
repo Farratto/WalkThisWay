@@ -5,24 +5,24 @@
 -->
 <root version="3.0">
 	<windowclass name="speed_window">
-		<frame>utilitybox</frame>
+		<frame>charsheethelper</frame>
 		<placement>
 			<size width="330" height="240" />
 		</placement>
 		<sizelimits >
-			<maximum width="450" height="300" />
-			<minimum width="263" height="175" />
+			<maximum width="450" height="600" />
+			<minimum width="180" height="125" />
 			<dynamic />
 		</sizelimits>
 		<minimize>minimized_WtW</minimize>
 		<sheetdata>
-			<windowtitlebar_utilitybox name="title">
-				<resource>speed_title</resource>
-			</windowtitlebar_utilitybox>
-			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
-			<anchor_content_utilitybox_top />
-			<anchor_content_utilitybox_bottom />
-			<area_content_framed_groupbox name="contentframe" />
+			<windowtitlebar_charsheethelper name="title">
+				<prefix>speed_title</prefix>
+			</windowtitlebar_charsheethelper>
+			<windowmenubar_charsheethelper name="windowmenubar" />
+			<anchor_content_charsheethelper_top name="contentanchor" />
+			<anchor_content_charsheethelper_bottom />
+			<area_content name="contentframe" />
 			<subwindow name="speedwindowcontent">
 				<anchored to="contentframe" position="over" />
 				<class>speed_window_content</class>
@@ -35,15 +35,9 @@
 		<sheetdata>
 			<anchor_content_top />
 			<anchor_listitem_left name="leftanchor" />
-			<string_content_noframe_static_top name="actorname">
-				<font>reference-page-header</font>
-				<center />
-			</string_content_noframe_static_top>
-<!--			<stringc_content_noframe_noscroll_static_top> -->
 			<header_content_framed_headersimple>
 				<center />
 				<static textres="speed_title" />
-<!--			</stringc_content_noframe_noscroll_static_top> -->
 			</header_content_framed_headersimple>
 			<string_content_noframe_static_top name="currentSpeed">
 				<center />
@@ -52,7 +46,7 @@
 				<center />
 				<static textres="speed_effects_title" />
 			</header_content_framed_headersimple>
-			<windowlist name="effect_name_list">
+			<windowlist name="list">
 				<anchored>
 					<top parent="speedeffectstitle" anchor="bottom" />
 					<left parent="leftanchor" />
@@ -60,6 +54,7 @@
 				<datasource>.effectNames</datasource>
 				<class>effect_names</class>
 			</windowlist>
+			<scrollbar_content_list />
 		</sheetdata>
 	</windowclass>
 
@@ -68,7 +63,7 @@
 			<anchor_listitem_left name="leftanchor" />
 			<anchor_listitem_left name="rightanchor" />
 			<string_listitem_left_static name="name" >
-				<anchored width="280" />
+				<anchored width="400" />
 			</string_listitem_left_static >
 		</sheetdata>
 	</windowclass>

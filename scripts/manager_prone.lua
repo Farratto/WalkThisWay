@@ -183,14 +183,11 @@ end
 function setPQvalue(sName)
 	local nodeWTW = DB.createNode('WalkThisWay');
 	if Session.IsHost then DB.setPublic(nodeWTW, true) end
-	local nodePQ = DB.getChild(nodeWTW, 'proneQuery');
-	if not nodePQ then
-		nodePQ = DB.createChild(nodeWTW, 'proneQuery', 'string');
-		--DB.setPublic(nodeWTW, true); --I think it takes public status from parent node
+	local nodeNameField = DB.getChild(nodeWTW, 'name');
+	if not nodeNameField then
+		DB.createChild(nodeWTW, 'proneQuery', 'string');
 	end
-	local sMessage = tostring(sName) .. ' is prone.';
-	DB.setValue(nodeWTW, 'proneQuery', 'string', sMessage);
-	return nodePQ;
+	DB.setValue(nodeWTW, 'name', 'string', sName);
 end
 
 function delWTWdataChild(sChildNode)

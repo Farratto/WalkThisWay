@@ -73,6 +73,7 @@ SmiteWorks owns rights to code sections copied from their rulesets by permission
 
 ### Change Log
 
+* v2.2.0: Aesthetic Improvements
 * v2.1.2: Negative Interaction with Turbo: Fixed.
 * v2.1.1: Erroneous calc with new speedless type: Fixed. Rare Error: Fixed. Small aesthetic improvement.
 * v2.1.0: First Run Display Bugs: Fixed. Windows not coming to front: Fixed.

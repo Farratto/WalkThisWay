@@ -1380,7 +1380,7 @@ function openSpeedWindow(nodeCT)
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	if Session.IsHost then DB.setPublic(nodeCTWtW, true) end
 	local rActor = ActorManager.resolveActor(nodeCT);
-	DB.setValue(nodeCTWtW, 'actorname', 'string', tostring(rActor.sName));
+	DB.setValue(nodeCTWtW, 'name', 'string', tostring(rActor.sName));
 	local sCurrentSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
 	if not sCurrentSpeed then
 		local nFGSpeed = DB.getValue(nodeCT, 'speed');

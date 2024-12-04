@@ -17,7 +17,8 @@
 		</sizelimits>
 		<sheetdata>
 			<windowtitlebar_utilitybox name="title">
-				<resource>prone_standup</resource>
+				<field>name</field>
+				<prefix>prone_title</prefix>
 			</windowtitlebar_utilitybox>
 			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
 			<anchor_content_utilitybox_top />
@@ -37,7 +38,6 @@
 
 	<windowclass name="prone_query_not5e" copy="prone_query_small">
 		<sheetdata>
-<!--			<anchor_title_charsheethelper name="contentanchor" /> -->
 			<subwindow name="pronequerymsg" merge="replace">
 				<anchored to="contentframe" position="over" />
 				<class>prone_query_msg_nocost</class>
@@ -48,7 +48,6 @@
 
 	<windowclass name="prone_query_pfrpg2" copy="prone_query_small">
 		<sheetdata>
-<!--			<anchor_title_charsheethelper name="contentanchor" /> -->
 			<subwindow name="pronequerymsg" merge="replace">
 				<anchored to="contentframe" position="over" />
 				<class>prone_query_msg_pfrpg2</class>
@@ -68,10 +67,11 @@
 	<windowclass name="prone_query_msg">
 		<sheetdata>
 			<anchor_content_top />
-			<string_content_noframe_static_top name="proneQuery">
+			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<font>reference-page-header</font>
-			</string_content_noframe_static_top>
+				<static textres="query_msg_1" />
+			</stringc_content_noframe_noscroll_static_top>
 			<spacer_content_top />
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
@@ -83,10 +83,11 @@
 	<windowclass name="prone_query_msg_pfrpg2">
 		<sheetdata>
 			<anchor_content_top />
-			<string_content_noframe_static_top name="proneQuery">
+			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<font>reference-page-header</font>
-			</string_content_noframe_static_top>
+				<static textres="query_msg_1" />
+			</stringc_content_noframe_noscroll_static_top>
 			<spacer_content_top />
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
@@ -98,10 +99,11 @@
 	<windowclass name="prone_query_msg_nocost">
 		<sheetdata>
 			<anchor_content_top />
-			<string_content_noframe_static_top name="proneQuery">
+			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<font>reference-page-header</font>
-			</string_content_noframe_static_top>
+				<static textres="query_msg_1" />
+			</stringc_content_noframe_noscroll_static_top>
 			<spacer_content_top />
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
