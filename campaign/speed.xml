@@ -22,6 +22,9 @@
 			<windowmenubar_charsheethelper name="windowmenubar" />
 			<anchor_content_charsheethelper_top name="contentanchor" />
 			<anchor_content_charsheethelper_bottom />
+			<sub_content_buttons_bottom name="sub_buttons">
+				<class>speed_buttons_bottom</class>
+			</sub_content_buttons_bottom>
 			<area_content name="contentframe" />
 			<subwindow name="speedwindowcontent">
 				<anchored to="contentframe" position="over" />
@@ -42,6 +45,10 @@
 			<string_content_noframe_static_top name="currentSpeed">
 				<center />
 			</string_content_noframe_static_top>
+			<string_content_noframe_static_top name="traveled">
+				<center />
+				<suffix>map_units</suffix>
+			</string_content_noframe_static_top>
 			<header_content_framed_headersimple name="speedeffectstitle">
 				<center />
 				<static textres="speed_effects_title" />
@@ -57,7 +64,39 @@
 			<scrollbar_content_list />
 		</sheetdata>
 	</windowclass>
-
+	<windowclass name="speed_buttons_bottom">
+		<sheetdata>
+			<anchor_content_top />
+			<button_reset_dist name="reset" />
+			<button_check_dist name="check" />
+		</sheetdata>
+	</windowclass>
+	<template name="button_check_dist">
+		<button_boolean>
+			<anchored>
+				<left anchor="center" offset="15" />
+			</anchored>
+			<text>Traveled</text>
+			<script>
+				function onButtonPress()
+					--ProneManager.closeProneWindow();
+				end
+			</script>
+		</button_boolean>
+	</template>
+	<template name="button_reset_dist">
+		<button_boolean>
+			<anchored>
+				<right anchor="center" offset="-15" />
+			</anchored>
+			<text>Reset</text>
+			<script>
+				function onButtonPress()
+					--ProneManager.closeProneWindow();
+				end
+			</script>
+		</button_boolean>
+	</template>
 	<windowclass name="effect_names">
 		<sheetdata>
 			<anchor_listitem_left name="leftanchor" />

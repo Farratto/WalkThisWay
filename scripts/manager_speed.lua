@@ -287,7 +287,6 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	end
 
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	--DB.setPublic(nodeCTWtW, true);
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
 	if not nodeFGSpeed then
 		if bCalledFromParse then
