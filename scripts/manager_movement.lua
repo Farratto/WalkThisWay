@@ -2,6 +2,7 @@
 -- attribution and copyright information.
 
 -- luacheck: globals getTokenPosition calcDistance updateDistTraveled processTurnStart getDistTraveled setStartPosi
+-- luacheck: globals updateSpeedWindows
 
 local tStartPosis;
 
@@ -9,8 +10,26 @@ function onInit()
 	if Session.IsHost then
 		if Session.RulesetName == "5E" then
 			OptionsManager.registerOptionData({	sKey = 'move_on', sGroupRes = 'option_header_WtW', tCustom = { default = "on" } });
+			OptionsManager.registerCallback('move_on', updateSpeedWindows);
 			CombatManager.setCustomTurnStart(processTurnStart);
 		end
+	end
+end
+function onClose()
+	if Session.IsHost then
+		if Session.RulesetName == "5E" then
+			OptionsManager.unregisterCallback('move_on', updateSpeedWindows);
+		end
+	end
+end
+
+function updateSpeedWindows()
+	local tSpeedWindows = Interface.getWindows('speed_window');
+	for _,v in ipairs(tSpeedWindows) do
+		v.speedwindowcontent.headertraveled.update();
+		v.speedwindowcontent.traveled.update();
+		v.speedwindowcontent.sub_buttons.reset.update();
+		v.speedwindowcontent.sub_buttons.check.update();
 	end
 end
 
@@ -81,14 +100,20 @@ function updateDistTraveled(nodeCT, nDist, bAdd)
 		Debug.console("MovementManager.updateDistCovered - not nodeCT or not nDist");
 	end
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	Debug.console("nodeCTWtW = "..tostring(nodeCTWtW));
 	local nodeTraveled = DB.createChild(nodeCTWtW, 'traveled', 'number');
+	Debug.console("nodeTraveled = "..tostring(nodeTraveled));
 	local nTravelCurrent = DB.getValue(nodeTraveled);
+	Debug.console("nTravelCurrent.1 = "..tostring(nTravelCurrent));
 	if nTravelCurrent then tonumber(nTravelCurrent) end
 	if not nTravelCurrent or not bAdd then
 		nTravelCurrent = 0;
+		Debug.console("nTravelCurrent.2 = "..tostring(nTravelCurrent));
 	end
 	local nTraveled = nTravelCurrent + nDist;
+	Debug.console("nTraveled = "..tostring(nTraveled));
 	local sTraveled = tostring(nTraveled);
+	Debug.console("sTraveled = "..tostring(sTraveled));
 	DB.setValue(nodeCTWtW, 'traveled', 'number', sTraveled);
 end
 

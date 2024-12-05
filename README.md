@@ -68,11 +68,13 @@ Enjoy!
 ### Attribution
 
 SmiteWorks owns rights to code sections copied from their rulesets by permission for Fantasy Grounds community development. \
+headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks themes. \
 'Fantasy Grounds' is a trademark of SmiteWorks USA, LLC. \
 'Fantasy Grounds' is Copyright 2004-2021 SmiteWorks USA LLC.
 
 ### Change Log
 
+* v2.2.3: Improved UI. Speed not updating when disabling effect: Fixed. Other minor changes.
 * v2.2.1: Bug reported with AE and BCEG: Fixed.
 * v2.2.0: Aesthetic Improvements
 * v2.1.2: Negative Interaction with Turbo: Fixed.

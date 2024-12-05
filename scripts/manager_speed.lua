@@ -32,6 +32,7 @@ function onInit()
 				--continued: bSpell bOneShot bIgnoreExpire
 			DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
 			DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
+			DB.addHandler('combattracker.list.*.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
 			DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
 			DB.addHandler('charsheet.*.speed.total','onUpdate', setCharSheetSpeed);
 			DB.addHandler('charsheet.*.speed.base','onUpdate', setCharSheetSpeed);
@@ -74,6 +75,7 @@ function onClose()
 	if Session.RulesetName == "5E" then
 		if Session.IsHost then
 			DB.removeHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
+			DB.removeHandler('combattracker.list.*.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
 			DB.removeHandler('combattracker.list.*.effects','onChildDeleted',callSpeedCalcEffectDeleted);
 			DB.removeHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
 			DB.removeHandler('charsheet.*.speed.total','onUpdate', setCharSheetSpeed);
@@ -125,14 +127,15 @@ function onRecordTypeEventWtW(sRecordType, tCustom)
 	end
 end
 
-function callSpeedCalcEffectUpdated(nodeEffectLabel)
+function callSpeedCalcEffectUpdated(nodeEffectChild)
 	if bLoopProt then return end
 	bLoopProt = true;
 	if OptionsManager.isOption('WESC', 'off') then
 		return;
 	end
-	local sNodeEffectLabel = DB.getValue(nodeEffectLabel);
-	local nodeEffect = DB.getParent(nodeEffectLabel);
+	local nodeEffect = DB.getParent(nodeEffectChild);
+	local nodeEffectLabel = DB.getChild(nodeEffect, 'label');
+	local sNodeEffectLabel = DB.getValue(nodeEffect, 'label', nil);
 	local nodeCT = DB.getChild(nodeEffect, '...');
 	if TurboManager then TurboManager.registerEffect(nodeEffect, nodeEffectLabel) end
 	handleExhaustion(nodeCT, sNodeEffectLabel, nodeEffect);
@@ -720,16 +723,19 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			end
 		end
 		if not bRecognizedRmndr and sRmndrLower ~= '' then
-			Debug.console("SpeedManager.speedCalculator - Syntax Error 701")
-		end
-		if nMod then
-			local sNMod = tostring(nMod)
-			if string.match(sNMod, '^%-') then
-				nSpeedMod = nSpeedMod + nMod;
-			else
-				table.insert(tRebase, nMod)
+			Debug.console("SpeedManager.speedCalculator - Syntax Error - "..tostring(sRmndrLower)..
+				" is not a recognized command.  Use inc, dec, max, doubled, halved, difficult, or type.  See the README or forum for more specifics about syntax."
+			);
+		else
+			if nMod then
+				local sNMod = tostring(nMod)
+				if string.match(sNMod, '^%-') then
+					nSpeedMod = nSpeedMod + nMod;
+				else
+					table.insert(tRebase, nMod)
+				end
+				table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 			end
-			table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 		end
 	end
 
@@ -1003,13 +1009,13 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 				DB.setValue(nodeEffectNameID, 'name', 'string', sEffectName);
 			end
 		end
+		local nodeChar = ActorManager.getCreatureNode(rActor);
+		local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
+		nBonusSpeed = nCurrentSpeed - nBaseSpeed
+		DB.setValue(nodeCharWtW, 'bonus', 'number', nBonusSpeed);
+		DB.setValue(nodeCharWtW, 'currentspeed', 'number', nCurrentSpeed);
 		if ActorManager.isPC(rActor) then
-			local nodeChar = ActorManager.getCreatureNode(rActor);
-			local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
-			nBonusSpeed = nCurrentSpeed - nBaseSpeed
-			DB.setValue(nodeCharWtW, 'bonus', 'number', nBonusSpeed);
 			DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
-			DB.setValue(nodeCharWtW, 'currentspeed', 'number', nCurrentSpeed);
 		end
 		return true;
 	else

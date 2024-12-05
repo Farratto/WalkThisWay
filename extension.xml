@@ -19,16 +19,19 @@
 		<script name="WtWCommon" file="scripts/common_wtw.lua" />
 		<script name="ProneManager" file="scripts/manager_prone.lua" />
 		<script name="SpeedManager" file="scripts/manager_speed.lua" ruleset="5E" />
-		<script name="MovementManager" file="scripts/manager_movement.lua" ruleset="5E" />
+<!--		<script name="MovementManager" file="scripts/manager_movement.lua" ruleset="5E" /> -->
 		<icon name="WtW_icon" file="graphics/shoe.webp" />
 		<icon name="minimized_WtW" file="graphics/minimized_WtW.webp" />
-		<framedef name="headerpoweratwill">
+		<framedef name="leathergreen">
 			<bitmap file="graphics/headerpoweratwill.webp" />
-			<offset>11,16,15,16</offset>
+<!--			<offset>11,16,15,16</offset> -->
+				<!-- L/T/R/B -->
+			<offset>7,11,10,11</offset>
 		</framedef>
-		<framedef name="headerpowerenc">
+		<framedef name="leatherred">
 			<bitmap file="graphics/headerpowerenc.webp" />
-			<offset>11,16,15,16</offset>
+<!--			<offset>11,16,15,16</offset> -->
+			<offset>7,11,10,11</offset>
 		</framedef>
 		<script name="PowerUpWtW">
 			function onInit()

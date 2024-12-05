@@ -22,9 +22,11 @@
 			<windowmenubar_charsheethelper name="windowmenubar" />
 			<anchor_content_charsheethelper_top name="contentanchor" />
 			<anchor_content_charsheethelper_bottom />
+<!--
 			<sub_content_buttons_bottom name="sub_buttons">
 				<class>speed_buttons_bottom</class>
 			</sub_content_buttons_bottom>
+-->
 			<area_content name="contentframe" />
 			<subwindow name="speedwindowcontent">
 				<anchored to="contentframe" position="over" />
@@ -45,9 +47,31 @@
 			<string_content_noframe_static_top name="currentSpeed">
 				<center />
 			</string_content_noframe_static_top>
+			<header_content_framed_headersimple name="headertraveled">
+				<center />
+				<static textres="header_traveled" />
+				<script>
+					function onInit()
+						update();
+					end
+					function update()
+						setVisible(OptionsManager.isOption('move_on', "on"));
+					end
+				</script>
+				<invisible />
+			</header_content_framed_headersimple>
 			<string_content_noframe_static_top name="traveled">
 				<center />
 				<suffix>map_units</suffix>
+				<script>
+					function onInit()
+						update();
+					end
+					function update()
+						setVisible(OptionsManager.isOption('move_on', "on"));
+					end
+				</script>
+				<invisible />
 			</string_content_noframe_static_top>
 			<header_content_framed_headersimple name="speedeffectstitle">
 				<center />
@@ -78,10 +102,17 @@
 			</anchored>
 			<text>Traveled</text>
 			<script>
+				function onInit()
+					update();
+				end
+				function update()
+					setVisible(OptionsManager.isOption('move_on', "on"));
+				end
 				function onButtonPress()
 					--ProneManager.closeProneWindow();
 				end
 			</script>
+			<invisible />
 		</button_boolean>
 	</template>
 	<template name="button_reset_dist">
@@ -91,10 +122,17 @@
 			</anchored>
 			<text>Reset</text>
 			<script>
+				function onInit()
+					update();
+				end
+				function update()
+					setVisible(OptionsManager.isOption('move_on', "on"));
+				end
 				function onButtonPress()
 					--ProneManager.closeProneWindow();
 				end
 			</script>
+			<invisible />
 		</button_boolean>
 	</template>
 	<windowclass name="effect_names">
@@ -179,6 +217,24 @@
 	</windowclass>
 	<windowclass name="npc_combat_top_2024" merge="join">
 		<sheetdata>
+			<speed_bonus_control>
+				<anchored to="speed" width="32" height="20">
+					<top anchor="top" offset="-7"/>
+					<left anchor="left" offset="-30"/>
+				</anchored>
+				<script>
+					function onInit()
+						local nodeW, nodePath, bOnCT;
+						nodeW = window.getDatabaseNode();
+						nodePath = DB.getPath(nodeW);
+						bOnCT = string.match(nodePath, 'combattracker');
+						if not bOnCT then setVisible(false) end
+						if bOnCT and super and super.onInit then
+							super.onInit();
+						end
+					end
+				</script>
+			</speed_bonus_control>
 			<string_content_column name="speed" merge="join">
 				<script>
 					local nodeW, nodePath, bOnCT;
@@ -199,6 +255,24 @@
 	</windowclass>
 	<windowclass name="npc_combat_top_2014" merge="join">
 		<sheetdata>
+			<speed_bonus_control>
+				<anchored to="speed" width="32" height="20">
+					<top anchor="top" offset="-7"/>
+					<left anchor="left" offset="-30"/>
+				</anchored>
+				<script>
+					function onInit()
+						local nodeW, nodePath, bOnCT;
+						nodeW = window.getDatabaseNode();
+						nodePath = DB.getPath(nodeW);
+						bOnCT = string.match(nodePath, 'combattracker');
+						if not bOnCT then setVisible(false) end
+						if bOnCT and super and super.onInit then
+							super.onInit();
+						end
+					end
+				</script>
+			</speed_bonus_control>
 			<string_content_column name="speed" merge="join">
 				<script>
 					local nodeW, nodePath, bOnCT;
@@ -218,48 +292,53 @@
 		</sheetdata>
 	</windowclass>
 
+	<template name="speed_bonus_control">
+		<number_static name="speed_bonus" source="WalkThisWay.currentspeed">
+<!--			<anchored to="speed" width="30" height="18"> -->
+			<anchored to="speed" width="32" height="20">
+				<top anchor="top" offset="-5"/>
+				<left anchor="right" offset="-15"/>
+			</anchored>
+			<center />
+			<readonly />
+			<invisible />
+			<script merge="join">
+				function onInit()
+					update();
+				end
+				function onValueChanged()
+					update();
+				end
+				function update()
+					local nodeChar = window.getDatabaseNode();
+					local nodeCharWtW = DB.getChild(nodeChar, 'WalkThisWay');
+					local nBonusSpeed = DB.getValue(nodeCharWtW, 'bonus');
+					local nodeWTW = DB.createNode('WalkThisWay');
+					local nodeFrogToes = DB.getChild(nodeWTW, 'frogtoes')
+					local nFrogToes;
+					if nodeFrogToes then
+						nFrogToes = DB.getValue(nodeFrogToes);
+					end
+					local bHasMNM = WtWCommon.hasExtension('MNM Character Sheet Effects Display');
+					if ((nFrogToes and nFrogToes == 1) or bHasMNM) and nBonusSpeed then
+						if nBonusSpeed &gt; 0 then
+							setFrame("leathergreen")
+							setVisible(true)
+						elseif nBonusSpeed &lt; 0 then
+							setFrame("leatherred")
+							setVisible(true)
+						else
+							setVisible(false)
+						end
+					end
+				end
+			</script>
+		</number_static>
+	</template>
+
 	<windowclass name="charsheet_sensescombat" merge="join">
 		<sheetdata>
-			<number_static name="speed_bonus" source="WalkThisWay.currentspeed">
-				<anchored to="speed" width="35" height ="25">
-					<top anchor="top"/>
-					<left anchor="right" offset="0,-10"/>
-				</anchored>
-				<center />
-				<readonly />
-				<invisible />
-				<script merge="join">
-					function onInit()
-						update();
-					end
-					function onValueChanged()
-						update();
-					end
-					function update()
-						local nodeChar = window.getDatabaseNode();
-						local nodeCharWtW = DB.getChild(nodeChar, 'WalkThisWay');
-						local nBonusSpeed = DB.getValue(nodeCharWtW, 'bonus');
-						local nodeWTW = DB.createNode('WalkThisWay');
-						local nodeFrogToes = DB.getChild(nodeWTW, 'frogtoes')
-						local nFrogToes;
-						if nodeFrogToes then
-							nFrogToes = DB.getValue(nodeFrogToes);
-						end
-						local bHasMNM = WtWCommon.hasExtension('MNM Character Sheet Effects Display');
-						if ((nFrogToes and nFrogToes == 1) or bHasMNM) and nBonusSpeed then
-							if nBonusSpeed &gt; 0 then
-								setFrame("headerpoweratwill")
-								setVisible(true)
-							elseif nBonusSpeed &lt; 0 then
-								setFrame("headerpowerenc")
-								setVisible(true)
-							else
-								setVisible(false)
-							end
-						end
-					end
-				</script>
-			</number_static>
+			<speed_bonus_control />
 		</sheetdata>
 	</windowclass>
 	<template name = "MNMBONUSSPEED" merge="join">
