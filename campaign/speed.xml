@@ -23,11 +23,11 @@
 			<windowmenubar_charsheethelper name="windowmenubar" />
 			<anchor_content_charsheethelper_top name="contentanchor" />
 			<anchor_content_charsheethelper_bottom />
-<!--
+
 			<sub_content_buttons_bottom name="sub_buttons">
 				<class>speed_buttons_bottom</class>
 			</sub_content_buttons_bottom>
--->
+
 			<area_content name="contentframe" />
 			<subwindow name="speedwindowcontent">
 				<anchored to="contentframe" position="over" />
@@ -121,7 +121,9 @@
 					setVisible(OptionsManager.isOption('move_on', "on"));
 				end
 				function onButtonPress()
-					--ProneManager.closeProneWindow();
+					local nodeCT = DB.getParent(window.getDatabaseNode());
+					local nDist = MovementManager.getDistTraveled(nodeCT);
+					MovementManager.updateDistTraveled(nodeCT, nDist, true);
 				end
 			</script>
 			<invisible />
@@ -141,7 +143,8 @@
 					setVisible(OptionsManager.isOption('move_on', "on"));
 				end
 				function onButtonPress()
-					--ProneManager.closeProneWindow();
+					local nodeCT = DB.getParent(window.getDatabaseNode());
+					MovementManager.setStartPosi(nodeCT);
 				end
 			</script>
 			<invisible />

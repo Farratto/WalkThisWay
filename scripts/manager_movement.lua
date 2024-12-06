@@ -4,7 +4,7 @@
 -- luacheck: globals getTokenPosition calcDistance updateDistTraveled processTurnStart getDistTraveled setStartPosi
 -- luacheck: globals updateSpeedWindows
 
-local tStartPosis;
+local tStartPosis = {};
 
 function onInit()
 	if Session.IsHost then
@@ -100,21 +100,16 @@ function updateDistTraveled(nodeCT, nDist, bAdd)
 		Debug.console("MovementManager.updateDistCovered - not nodeCT or not nDist");
 	end
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	Debug.console("nodeCTWtW = "..tostring(nodeCTWtW));
-	local nodeTraveled = DB.createChild(nodeCTWtW, 'traveled', 'number');
-	Debug.console("nodeTraveled = "..tostring(nodeTraveled));
-	local nTravelCurrent = DB.getValue(nodeTraveled);
-	Debug.console("nTravelCurrent.1 = "..tostring(nTravelCurrent));
-	if nTravelCurrent then tonumber(nTravelCurrent) end
+	local nodeTraveled = DB.createChild(nodeCTWtW, 'traveled', 'string');
+	local sTravelCurrent = DB.getValue(nodeTraveled);
+	local nTravelCurrent;
+	if sTravelCurrent then tonumber(nTravelCurrent) end
 	if not nTravelCurrent or not bAdd then
 		nTravelCurrent = 0;
-		Debug.console("nTravelCurrent.2 = "..tostring(nTravelCurrent));
 	end
 	local nTraveled = nTravelCurrent + nDist;
-	Debug.console("nTraveled = "..tostring(nTraveled));
 	local sTraveled = tostring(nTraveled);
-	Debug.console("sTraveled = "..tostring(sTraveled));
-	DB.setValue(nodeCTWtW, 'traveled', 'number', sTraveled);
+	DB.setValue(nodeCTWtW, 'traveled', 'string', sTraveled);
 end
 
 function processTurnStart(_)
