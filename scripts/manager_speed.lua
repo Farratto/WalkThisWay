@@ -41,15 +41,6 @@ function onInit()
 			--DB.addHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent; --luacheck: ignore 111
 			CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
-			if string.lower(Session.UserName) == 'farratto' then
-				local nodeWTW = DB.createNode('WalkThisWay');
-				DB.setPublic(nodeWTW, true);
-				local nodeFrogToes = DB.getChild(nodeWTW, 'frogtoes');
-				if not nodeFrogToes then
-					DB.createChild(nodeWTW, 'frogtoes', 'number');
-				end
-				DB.setValue(nodeWTW, 'frogtoes', 'number', '1');
-			end
 			OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
 		end
 		CombatManager.setCustomTurnStart(turnStartChecks);

@@ -74,6 +74,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.2.4: Mad Nomad granted permission to use bonus numbers without his extension present.
 * v2.2.3: Improved UI. Speed not updating when disabling effect: Fixed. Other minor changes.
 * v2.2.1: Bug reported with AE and BCEG: Fixed.
 * v2.2.0: Aesthetic Improvements

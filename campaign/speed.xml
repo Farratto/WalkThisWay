@@ -4,6 +4,7 @@
 	attribution and copyright information.
 -->
 <root version="3.0">
+	<!-- Main Window -->
 	<windowclass name="speed_window">
 		<frame>charsheethelper</frame>
 		<placement>
@@ -88,6 +89,17 @@
 			<scrollbar_content_list />
 		</sheetdata>
 	</windowclass>
+	<windowclass name="effect_names">
+		<sheetdata>
+			<anchor_listitem_left name="leftanchor" />
+			<anchor_listitem_left name="rightanchor" />
+			<string_listitem_left_static name="name" >
+				<anchored width="400" />
+			</string_listitem_left_static >
+		</sheetdata>
+	</windowclass>
+
+	<!-- Sub-window Bottom -->
 	<windowclass name="speed_buttons_bottom">
 		<sheetdata>
 			<anchor_content_top />
@@ -135,16 +147,8 @@
 			<invisible />
 		</button_boolean>
 	</template>
-	<windowclass name="effect_names">
-		<sheetdata>
-			<anchor_listitem_left name="leftanchor" />
-			<anchor_listitem_left name="rightanchor" />
-			<string_listitem_left_static name="name" >
-				<anchored width="400" />
-			</string_listitem_left_static >
-		</sheetdata>
-	</windowclass>
 
+	<!-- Combat Tracker Mods -->
 	<windowclass name="ct_section_active" merge="join">
 		<sheetdata>
 			<string_ct name="speed" merge="delete" />
@@ -183,6 +187,8 @@
 			</string_ct>
 		</sheetdata>
 	</windowclass>
+
+	<!-- Character Sheet Mods -->
 	<windowclass name="charsheet_sensescombat" merge="join">
 		<sheetdata>
 			<number_charspeed name="speed" source="WalkThisWay.base">
@@ -292,12 +298,13 @@
 		</sheetdata>
 	</windowclass>
 
+	<!-- Bonus Speed Control -->
 	<template name="speed_bonus_control">
 		<number_static name="speed_bonus" source="WalkThisWay.currentspeed">
-<!--			<anchored to="speed" width="30" height="18"> -->
+<!--			<anchored to="speed" width="35" height="25"> -->
 			<anchored to="speed" width="32" height="20">
-				<top anchor="top" offset="-5"/>
-				<left anchor="right" offset="-15"/>
+				<top anchor="top" offset="-6"/>
+				<left anchor="right" offset="-13"/>
 			</anchored>
 			<center />
 			<readonly />
@@ -314,13 +321,7 @@
 					local nodeCharWtW = DB.getChild(nodeChar, 'WalkThisWay');
 					local nBonusSpeed = DB.getValue(nodeCharWtW, 'bonus');
 					local nodeWTW = DB.createNode('WalkThisWay');
-					local nodeFrogToes = DB.getChild(nodeWTW, 'frogtoes')
-					local nFrogToes;
-					if nodeFrogToes then
-						nFrogToes = DB.getValue(nodeFrogToes);
-					end
-					local bHasMNM = WtWCommon.hasExtension('MNM Character Sheet Effects Display');
-					if ((nFrogToes and nFrogToes == 1) or bHasMNM) and nBonusSpeed then
+					if nBonusSpeed then
 						if nBonusSpeed &gt; 0 then
 							setFrame("leathergreen")
 							setVisible(true)
@@ -335,7 +336,6 @@
 			</script>
 		</number_static>
 	</template>
-
 	<windowclass name="charsheet_sensescombat" merge="join">
 		<sheetdata>
 			<speed_bonus_control />
