@@ -334,8 +334,6 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 				(not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
 				(tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
 
-			Debug.console("rTarget = "..tostring(rTarget));
-			Debug.printstack();
 			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
 			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
 			  (EffectManagerADND.isValidCheckEffect(rActor, v) or (rTarget and EffectManagerADND.isValidCheckEffect(rTarget, v))))) then
