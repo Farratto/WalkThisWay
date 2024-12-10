@@ -29,7 +29,7 @@
 			</sub_content_buttons_bottom>
 
 			<area_content name="contentframe" />
-			<subwindow name="speedwindowcontent">
+			<subwindow name="speedwindowcontent" >
 				<anchored to="contentframe" position="over" />
 				<class>speed_window_content</class>
 				<activate />
@@ -114,16 +114,24 @@
 			</anchored>
 			<text>Traveled</text>
 			<script>
+				local nodeCT;
 				function onInit()
 					update();
+					nodeCT = DB.getParent(window.getDatabaseNode());
 				end
 				function update()
 					setVisible(OptionsManager.isOption('move_on', "on"));
 				end
 				function onButtonPress()
-					local nodeCT = DB.getParent(window.getDatabaseNode());
-					local nDist = MovementManager.getDistTraveled(nodeCT);
-					MovementManager.updateDistTraveled(nodeCT, nDist, true);
+					MovementManager.processTravelDist(nodeCT);
+				end
+				function onDragStart(button, x, y, draginfo)
+					local sName = DB.getValue(nodeCT, 'name', '');
+					draginfo.setType("traveleddistance");
+					draginfo.setIcon("WtW_icon");
+					draginfo.setDatabaseNode(nodeCT);
+					draginfo.setDescription("Traveled - "..sName);
+					return true;
 				end
 			</script>
 			<invisible />
@@ -144,7 +152,8 @@
 				end
 				function onButtonPress()
 					local nodeCT = DB.getParent(window.getDatabaseNode());
-					MovementManager.setStartPosi(nodeCT);
+					--MovementManager.setStartPosi(nodeCT);
+					MovementManager.updateDistTraveled(nodeCT, 0, false);
 				end
 			</script>
 			<invisible />
