@@ -4,13 +4,13 @@
 -- luacheck: globals checkBetterGoldPurity hasEffectFindString removeEffectClause handleApplyHostCommands
 -- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 -- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
--- luacheck: globals hasEffectClause hasRoot
+-- luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 local _sBetterGoldPurity = '';
 local tExtensions = {};
-fhasCondition = ''; --luacheck: ignore 111
-fhasEffect = ''; --luacheck: ignore 111
+local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
+local aExceptionDescriptors = {'steal', 'stealtemp'};
 
 local aEffectVarMap = {
 	["sName"] = { sDBType = "string", sDBField = "label" },
@@ -26,18 +26,6 @@ local aEffectVarMap = {
 function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
 
-	if Session.RulesetName ~= "5E" then
-		if EffectManagerPFRPG2 then
-			fhasCondition = EffectManagerPFRPG2.hasEffectCondition; --luacheck: ignore 111
-			fhasEffect = EffectManagerPFRPG2.hasEffect; --luacheck: ignore 111
-		else
-			fhasCondition = EffectManager.hasCondition; --luacheck: ignore 111
-			fhasEffect = EffectManager.hasEffect; --luacheck: ignore 111
-		end
-	else
-		fhasCondition = EffectManager5E.hasEffectCondition; --luacheck: ignore 111
-		fhasEffect = EffectManager5E.hasEffect; --luacheck: ignore 111
-	end
 	if EffectManager5EBCE then
 		_sBetterGoldPurity = checkBetterGoldPurity(); --luacheck: ignore 111
 	end
@@ -376,11 +364,13 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 									return true;
 								end
 							end
-						elseif not bTargetedOnly then
-							if bReturnLabel then
-								return true, sLabel
-							else
-								return true;
+						else
+							if not bTargetedOnly then
+								if bReturnLabel then
+									return true, sLabel
+								else
+									return true;
+								end
 							end
 						end
 					end
@@ -498,7 +488,7 @@ end
 --Returns nil for inactive identities and those owned by the GM
 function getControllingClient(nodeCT)
 	if not nodeCT then
-		Debug.console("WtWCommon.getControllingClient - nodeCT doesn't exist")
+		Debug.console("WtWCommon.getControllingClient - nodeCT doesn't exist");
 		return
 	end
 	local sPCNode = nil;
@@ -556,6 +546,7 @@ end
 --note: if using caseInsensitivity, use all uppercase for literal character matches.
 function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly, bCaseSensitive)
 	if not rActor then
+		Debug.console("WtWCommon.getEffectsByTypeWtW - not rActor");
 		return;
 	end
 	local results = {};
@@ -587,7 +578,6 @@ function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly
 					else
 						rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
 					end
-					local rMatchTable = {};
 
 					processConditional(rActor, rFilterActor, v, rEffectComp, rConditionalHelper);
 
@@ -618,9 +608,8 @@ function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly
 						-- Match!
 						if comp_match then
 							if nActive == 1 then
-								rMatchTable['clause'] = sEffectComp;
-								if sLabel ~= '' then rMatchTable['label'] = sLabel end
-								table.insert(results, rMatchTable);
+								if sLabel ~= '' then rEffectComp['label'] = sLabel end
+								table.insert(results, rEffectComp);
 							end
 						end
 					end
@@ -708,23 +697,23 @@ end
 function hasRoot(nodeCT)
 	if Session.RulesetName ~= "5E" then
 		if EffectManagerPFRPG2 then
-			if EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Unconscious") then
+			if hasEffectClause(nodeCT, "Unconscious", nil, false, true) then
 				return true, false, 'Unconscious';
-			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Dead") then
+			elseif hasEffectClause(nodeCT, "Dead", nil, false, true) then
 				return true, false, 'Dead';
-			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Paralyzed") then
+			elseif hasEffectClause(nodeCT, "Paralyzed", nil, false, true) then
 				return true, false, 'Paralyzed';
-			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Dying") then
+			elseif hasEffectClause(nodeCT, "Dying", nil, false, true) then
 				return true, false, 'Dying';
-			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Immobilized") then
+			elseif hasEffectClause(nodeCT, "Immobilized", nil, false, true) then
 				return true, false, 'Immobilized';
-			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Petrified") then
+			elseif hasEffectClause(nodeCT, "Petrified", nil, false, true) then
 				return true, false, 'Petrified';
-			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Restrained") then
+			elseif hasEffectClause(nodeCT, "Restrained", nil, false, true) then
 				return true, false, 'Restrained';
-			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Grabbed") then
+			elseif hasEffectClause(nodeCT, "Grabbed", nil, false, true) then
 				return true, false, 'Grabbed';
-			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Stunned") then
+			elseif hasEffectClause(nodeCT, "Stunned", nil, false, true) then
 				return true, false, 'Stunned';
 			else
 				local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
@@ -758,7 +747,7 @@ function hasRoot(nodeCT)
 				end
 			end
 		else
-			if EffectManager.hasCondition(nodeCT, "Unconscious") then
+			if hasEffectClause(nodeCT, "Unconscious", nil, false, true) then
 				return true, false, 'Unconscious';
 			else
 				local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
@@ -795,22 +784,22 @@ function hasRoot(nodeCT)
 	else
 		local bReturn;
 		local sEffectName;
-		if EffectManager5E.hasEffectCondition(nodeCT, "Grappled") then
+		if hasEffectClause(nodeCT, "Grappled", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'Grappled';
-		elseif EffectManager5E.hasEffectCondition(nodeCT, "Paralyzed") then
+		elseif hasEffectClause(nodeCT, "Paralyzed", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'Paralyzed';
-		elseif EffectManager5E.hasEffectCondition(nodeCT, "Petrified") then
+		elseif hasEffectClause(nodeCT, "Petrified", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'Petrified';
-		elseif EffectManager5E.hasEffectCondition(nodeCT, "Restrained") then
+		elseif hasEffectClause(nodeCT, "Restrained", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'Restrained';
-		elseif EffectManager5E.hasEffectCondition(nodeCT, "Unconscious") then
+		elseif hasEffectClause(nodeCT, "Unconscious", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'Unconscious';
-		elseif EffectManager5E.hasEffectCondition(nodeCT, "DEATH") then
+		elseif hasEffectClause(nodeCT, "DEATH", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'DEATH';
 		else
@@ -859,3 +848,227 @@ function hasRoot(nodeCT)
 		end
 	end
 end
+
+-- these have been modded to not 'touch' the effects' isActive status
+function getEffectsBonusLightly(rActor, aEffectType, bModOnly, aFilter, rFilterActor, bTargetedOnly)
+	if not rActor or not aEffectType then
+		Debug.console("WtWCommon.getEffectsBonusLightly - not rActor or not aEffectType");
+		if bModOnly then
+			return 0, 0;
+		end
+		return {}, 0, 0;
+	end
+
+	-- MAKE BONUS TYPE INTO TABLE, IF NEEDED
+	if type(aEffectType) ~= 'table' then
+		aEffectType = {aEffectType};
+	end
+
+	-- START WITH AN EMPTY MODIFIER TOTAL
+	local aTotalDice = {};
+	local nTotalMod = 0;
+	local nTotalPercent = 0;
+	local bMax = false;
+	local nEffectCount = 0;
+
+	-- ITERATE THROUGH EACH BONUS TYPE
+	local masterbonuses = {};
+	local masterpenalties = {};
+	for _, v in pairs(aEffectType) do
+		-- GET THE MODIFIERS FOR THIS MODIFIER TYPE
+		local effbonusbytype,nEffectSubCount = getEffectsBonusByTypeLightly(rActor, v, true, aFilter, rFilterActor
+			, bTargetedOnly
+		);
+
+		-- ITERATE THROUGH THE MODIFIERS
+		for k2, v2 in pairs(effbonusbytype) do
+			-- IF MODIFIER TYPE IS UNTYPED, THEN APPEND TO TOTAL MODIFIER
+			-- (SUPPORTS DICE)
+			if k2 == '' or StringManager.contains(DataCommon.dmgtypes, k2) or k2 == 'all' then
+				for _, v3 in pairs(v2.dice) do
+					table.insert(aTotalDice, v3);
+				end
+				nTotalMod = nTotalMod + v2.mod;
+				nTotalPercent = nTotalPercent + v2.nPercent;
+
+				-- OTHERWISE, WE HAVE A NON-ENERGY MODIFIER TYPE, WHICH MEANS WE NEED TO INTEGRATE
+				-- (IGNORE DICE, ONLY TAKE BIGGEST BONUS AND/OR PENALTY FOR EACH MODIFIER TYPE)
+			else
+				if v2.mod >= 0 then
+					masterbonuses[k2].mod = math.max(v2.mod, masterbonuses[k2].mod or 0);
+				elseif v2.mod < 0 then
+					masterpenalties[k2].mod = math.min(v2.mod, masterpenalties[k2].mod or 0);
+				end
+				if v2.percent >= 0 then
+					masterbonuses[k2].nPercent = math.max(v2.percent, masterbonuses[k2].nPercent or 0);
+				elseif v2.percent < 0 then
+					masterpenalties[k2].nPercent = math.min(v2.percent, masterpenalties[k2].nPercent or 0);
+				end
+			end
+			if v2.bMax then
+				bMax = true;
+			end
+		end
+
+		-- ADD TO EFFECT COUNT
+		nEffectCount = nEffectCount + nEffectSubCount;
+	end
+
+	-- ADD INTEGRATED BONUSES AND PENALTIES FOR NON-ENERGY TYPED MODIFIERS
+	for _, v in pairs(masterbonuses) do
+		nTotalMod = nTotalMod + v.mod;
+		nTotalPercent = nTotalPercent + v.nPercent;
+	end
+	for _, v in pairs(masterpenalties) do
+		nTotalMod = nTotalMod + v.mod;
+		nTotalPercent = nTotalPercent + v.nPercent;
+	end
+	if bModOnly then
+		return nTotalMod, nEffectCount, nTotalPercent;
+	end
+	return aTotalDice, nTotalMod, nEffectCount, nTotalPercent, bMax;
+end
+-- luacheck: push ignore 561
+function getEffectsBonusByTypeLightly(rActor, aEffectType, bAddEmptyBonus, aFilter, rFilterActor, bTargetedOnly)
+	if not rActor or not aEffectType then
+		Debug.console("WtWCommon.getEffectsBonusByTypeLightly - not rActor or not aEffectType");
+		return {}, 0;
+	end
+
+	-- MAKE BONUS TYPE INTO TABLE, IF NEEDED
+	if type(aEffectType) ~= 'table' then
+		aEffectType = {aEffectType};
+	end
+
+	-- PER EFFECT TYPE VARIABLES
+	local results = {};
+	local bonuses = {};
+	local penalties = {};
+	local nEffectCount = 0;
+
+	for _, v in pairs(aEffectType) do
+		-- LOOK FOR EFFECTS THAT MATCH BONUSTYPE
+		local aEffectsByType = getEffectsByTypeWtW(rActor, v, aFilter, rFilterActor, bTargetedOnly);
+
+		-- ITERATE THROUGH EFFECTS THAT MATCHED
+		for _, v2 in pairs(aEffectsByType) do
+			if not v2.nPercent then
+				v2.nPercent = 0;
+			end
+			-- LOOK FOR ENERGY OR BONUS TYPES
+			local dmg_type = nil;
+			local mod_type = nil;
+			for _, v3 in pairs(v2.remainder) do
+				if StringManager.contains(DataCommon.dmgtypes, v3) or StringManager.contains(DataCommon.conditions
+					, v3) or v3 == 'all'
+				then
+					dmg_type = v3;
+					break;
+				else
+					if StringManager.contains(DataCommon.bonustypes, v3) then
+						mod_type = v3;
+						break;
+					end
+				end
+			end
+			if v2.mod % 1 ~= 0 then
+				local rEffectComp = EffectManager.parseEffectCompSimple(v2.original);
+				local bSkip = false;
+				if not StringManager.contains(aExceptionTags, rEffectComp.type) then
+					for _, sDescriptor in ipairs(rEffectComp.remainder) do
+						if StringManager.contains(aExceptionDescriptors, sDescriptor) then
+							bSkip = true;
+							break
+						end
+					end
+					if not bSkip then
+						v2.nPercent = v2.mod;
+						v2.mod = 0;
+					end
+				end
+			end
+
+			-- IF MODIFIER TYPE IS UNTYPED, THEN APPEND MODIFIERS
+			-- (SUPPORTS DICE)
+			if dmg_type or not mod_type then
+				-- ADD EFFECT RESULTS
+				local new_key = dmg_type or '';
+				local new_results = results[new_key] or {dice = {}, mod = 0, remainder = {}, nPercent = 0};
+
+				-- BUILD THE NEW RESULT
+				for _, v3 in pairs(v2.dice) do
+					table.insert(new_results.dice, v3);
+				end
+				if bAddEmptyBonus then
+					new_results.mod = new_results.mod + v2.mod;
+					new_results.nPercent = new_results.nPercent + v2.nPercent;
+				else
+					new_results.mod = math.max(new_results.mod, v2.mod);
+					new_results.nPercent = math.max(new_results.nPercent, v2.nPercent);
+				end
+				for _, v3 in pairs(v2.remainder) do
+					table.insert(new_results.remainder, v3);
+				end
+				new_results.bMax = v2.bMax;
+				-- SET THE NEW DICE RESULTS BASED ON ENERGY TYPE
+				results[new_key] = new_results;
+
+				-- OTHERWISE, TRACK BONUSES AND PENALTIES BY MODIFIER TYPE
+				-- (IGNORE DICE, ONLY TAKE BIGGEST BONUS AND/OR PENALTY FOR EACH MODIFIER TYPE)
+			else
+				local bStackable = StringManager.contains(DataCommon.stackablebonustypes, mod_type);
+				if v2.mod >= 0 then
+					bonuses[mod_type].bMax = v2.bMax;
+					if bStackable then
+						bonuses[mod_type].mod = (bonuses[mod_type] or 0) + v2.mod;
+						bonuses[mod_type].nPercent = (bonuses[mod_type] or 0) + v2.nPercent;
+					else
+						bonuses[mod_type].mod = math.max(v2.mod, bonuses[mod_type].mod or 0);
+						bonuses[mod_type].nPercent = math.max(v2.nPercent, bonuses[mod_type].nPercent or 0);
+					end
+				elseif v2.mod < 0 then
+					penalties[mod_type].bMax = v2.bMax;
+					if bStackable then
+						penalties[mod_type].mod = (penalties[mod_type] or 0) + v2.mod;
+						penalties[mod_type].nPercent = (penalties[mod_type] or 0) + v2.nPercent;
+					else
+						penalties[mod_type].mod = math.min(v2.mod, penalties[mod_type].mod or 0);
+						penalties[mod_type].nPercent = math.min(v2.nPercent, penalties[mod_type].nPercent or 0);
+					end
+				end
+
+			end
+
+			-- INCREMENT EFFECT COUNT
+			nEffectCount = nEffectCount + 1;
+		end
+	end
+
+	-- COMBINE BONUSES AND PENALTIES FOR NON-ENERGY TYPED MODIFIERS
+	for k2, v2 in pairs(bonuses) do
+		if not v2.nPercent then
+			v2.nPercent = 0;
+		end
+		results[k2].bMax = v2.bMax
+		if results[k2] then
+			results[k2].mod = results[k2].mod + v2.mod;
+			results[k2].nPercent = results[k2].nPercent + v2.nPercent;
+		else
+			results[k2] = {dice = {}, mod = v2.mod, remainder = {}, v2.nPercent};
+		end
+	end
+	for k2, v2 in pairs(penalties) do
+		if not v2.nPercent then
+			v2.nPercent = 0;
+		end
+		results[k2].bMax = v2.bMax
+		if results[k2] then
+			results[k2].mod = results[k2].mod + v2.mod;
+			results[k2].nPercent = results[k2].nPercent + v2.nPercent;
+		else
+			results[k2] = {dice = {}, mod = v2.mod, remainder = {}, nPercent = v2.nPercent};
+		end
+	end
+	return results, nEffectCount;
+end
+-- luacheck: pop

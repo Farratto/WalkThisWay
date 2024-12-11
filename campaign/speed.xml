@@ -23,11 +23,12 @@
 			<windowmenubar_charsheethelper name="windowmenubar" />
 			<anchor_content_charsheethelper_top name="contentanchor" />
 			<anchor_content_charsheethelper_bottom />
-
+			<anchor_listitem_right name="rightanchor" />
+<!--
 			<sub_content_buttons_bottom name="sub_buttons">
 				<class>speed_buttons_bottom</class>
 			</sub_content_buttons_bottom>
-
+-->
 			<area_content name="contentframe" />
 			<subwindow name="speedwindowcontent" >
 				<anchored to="contentframe" position="over" />
@@ -154,6 +155,8 @@
 					local nodeCT = DB.getParent(window.getDatabaseNode());
 					--MovementManager.setStartPosi(nodeCT);
 					MovementManager.updateDistTraveled(nodeCT, 0, false);
+					local rActor = ActorManager.resolveActor(nodeCT);
+					ActorManager5E.getDamageResistances(rActor, rActor);
 				end
 			</script>
 			<invisible />

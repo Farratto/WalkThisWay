@@ -39,7 +39,7 @@ function onInit()
 			--DB.addHandler('charsheet.*.speed.special','onUpdate', reparseBaseSpeed);
 			--DB.addHandler("charsheet.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			--DB.addHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
-			fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent; --luacheck: ignore 111
+			fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
 			CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
 			OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
 		end
@@ -122,12 +122,15 @@ function callSpeedCalcEffectUpdated(nodeEffectChild)
 	if bLoopProt then return end
 	bLoopProt = true;
 	if OptionsManager.isOption('WESC', 'off') then
+		bLoopProt = false;
 		return;
 	end
 	local nodeEffect = DB.getParent(nodeEffectChild);
 	local nodeEffectLabel = DB.getChild(nodeEffect, 'label');
-	local sNodeEffectLabel = DB.getValue(nodeEffect, 'label', nil);
-	local nodeCT = DB.getChild(nodeEffect, '...');
+	local sNodeEffectLabel;
+	if nodeEffectLabel then sNodeEffectLabel = DB.getValue(nodeEffect, 'label', '') end
+	local nodeEffects = DB.getParent(nodeEffect);
+	local nodeCT = DB.getParent(nodeEffects);
 	if TurboManager then TurboManager.registerEffect(nodeEffect, nodeEffectLabel) end
 	handleExhaustion(nodeCT, sNodeEffectLabel, nodeEffect);
 	speedCalculator(nodeCT);
@@ -351,7 +354,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	if not OptionsManager.isOption('WESC', 'off') then
 		tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
 		tAccomSpeed = accommKnownExtsSpeed(nodeCT);
-		bProne = WtWCommon.fhasCondition(rActor, "Prone")
+		bProne = WtWCommon.hasEffectClause(rActor, "Prone", nil, false, true)
 		if bProne then
 			nHalved = nHalved + 1
 			table.insert(tEffectNames, "Prone");
@@ -388,9 +391,9 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		--WtW parsing
 		local sRemainder;
 		local bRecognizedRmndr = false;
-		local sSpdMatch = string.match(v.clause, '^[Ss][Pp][Ee][Ee][Dd]%s*:%s*');
-		local sMinusSpeed = string.gsub(v.clause, sSpdMatch, '');
-		--local sVClauseLower = string.lower(v.clause);
+		local sSpdMatch = string.match(v.original, '^[Ss][Pp][Ee][Ee][Dd]%s*:%s*');
+		local sMinusSpeed = string.gsub(v.original, sSpdMatch, '');
+		--local sVClauseLower = string.lower(v.original);
 		--local sMinusSpeed = sVClauseLower:gsub('^speed%s-:%s*', '');
 		local sMod = string.match(sMinusSpeed, '^%S+');
 		local nMod = nil;
@@ -1227,22 +1230,24 @@ function accommKnownExtsSpeed(nodeCT)
 	local tEffectNames = {};
 	local bReturn = false;
 	if Session.RulesetName == "5E" then
-		if EffectManager5E.hasEffectCondition(nodeCT, 'Dash') then
+		if WtWCommon.hasEffectClause(nodeCT, 'Dash', nil, false, true) then
 			tReturn['nDoubled'] = 1
 			bReturn = true;
 			table.insert(tEffectNames, "Dash");
 		end
 		--encumbrance
-		if EffectManager5E.hasEffect(nodeCT, "Exceeds Maximum Carrying Capacity") then
+		if WtWCommon.hasEffectClause(nodeCT, "Exceeds Maximum Carrying Capacity", nil, false, true) then
 			tReturn['nSpeedMax'] = 5;
 			bReturn = true;
 			table.insert(tEffectNames, "Exceeds Maximum Carrying Capacity");
 		end
-		if EffectManager5E.hasEffect(nodeCT, "Heavily Encumbered") then
+		if WtWCommon.hasEffectClause(nodeCT, "Heavily Encumbered", nil, false, true) then
 			nSpeedMod = nSpeedMod - 20;
 			table.insert(tEffectNames, "Heavily Encumbered");
 		else
-			if EffectManager5E.hasEffect(nodeCT, "Lightly Encumbered") or EffectManager5E.hasEffect(nodeCT, "Encumbered") then
+			if WtWCommon.hasEffectClause(nodeCT, "Lightly Encumbered", nil, false, true) or
+				WtWCommon.hasEffectClause(nodeCT, "Encumbered", nil, false, true
+			) then
 				nSpeedMod = nSpeedMod - 10;
 				table.insert(tEffectNames, "Lightly Encumbered");
 			end
@@ -1282,7 +1287,7 @@ function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
 
 	local sNewEffect;
 	local nSpeedAdjust;
-	local nExhaustMod,_ = EffectManager5E.getEffectsBonus(nodeCT, { "EXHAUSTION" }, true);
+	local nExhaustMod,_ = WtWCommon.getEffectsBonusLightly(nodeCT, { "EXHAUSTION" }, true);
 	local bShowMsg = true;
 	local bExhausted;
 	if nExhaustMod > 5 then

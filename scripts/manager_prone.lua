@@ -80,43 +80,43 @@ function checkProne(nodeCT)
 
 	if Session.RulesetName ~= "5E" then
 		if EffectManagerPFRPG2 then
-			if not EffectManagerPFRPG2.hasEffectCondition(nodeCT, "Prone") then
-				return false
+			if not WtWCommon.hasEffectClause(nodeCT, "Prone", nil, false, true) then
+				return false;
 			elseif WtWCommon.hasRoot(nodeCT) then
-				return false
+				return false;
 			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
-				return false
-			elseif EffectManagerPFRPG2.hasEffectCondition(nodeCT, "NOSTAND") then
-				return false
+				return false;
+			elseif WtWCommon.hasEffectClause(nodeCT, "NOSTAND", nil, false, true) then
+				return false;
 			else
-				return true
+				return true;
 			end
 		else
-			if not EffectManager.hasCondition(nodeCT, "Prone") then
-				return false
+			if not WtWCommon.hasEffectClause(nodeCT, "Prone", nil, false, true) then
+				return false;
 			elseif WtWCommon.hasRoot(nodeCT) then
-				return false
+				return false;
 			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
-				return false
-			elseif EffectManager.hasCondition(nodeCT, "NOSTAND") then
-				return false
+				return false;
+			elseif WtWCommon.hasEffectClause(nodeCT, "NOSTAND", nil, false, true) then
+				return false;
 			else
-				return true
+				return true;
 			end
 		end
 	else
-		if not EffectManager5E.hasEffectCondition(nodeCT, "Prone") then
-			return false
+		if not WtWCommon.hasEffectClause(nodeCT, "Prone", nil, false, true) then
+			return false;
 			elseif WtWCommon.hasRoot(nodeCT) then
-				return false
+				return false;
 		elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
-			return false
-		elseif EffectManager5E.hasEffect(nodeCT, "NOSTAND") then
-			return false
+			return false;
+		elseif WtWCommon.hasEffectClause(nodeCT, "NOSTAND", nil, false, true) then
+			return false;
 		elseif checkHideousLaughter(nodeCT) then
-			return false
+			return false;
 		else
-			return true
+			return true;
 		end
 	end
 end
@@ -172,7 +172,7 @@ function checkHideousLaughter(rActor)
 		nMatch = nMatch - 1;
 	end
 
-	if EffectManager5E.hasEffect(rActor, sClause) then
+	if WtWCommon.hasEffectClause(rActor, sClause, nil, false, true) then
 		if not bClauseExceptFound or nMatch > 1 then
 			return true;
 		end
