@@ -4,7 +4,7 @@
 -- luacheck: globals getTokenPosition calcDistance updateDistTraveled processTurnStart getDistTraveled setStartPosi
 -- luacheck: globals updateSpeedWindows updateOptionChange handleNewMap onHotKeyTravelDistance processTravelDist
 
-local tStartPosis = {};
+--local tStartPosis = {};
 
 function onInit()
 	if Session.IsHost then
@@ -153,22 +153,45 @@ function updateDistTraveled(nodeCT, nDist, bAdd, sSuffix)
 	end
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	local nodeTraveled = DB.createChild(nodeCTWtW, 'traveled', 'string');
-	local sTravelCurrent = DB.getValue(nodeTraveled);
-	local nTravelCurrent;
-	if sTravelCurrent then
-		nTravelCurrent = string.match(sTravelCurrent, '^%d+');
+	local nodeTraveledRaw = DB.createChild(nodeCTWtW, 'traveled_raw', 'number');
+	local nTravelCurrent = DB.getValue(nodeTraveledRaw);
+	--local sTravelCurrent = DB.getValue(nodeTraveled);
+	--local nTravelCurrent;
+	--if sTravelCurrent then
+	--	nTravelCurrent = string.match(sTravelCurrent, '^%d+');
 		nTravelCurrent = tonumber(nTravelCurrent)
-	end
+	--end
 	if not nTravelCurrent or not bAdd then
 		nTravelCurrent = 0;
 	end
 	local nTraveled = nTravelCurrent + nDist;
-	if not sSuffix then
-		sSuffix = '';
-	else
-		if sSuffix == "'" then sSuffix = "ft." end
+	DB.setValue(nodeCTWtW, 'traveled_raw', 'number', nTraveled);
+
+	local sPref = DB.getValue(nodeCTWtW, 'units', nil);
+	if not sPref then
+		local sOwner = WtWCommon.getControllingClient(nodeCT);
+		if sOwner then
+			sPref = SpeedManager.getPreference(sOwner);
+		else
+			sPref = OptionsManager.getOption('DDLU');
+		end
 	end
-	local sTraveled = tostring(nTraveled).." "..sSuffix;
+	if not sSuffix or sSuffix ~= sPref then
+		if not sSuffix then	sSuffix = '' end
+		local sSuffixLower = string.lower(sSuffix);
+		if string.match(sSuffixLower, "^ft%.?$") or sSuffix == "'" then
+			sSuffix = "ft."
+		elseif string.match(sSuffixLower, "^m%.?$") then
+			sSuffix = "m"
+		elseif string.match(sSuffixLower, "^tiles%.?$") then
+			sSuffix = "tiles"
+		else
+			sSuffix = sPref;
+		end
+	end
+	local nConvFactor = SpeedManager.getConversionFactor(sSuffix, sPref);
+	local nTraveledConv = nConvFactor * nTraveled;
+	local sTraveled = tostring(nTraveledConv).." "..sPref;
 	DB.setValue(nodeCTWtW, 'traveled', 'string', sTraveled);
 end
 
@@ -176,18 +199,23 @@ function processTurnStart(_)
 	if OptionsManager.isOption('move_on', 'off') then
 		return;
 	end
-	tStartPosis = {};
+	--tStartPosis = {};
 	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 		local tokenCT = CombatManager.getTokenFromCT(nodeCT);
 		if tokenCT then
-			local tPosi = {};
+			local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+			local nodeStartPosi = DB.createChild(nodeCTWtW, 'StartPosi');
+			--local tPosi = {};
 			local xStart, yStart = getTokenPosition(nodeCT);
 			local hStart = tokenCT.getHeight();
-			tPosi['x'] = xStart;
-			tPosi['y'] = yStart;
-			tPosi['h'] = hStart;
-			tPosi['nodeCT'] = nodeCT;
-			table.insert(tStartPosis, tPosi);
+			DB.setValue(nodeStartPosi, 'x', 'number', xStart);
+			DB.setValue(nodeStartPosi, 'y', 'number', yStart);
+			DB.setValue(nodeStartPosi, 'h', 'number', hStart);
+			--tPosi['x'] = xStart;
+			--tPosi['y'] = yStart;
+			--tPosi['h'] = hStart;
+			--tPosi['nodeCT'] = nodeCT;
+			--table.insert(tStartPosis, tPosi);
 			updateDistTraveled(nodeCT, 0);
 		end
 	end
@@ -204,16 +232,18 @@ function getDistTraveled(nodeCT)
 	end
 	local xCurrent, yCurrent = getTokenPosition(nodeCT);
 	local hCurrent = tokenCT.getHeight();
-	local xStart;
-	local yStart;
-	local hStart;
-	for _,v in ipairs(tStartPosis) do
-		if v.nodeCT == nodeCT then
-			xStart = v.x;
-			yStart = v.y;
-			hStart = v.h;
-		end
-	end
+	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	local nodeStartPosi = DB.createChild(nodeCTWtW, 'StartPosi');
+	local xStart = DB.getValue(nodeStartPosi, 'x', nil);
+	local yStart = DB.getValue(nodeStartPosi, 'y', nil);
+	local hStart = DB.getValue(nodeStartPosi, 'h', nil);
+	--for _,v in ipairs(tStartPosis) do
+	--	if v.nodeCT == nodeCT then
+	--		xStart = v.x;
+	--		yStart = v.y;
+	--		hStart = v.h;
+	--	end
+	--end
 	local nodeContainer = tokenCT.getContainerNode();
 	local nImageDistUnits = Image.getDistanceBaseUnits(nodeContainer);
 	local sImageDistSuffix = Image.getDistanceSuffix(nodeContainer);
@@ -226,31 +256,36 @@ function setStartPosi(nodeCT)
 	if not nodeCT then
 		Debug.console("MovementManager.setStartPosi - not nodeCT");
 	end
-	local bFound;
-	for _,v in ipairs(tStartPosis) do
-		if v.nodeCT == nodeCT then
-			bFound = true;
+	--local bFound;
+	--for _,v in ipairs(tStartPosis) do
+	--	if v.nodeCT == nodeCT then
+	--		bFound = true;
 			local tokenCT = CombatManager.getTokenFromCT(nodeCT);
 			if tokenCT then
 				local xStart, yStart = getTokenPosition(nodeCT);
 				local hStart = tokenCT.getHeight();
-				v.x = xStart;
-				v.y = yStart;
-				v.h = hStart;
+				local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+				local nodeStartPosi = DB.createChild(nodeCTWtW, 'StartPosi');
+				DB.setValue(nodeStartPosi, 'x', 'number', xStart);
+				DB.setValue(nodeStartPosi, 'y', 'number', yStart);
+				DB.setValue(nodeStartPosi, 'h', 'number', hStart);
+				--v.x = xStart;
+				--v.y = yStart;
+				--v.h = hStart;
 			end
-		end
-	end
-	if not bFound then
-		local tokenCT = CombatManager.getTokenFromCT(nodeCT);
-		if tokenCT then
-			local tPosi = {};
-			local xStart, yStart = getTokenPosition(nodeCT);
-			local hStart = tokenCT.getHeight();
-			tPosi['x'] = xStart;
-			tPosi['y'] = yStart;
-			tPosi['h'] = hStart;
-			tPosi['nodeCT'] = nodeCT;
-			table.insert(tStartPosis, tPosi);
-		end
-	end
+	--	end
+	--end
+	--if not bFound then
+	--	local tokenCT = CombatManager.getTokenFromCT(nodeCT);
+	--	if tokenCT then
+	--		local tPosi = {};
+	--		local xStart, yStart = getTokenPosition(nodeCT);
+	--		local hStart = tokenCT.getHeight();
+	--		tPosi['x'] = xStart;
+	--		tPosi['y'] = yStart;
+	--		tPosi['h'] = hStart;
+	--		tPosi['nodeCT'] = nodeCT;
+	--		table.insert(tStartPosis, tPosi);
+	--	end
+	--end
 end

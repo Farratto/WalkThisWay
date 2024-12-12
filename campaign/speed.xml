@@ -24,11 +24,11 @@
 			<anchor_content_charsheethelper_top name="contentanchor" />
 			<anchor_content_charsheethelper_bottom />
 			<anchor_listitem_right name="rightanchor" />
-<!--
+
 			<sub_content_buttons_bottom name="sub_buttons">
 				<class>speed_buttons_bottom</class>
 			</sub_content_buttons_bottom>
--->
+
 			<area_content name="contentframe" />
 			<subwindow name="speedwindowcontent" >
 				<anchored to="contentframe" position="over" />
