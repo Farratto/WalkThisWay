@@ -152,7 +152,7 @@ function updateDistTraveled(nodeCT, nDist, bAdd, sSuffix)
 		return;
 	end
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	local nodeTraveled = DB.createChild(nodeCTWtW, 'traveled', 'string');
+	--local nodeTraveled = DB.createChild(nodeCTWtW, 'traveled', 'string');
 	local nodeTraveledRaw = DB.createChild(nodeCTWtW, 'traveled_raw', 'number');
 	local nTravelCurrent = DB.getValue(nodeTraveledRaw);
 	--local sTravelCurrent = DB.getValue(nodeTraveled);

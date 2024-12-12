@@ -207,7 +207,7 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 					rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
 				end
 				-- Handle conditionals
-				if _sBetterGoldPurity == 'gold' then --luacheck: ignore 113
+				if _sBetterGoldPurity == 'gold' and Session.RulesetName == "5E" then --luacheck: ignore 113
 					EffectManager5EBCE.processConditional(rActor, rTarget, v, rEffectComp, rConditionalHelper);
 					-- Check for match
 					if rConditionalHelper.bProcessEffect and rEffectComp.original:lower() == sLowerClause then
@@ -350,9 +350,9 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 				else
 					rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
 				end
-				local sOriginalLower = string.lower(rEffectComp.original);
 				-- Handle conditionals
-				if _sBetterGoldPurity == 'gold' then --luacheck: ignore 113
+				local sOriginalLower = string.lower(rEffectComp.original);
+				if _sBetterGoldPurity == 'gold' and Session.RulesetName == "5E" then --luacheck: ignore 113
 					EffectManager5EBCE.processConditional(rActor, rTarget, v, rEffectComp, rConditionalHelper);
 					-- Check for match
 					if rConditionalHelper.bProcessEffect and string.match(sOriginalLower, sLowerClause) then
@@ -391,7 +391,6 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 						end
 					end
 					-- Check for match
-					local sOriginalLower = string.lower(rEffectComp.original);
 					if string.match(sOriginalLower, sLowerClause) then
 						if bTargeted and not bIgnoreEffectTargets then
 							if EffectManager.isEffectTarget(v, rTarget) then
@@ -401,11 +400,13 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 									return true;
 								end
 							end
-						elseif not bTargetedOnly then
-							if bReturnLabel then
-								return true, sLabel
-							else
-								return true;
+						else
+							if not bTargetedOnly then
+								if bReturnLabel then
+									return true, sLabel
+								else
+									return true;
+								end
 							end
 						end
 					end
@@ -473,8 +474,8 @@ end
 ---For a given cohort actor, determine the root character node that owns it
 function getRootCommander(rActor)
 	if not rActor then
-		Debug.console("WtWCommon.getRootCommander - rActor doesn't exist")
-		return
+		Debug.console("WtWCommon.getRootCommander - rActor doesn't exist");
+		return;
 	end
 	local sRecord = ActorManager.getCreatureNodeName(rActor);
 	local sRecordSansModule = StringManager.split(sRecord, "@")[1];
@@ -489,11 +490,11 @@ end
 function getControllingClient(nodeCT)
 	if not nodeCT then
 		Debug.console("WtWCommon.getControllingClient - nodeCT doesn't exist");
-		return
+		return;
 	end
 	local sPCNode = nil;
 	local rActor = ActorManager.resolveActor(nodeCT);
-	local sNPCowner
+	local sNPCowner;
 	if ActorManager.isPC(rActor) then
 		sPCNode = ActorManager.getCreatureNodeName(rActor);
 	else
@@ -513,13 +514,13 @@ function getControllingClient(nodeCT)
 		for _, value in pairs(User.getAllActiveIdentities()) do
 			if sPCNode then
 				if "charsheet." .. value == sPCNode then
-					return User.getIdentityOwner(value)
+					return User.getIdentityOwner(value);
 				end
 			end
 			if sNPCowner then
 				local sIDOwner = User.getIdentityOwner(value)
 				if sIDOwner == sNPCowner then
-					return sIDOwner
+					return sIDOwner;
 				end
 			end
 		end
@@ -697,44 +698,44 @@ end
 function hasRoot(nodeCT)
 	if Session.RulesetName ~= "5E" then
 		if EffectManagerPFRPG2 then
-			if hasEffectClause(nodeCT, "Unconscious", nil, false, true) then
+			if hasEffectClause(nodeCT, "^Unconscious$", nil, false, true) then
 				return true, false, 'Unconscious';
-			elseif hasEffectClause(nodeCT, "Dead", nil, false, true) then
+			elseif hasEffectClause(nodeCT, "^Dead$", nil, false, true) then
 				return true, false, 'Dead';
-			elseif hasEffectClause(nodeCT, "Paralyzed", nil, false, true) then
+			elseif hasEffectClause(nodeCT, "^Paralyzed$", nil, false, true) then
 				return true, false, 'Paralyzed';
-			elseif hasEffectClause(nodeCT, "Dying", nil, false, true) then
+			elseif hasEffectClause(nodeCT, "^Dying$", nil, false, true) then
 				return true, false, 'Dying';
-			elseif hasEffectClause(nodeCT, "Immobilized", nil, false, true) then
+			elseif hasEffectClause(nodeCT, "^Immobilized$", nil, false, true) then
 				return true, false, 'Immobilized';
-			elseif hasEffectClause(nodeCT, "Petrified", nil, false, true) then
+			elseif hasEffectClause(nodeCT, "^Petrified$", nil, false, true) then
 				return true, false, 'Petrified';
-			elseif hasEffectClause(nodeCT, "Restrained", nil, false, true) then
+			elseif hasEffectClause(nodeCT, "^Restrained$", nil, false, true) then
 				return true, false, 'Restrained';
-			elseif hasEffectClause(nodeCT, "Grabbed", nil, false, true) then
+			elseif hasEffectClause(nodeCT, "^Grabbed$", nil, false, true) then
 				return true, false, 'Grabbed';
-			elseif hasEffectClause(nodeCT, "Stunned", nil, false, true) then
+			elseif hasEffectClause(nodeCT, "^Stunned$", nil, false, true) then
 				return true, false, 'Stunned';
 			else
-				local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
+				local bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*max%s*%(%s*0%s*%)$"
 					, nil, false, true, true
 				);
 				if bHas then
 					return true, false, WtWCommon.getEffectName(false, sLabel);
 				else
-					bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
+					bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*0%s*max$"
 						, nil, false, true, true
 					);
 					if bHas then
 						return true, false, WtWCommon.getEffectName(false, sLabel);
 					else
-						bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
+						bHas, sLabel = hasEffectClause(nodeCT, "^Speed%s*:%s*0$"
 							, nil, false, true, true
 						);
 						if bHas then
 							return true, false, WtWCommon.getEffectName(false, sLabel);
 						else
-							bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
+							bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*none$"
 								, nil, false, true, true
 							);
 							if bHas then
@@ -747,28 +748,28 @@ function hasRoot(nodeCT)
 				end
 			end
 		else
-			if hasEffectClause(nodeCT, "Unconscious", nil, false, true) then
+			if hasEffectClause(nodeCT, "^Unconscious$", nil, false, true) then
 				return true, false, 'Unconscious';
 			else
-				local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
+				local bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*max%s*%(%s*0%s*%)$"
 					, nil, false, true, true
 				);
 				if bHas then
 					return true, false, getEffectName(false, sLabel);
 				else
-					bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
+					bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*0%s*max$"
 						, nil, false, true, true
 					);
 					if bHas then
 						return true, false, getEffectName(false, sLabel);
 					else
-						bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
+						bHas, sLabel = hasEffectClause(nodeCT, "^Speed%s*:%s*0$"
 							, nil, false, true, true
 						);
 						if bHas then
 							return true, false, getEffectName(false, sLabel);
 						else
-							bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
+							bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*none$"
 								, nil, false, true, true
 							);
 							if bHas then
@@ -784,47 +785,47 @@ function hasRoot(nodeCT)
 	else
 		local bReturn;
 		local sEffectName;
-		if hasEffectClause(nodeCT, "Grappled", nil, false, true) then
+		if hasEffectClause(nodeCT, "^Grappled$", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'Grappled';
-		elseif hasEffectClause(nodeCT, "Paralyzed", nil, false, true) then
+		elseif hasEffectClause(nodeCT, "^Paralyzed$", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'Paralyzed';
-		elseif hasEffectClause(nodeCT, "Petrified", nil, false, true) then
+		elseif hasEffectClause(nodeCT, "^Petrified$", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'Petrified';
-		elseif hasEffectClause(nodeCT, "Restrained", nil, false, true) then
+		elseif hasEffectClause(nodeCT, "^Restrained$", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'Restrained';
-		elseif hasEffectClause(nodeCT, "Unconscious", nil, false, true) then
+		elseif hasEffectClause(nodeCT, "^Unconscious$", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'Unconscious';
-		elseif hasEffectClause(nodeCT, "DEATH", nil, false, true) then
+		elseif hasEffectClause(nodeCT, "^DEATH$", nil, false, true) then
 			bReturn = true;
 			sEffectName = 'DEATH';
 		else
-			local bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*max%s*%(%s*0%s*%)"
+			local bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*max%s*%(%s*0%s*%)$"
 				, nil, false, true, true
 			);
 			if bHas then
 				bReturn = true;
 				sEffectName = getEffectName(false, sLabel);
 			else
-				bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*0%s*max"
+				bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*0%s*max$"
 					, nil, false, true, true
 				);
 				if bHas then
 					bReturn = true;
 					sEffectName = getEffectName(false, sLabel);
 				else
-					bHas, sLabel = hasEffectClause(nodeCT, "Speed%s*:%s*0"
+					bHas, sLabel = hasEffectClause(nodeCT, "^Speed%s*:%s*0$"
 						, nil, false, true, true
 					);
 					if bHas then
 						bReturn = true;
 						sEffectName = getEffectName(false, sLabel);
 					else
-						bHas, sLabel = hasEffectClause(nodeCT, "SPEED%s*:%s*none"
+						bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*none$"
 							, nil, false, true, true
 						);
 						if bHas then

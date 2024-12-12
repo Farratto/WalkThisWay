@@ -354,7 +354,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	if not OptionsManager.isOption('WESC', 'off') then
 		tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
 		tAccomSpeed = accommKnownExtsSpeed(nodeCT);
-		bProne = WtWCommon.hasEffectClause(rActor, "Prone", nil, false, true)
+		bProne = WtWCommon.hasEffectClause(rActor, "^Prone$", nil, false, true)
 		if bProne then
 			nHalved = nHalved + 1
 			table.insert(tEffectNames, "Prone");
@@ -1230,23 +1230,23 @@ function accommKnownExtsSpeed(nodeCT)
 	local tEffectNames = {};
 	local bReturn = false;
 	if Session.RulesetName == "5E" then
-		if WtWCommon.hasEffectClause(nodeCT, 'Dash', nil, false, true) then
+		if WtWCommon.hasEffectClause(nodeCT, '^Dash$', nil, false, true) then
 			tReturn['nDoubled'] = 1
 			bReturn = true;
 			table.insert(tEffectNames, "Dash");
 		end
 		--encumbrance
-		if WtWCommon.hasEffectClause(nodeCT, "Exceeds Maximum Carrying Capacity", nil, false, true) then
+		if WtWCommon.hasEffectClause(nodeCT, "^Exceeds Maximum Carrying Capacity$", nil, false, true) then
 			tReturn['nSpeedMax'] = 5;
 			bReturn = true;
 			table.insert(tEffectNames, "Exceeds Maximum Carrying Capacity");
 		end
-		if WtWCommon.hasEffectClause(nodeCT, "Heavily Encumbered", nil, false, true) then
+		if WtWCommon.hasEffectClause(nodeCT, "^Heavily Encumbered$", nil, false, true) then
 			nSpeedMod = nSpeedMod - 20;
 			table.insert(tEffectNames, "Heavily Encumbered");
 		else
-			if WtWCommon.hasEffectClause(nodeCT, "Lightly Encumbered", nil, false, true) or
-				WtWCommon.hasEffectClause(nodeCT, "Encumbered", nil, false, true
+			if WtWCommon.hasEffectClause(nodeCT, "^Lightly Encumbered$", nil, false, true) or
+				WtWCommon.hasEffectClause(nodeCT, "^Encumbered$", nil, false, true
 			) then
 				nSpeedMod = nSpeedMod - 10;
 				table.insert(tEffectNames, "Lightly Encumbered");
@@ -1276,7 +1276,7 @@ function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
 		local sMatch = string.match(string.lower(nodeEffectLabel), '^%s*exhausted%s*;%s*');
 		if sMatch then
 			if string.match(nodeEffectLabel, "^Exhausted; Speed ") or string.match(
-				nodeEffectLabel, "^Exhausted; DEATH?")
+				nodeEffectLabel, "^Exhausted; DEATH$")
 			then nodeUbiquinated = nodeEffect end
 			return;
 		end
@@ -1397,10 +1397,6 @@ function openSpeedWindow(nodeCT)
 end
 
 function turnStartChecks(nodeCT)
-	if not Session.IsHost then
-		Debug.console('SpeedManager.turnStartchecks - not IsHost');
-		return;
-	end
 	local rSource = ActorManager.resolveActor(nodeCT);
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 
@@ -1419,22 +1415,6 @@ function turnStartChecks(nodeCT)
 				openSpeedWindow(nodeCT);
 			end
 		end
-	end
-
-	if OptionsManager.isOption('WTWON', 'off') then
-		return;
-	end
-	if not ProneManager.checkProne(rSource) then
-		return;
-	end
-	if sOwner then
-		ProneManager.queryClient(nodeCT)
-		return;
-	else
-		if rSource.sName then
-			ProneManager.setPQvalue(rSource.sName);
-		end
-		ProneManager.openProneWindow();
 	end
 end
 

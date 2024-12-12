@@ -1,7 +1,7 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
--- luacheck: globals clientGetOption checkProne checkHideousLaughter setPQvalue setOptions
+-- luacheck: globals clientGetOption checkProne checkHideousLaughter setPQvalue setOptions processTurnStart
 -- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild
 -- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery
 
@@ -15,6 +15,7 @@ function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSEQUERY, handleCloseProneQuery);
 
 	if Session.IsHost then
+		CombatManager.setCustomTurnStart(processTurnStart);
 		CombatManager.setCustomTurnEnd(closeAllProneWindows);
 	end
 end
@@ -69,6 +70,26 @@ function clientGetOption(sKey)
 	end
 end
 
+function processTurnStart(nodeCT)
+	local rSource = ActorManager.resolveActor(nodeCT);
+	local sOwner = WtWCommon.getControllingClient(nodeCT);
+
+	if OptionsManager.isOption('WTWON', 'off') then
+		return;
+	end
+	if not checkProne(rSource) then
+		return;
+	end
+	if sOwner then
+		queryClient(nodeCT)
+	else
+		if rSource.sName then
+			setPQvalue(rSource.sName);
+		end
+		openProneWindow();
+	end
+end
+
 function checkProne(nodeCT)
 	if OptionsManager.isOption('WTWON', 'off') then
 		return;
@@ -80,38 +101,38 @@ function checkProne(nodeCT)
 
 	if Session.RulesetName ~= "5E" then
 		if EffectManagerPFRPG2 then
-			if not WtWCommon.hasEffectClause(nodeCT, "Prone", nil, false, true) then
+			if not WtWCommon.hasEffectClause(nodeCT, "^Prone$", nil, false, true) then
 				return false;
 			elseif WtWCommon.hasRoot(nodeCT) then
 				return false;
 			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
 				return false;
-			elseif WtWCommon.hasEffectClause(nodeCT, "NOSTAND", nil, false, true) then
+			elseif WtWCommon.hasEffectClause(nodeCT, "^NOSTAND$", nil, false, true) then
 				return false;
 			else
 				return true;
 			end
 		else
-			if not WtWCommon.hasEffectClause(nodeCT, "Prone", nil, false, true) then
+			if not WtWCommon.hasEffectClause(nodeCT, "^Prone$", nil, false, true) then
 				return false;
 			elseif WtWCommon.hasRoot(nodeCT) then
 				return false;
 			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
 				return false;
-			elseif WtWCommon.hasEffectClause(nodeCT, "NOSTAND", nil, false, true) then
+			elseif WtWCommon.hasEffectClause(nodeCT, "^NOSTAND$", nil, false, true) then
 				return false;
 			else
 				return true;
 			end
 		end
 	else
-		if not WtWCommon.hasEffectClause(nodeCT, "Prone", nil, false, true) then
+		if not WtWCommon.hasEffectClause(nodeCT, "^Prone", nil, false, true) then
 			return false;
 			elseif WtWCommon.hasRoot(nodeCT) then
 				return false;
 		elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
 			return false;
-		elseif WtWCommon.hasEffectClause(nodeCT, "NOSTAND", nil, false, true) then
+		elseif WtWCommon.hasEffectClause(nodeCT, "^NOSTAND$", nil, false, true) then
 			return false;
 		elseif checkHideousLaughter(nodeCT) then
 			return false;
