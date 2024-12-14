@@ -544,7 +544,6 @@ function getEffectName(nodeEffect, sLabel)
 	return cleanString(aClauses[1]);
 end
 
---note: if using caseInsensitivity, use all uppercase for literal character matches.
 function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly, bCaseSensitive)
 	if not rActor then
 		Debug.console("WtWCommon.getEffectsByTypeWtW - not rActor");
@@ -585,7 +584,7 @@ function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly
 					if rConditionalHelper.bProcessEffect then
 						local comp_match = false;
 						-- Check for match
-						local sEffectCompUpper = string.upper(tostring(sEffectComp));
+						local sEffectCompLower = string.lower(tostring(sEffectComp));
 
 						local bPrelimMatch;
 						if bCaseSensitive then
@@ -593,7 +592,7 @@ function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly
 								bPrelimMatch = true;
 							end
 						else
-							if string.match(sEffectCompUpper, '^' .. sEffectType) then
+							if string.match(sEffectCompLower, '^' .. string.lower(sEffectType)) then
 								bPrelimMatch = true;
 							end
 						end

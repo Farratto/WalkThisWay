@@ -36,7 +36,7 @@ The speed effects that are recognized:
 | SPEED: halved | halves all speeds (after inc/dec); stackable |
 | SPEED: doubled | doubles all speeds (after inc/dec); stackable |
 
-Supports RAW encumbered (both standard and variant) and exhaustion rules. \
+Supports RAW encumbered (both standard and variant), exhaustion, and Dash rules. \
 Coming soon: reduces speed when wearing armor the character is not strong enough to wear.
 
 The extension updates all the speeds on the speed field in the combat tracker.  Character sheets still show base speed.  There is an optional window that shows all the speeds for a character and all the effects affecting their speed.You can have the window open automatically on your turn through an option setting.  Or you can open the window at any time by double-clicking the speed field on a character sheet or the combat tracker.
@@ -74,6 +74,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.2.8: Dash processing unintentionally homebrewed: Now uses RAW.
 * v2.2.7: Effect checking not specific enough: Fixed. Past update broke PFRPG2: Fixed.
 * v2.2.6: WtW interfering with disabling effects: Fixed.
 * v2.2.5: Rare bug with JackOfAllThings: Fixed.

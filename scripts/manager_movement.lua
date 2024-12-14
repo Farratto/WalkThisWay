@@ -17,7 +17,7 @@ function onInit()
 			end
 		end
 	end
-	Interface.addKeyedEventHandler("onHotkeyActivated", "traveleddistance", MovementManager.onHotKeyTravelDistance);
+	Interface.addKeyedEventHandler("onHotkeyActivated", "traveleddistance", onHotKeyTravelDistance);
 end
 function onClose()
 	if Session.IsHost then

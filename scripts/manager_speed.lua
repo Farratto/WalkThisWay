@@ -363,16 +363,14 @@ function speedCalculator(nodeCT, bCalledFromParse)
 
 	local nSpeedMod = 0;
 	local nSpeedMax = nil;
-	local nDoubled = 0;
+	local nDash = 0;
 	if tAccomSpeed then
-		if tAccomSpeed['nDoubled'] then
-			nDoubled = nDoubled + tonumber(tAccomSpeed['nDoubled'])
-		end
+		nDash = tAccomSpeed['nDash'];
 		if tAccomSpeed['nSpeedMax'] then
-			nSpeedMax = tonumber(tAccomSpeed['nSpeedMax'])
+			nSpeedMax = tonumber(tAccomSpeed['nSpeedMax']);
 		end
 		if tAccomSpeed['nSpeedMod'] then
-			nSpeedMod = nSpeedMod + tonumber(tAccomSpeed['nSpeedMod'])
+			nSpeedMod = nSpeedMod + tonumber(tAccomSpeed['nSpeedMod']);
 		end
 		if tAccomSpeed['tEffectNames'] then
 			for _,sEffectName in ipairs(tAccomSpeed['tEffectNames']) do
@@ -381,6 +379,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		end
 	end
 
+	local nDoubled = 0;
 	local bDifficult = false;
 	local tRebase = {};
 	local nRecheck;
@@ -817,7 +816,13 @@ function speedCalculator(nodeCT, bCalledFromParse)
 						nSpeedFinal = nSpeedMax;
 					end
 				end
-				tFGSpeedNew[k]['velocity'] = tostring(nSpeedFinal);
+				local nSpdFnlFnl = nSpeedFinal;
+				local nDashType = nDash;
+				while nDashType > 0 do
+					nSpdFnlFnl = nSpdFnlFnl + nSpeedFinal;
+					nDashType = nDashType - 1;
+				end
+				tFGSpeedNew[k]['velocity'] = tostring(nSpdFnlFnl);
 			end
 		end
 	end
@@ -1230,8 +1235,10 @@ function accommKnownExtsSpeed(nodeCT)
 	local tEffectNames = {};
 	local bReturn = false;
 	if Session.RulesetName == "5E" then
-		if WtWCommon.hasEffectClause(nodeCT, '^Dash$', nil, false, true) then
-			tReturn['nDoubled'] = 1
+		local aDashFx = WtWCommon.getEffectsByTypeWtW(nodeCT, 'Dash$');
+		tReturn['nDash'] = 0;
+		for _,_ in ipairs(aDashFx) do
+			tReturn['nDash'] = tReturn['nDash'] + 1
 			bReturn = true;
 			table.insert(tEffectNames, "Dash");
 		end
