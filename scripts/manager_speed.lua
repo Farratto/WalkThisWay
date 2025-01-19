@@ -149,10 +149,11 @@ function callSpeedCalcEffectDeleted(nodeEffects)
 end
 
 function getConversionFactor(sCurrentUnits, sDesiredUnits)
-	if not sCurrentUnits or not sDesiredUnits or sCurrentUnits == sDesiredUnits then
-		Debug.console('SpeedManager.getConversionFactor - Internal Syntax error.');
+	if not sCurrentUnits or not sDesiredUnits then
+		Debug.console('SpeedManager.getConversionFactor - not sCurrentUnits or not sDesiredUnits');
 		return 1;
 	end
+	if sCurrentUnits == sDesiredUnits then return 1 end
 	local nReturn;
 	if sCurrentUnits == 'ft.' then
 		if sDesiredUnits == 'm' then
@@ -338,7 +339,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			tSpdRcrd['type'] = 'Walk';
 		end
 		table.insert(tRoot, tSpdRcrd);
-		local bReturn = updateDisplaySpeed(nodeCT, tRoot, nBaseSpeed, false, sPref, tEffectNames);
+		local bReturn = updateDisplaySpeed(nodeCT, tRoot, nBaseSpeed, false, sPref, tEffectNames, 0);
 		return bReturn;
 	end
 
@@ -757,6 +758,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		end
 	end
 
+	local nHighest = 0;
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
 		local nFGSpeed = tSpdRcrd['velocity'];
 		local nFGSpeedNew = nFGSpeed;
@@ -825,9 +827,11 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				tFGSpeedNew[k]['velocity'] = tostring(nSpdFnlFnl);
 			end
 		end
+		local nVel = tonumber(tFGSpeedNew[k]['velocity']);
+		if nVel and nVel > nHighest then nHighest = nVel end
 	end
 
-	local bReturn = updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames);
+	local bReturn = updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest);
 	return bReturn;
 end
 -- luacheck: pop
@@ -891,7 +895,7 @@ function parseSpeedType(sType, tFGSpeedNew, bMatch)
 	return nFound, bExactMatch, sQualifier, sTypeFly, sTypeHover, sTypeSpider, bMatchSpider;
 end
 
-function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames)
+function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest)
 	if not Session.IsHost then
 		Debug.console("SpeedManager.updateDisplaySpeed - not isHost");
 		return;
@@ -988,6 +992,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 			end
 		end
 	end
+	DB.setValue(nodeCTWtW, 'highest', 'number', nHighest * nConvFactor);
 	sReturn = StringManager.strip(sReturn);
 	if sReturn and sReturn ~= '' then
 		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', sReturn);
@@ -1107,7 +1112,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 		for _,sSpdTypeSplit in ipairs(aSpdTypeSplit) do
 			local nodeSpeedRcrd = DB.createChild(nodeFGSpeed);
 			local sVelocity = string.match(sSpdTypeSplit, '%d+');
-			local sRemainder = string.gsub(sSpdTypeSplit, '%d+', '');
+			local sRemainder = string.gsub(sSpdTypeSplit, '%d+', '', 1);
 			local sType;
 			local bConverted = false;
 			local nConvFactor = 1;
@@ -1155,7 +1160,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 			sType = StringManager.capitalize(sType);
 			if sType == '' then sType = 'Walk' end
 			if bConverted then
-				local nVelocity = tonumber(sVelocity)
+				local nVelocity = tonumber(sVelocity);
 				if not nVelocity then
 					Debug.console('SpeedManager.parseBaseSpeed - parsing failed: not nVelocity');
 					break;
@@ -1288,9 +1293,9 @@ function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
 			return;
 		end
 	end
-	if (OptionsManager.isOption('VERBOSE_EXHAUSTION', "mnm") or OptionsManager.isOption('VERBOSE_EXHAUSTION',
-		"verbose")) and not OptionsManager.isOption("GAVE", "2024"
-	) then return end
+	--if (OptionsManager.isOption('VERBOSE_EXHAUSTION', "mnm") or OptionsManager.isOption('VERBOSE_EXHAUSTION',
+	--	"verbose")) and not OptionsManager.isOption("GAVE", "2024"
+	--) then return end
 
 	local sNewEffect;
 	local nSpeedAdjust;
@@ -1404,7 +1409,6 @@ function openSpeedWindow(nodeCT)
 end
 
 function turnStartChecks(nodeCT)
-	local rSource = ActorManager.resolveActor(nodeCT);
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 
 	if Session.RulesetName == "5E" then
@@ -1415,7 +1419,7 @@ function turnStartChecks(nodeCT)
 		if sOwner then
 			local msgOOB = {};
 			msgOOB.type = OOB_MSGTYPE_SPEEDWINDOW;
-			msgOOB.sCTNodeID = ActorManager.getCTNodeName(rSource);
+			msgOOB.sCTNodeID = DB.getPath(nodeCT);
 			Comm.deliverOOBMessage(msgOOB, sOwner);
 		else
 			if OptionsManager.isOption('AOSW', 'on') then

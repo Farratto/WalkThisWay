@@ -86,7 +86,8 @@ function processTurnStart(nodeCT)
 		if rSource.sName then
 			setPQvalue(rSource.sName);
 		end
-		openProneWindow();
+		local sNodeCT = DB.getPath(nodeCT);
+		openProneWindow(sNodeCT);
 	end
 end
 
@@ -224,71 +225,61 @@ function delWTWdataChild(sChildNode)
 end
 
 function closeAllProneWindows(nodeCT)
-	if not Session.IsHost then
-		Debug.console('ProneManager.closeAllProneWindows - not IsHost');
-		return;
-	end
-	closeProneWindow();
+	local sNodeCT = DB.getPath(nodeCT);
+	closeProneWindow(sNodeCT);
 	if WtWCommon.getControllingClient(nodeCT) then
 		sendCloseWindowCmd(nodeCT);
 	end
 end
 
-function openProneWindow()
+function openProneWindow(sNodeCT) --luacheck: ignore 212
 	if OptionsManager.isOption('WTWON', 'off') or OptionsManager.isOption('WTWONPLR', 'off') then
 		return;
 	end
 	if Session.IsHost and OptionsManager.isOption('WTWONDM', 'off') then
 		return;
 	end
-	local datasource = 'WalkThisWay';
-	if Session.RulesetName == '5E' then
-		Interface.openWindow('prone_query_small', datasource);
-	elseif Session.RulesetName == "PFRPG2" then
-		Interface.openWindow('prone_query_pfrpg2', datasource);
-	else
-		Interface.openWindow('prone_query_not5e', datasource);
-	end
+	Interface.openWindow('prone_query', 'WalkThisWay');
+	--Interface.openWindow('prone_query', sNodeCT);
 end
 
-function closeProneWindow()
-	local datasource = 'WalkThisWay';
-	local wChar = Interface.findWindow("prone_query_small", datasource);
-	local wCoreChar = Interface.findWindow("prone_query_not5e", datasource);
-	local wPFChar = Interface.findWindow("prone_query_pfrpg2", datasource);
-	if wChar then
-		wChar.close();
-	end
-	if wCoreChar then
-		wCoreChar.close();
-	end
-	if wPFChar then
-		wPFChar.close();
-	end
+function closeProneWindow(sNodeCT) --luacheck: ignore 212
+	local wProneQuery = Interface.findWindow('prone_query', 'WalkThisWay');
+	--local wProneQuery = Interface.findWindow('prone_query', sNodeCT;
+	if wProneQuery then wProneQuery.close() end
 	delWTWdataChild('proneQuery');
 end
 
 function standUp()
-	local rCurrent = ActorManager.resolveActor(CombatManager.getActiveCT());
-	local rSource = ActorManager.getCTNode(rCurrent);
-
+	local nodeActiveCT = CombatManager.getActiveCT();
 	local sStoodUp = 'Stood Up; SPEED: halved';
+	local sHoppedUp = 'Hopped up; SPEED: 5 dec';
 
-	WtWCommon.removeEffectClause(rSource, "Prone");
+	WtWCommon.removeEffectClause(nodeActiveCT, "Prone");
 	if Session.IsHost then
 		if Session.RulesetName == "5E" then
-			EffectManager.addEffect("", "", rSource, {
-				sName = sStoodUp, nDuration = 1, sChangeState = "rts" }, "");
+			if ActorManager5E.hasRollFeat2024(nodeActiveCT, 'Athlete') then
+				EffectManager.addEffect("", "", nodeActiveCT, {
+					sName = sHoppedUp, nDuration = 1, sChangeState = "rts" }, "");
+			else
+				EffectManager.addEffect("", "", nodeActiveCT, {
+					sName = sStoodUp, nDuration = 1, sChangeState = "rts" }, "");
+			end
 		else
-			EffectManager.addEffect("", "", rSource, {
+			EffectManager.addEffect("", "", nodeActiveCT, {
 				sName = 'Stood Up', nDuration = 1 }, "");
 		end
 	else
 		if Session.RulesetName == "5E" then
-			WtWCommon.notifyApplyHostCommands(rSource, 0, {
-				sName = sStoodUp, nDuration = 1, sChangeState = "rts" });
+			if ActorManager5E.hasRollFeat2024(nodeActiveCT, 'Athlete') then
+				WtWCommon.notifyApplyHostCommands(nodeActiveCT, 0, {
+					sName = sHoppedUp, nDuration = 1, sChangeState = "rts" });
+			else
+				WtWCommon.notifyApplyHostCommands(nodeActiveCT, 0, {
+					sName = sStoodUp, nDuration = 1, sChangeState = "rts" });
+			end
 		else
-			WtWCommon.notifyApplyHostCommands(rSource, 0, {
+			WtWCommon.notifyApplyHostCommands(nodeActiveCT, 0, {
 				sName = 'Stood Up', nDuration = 1, sChangeState = "rts" });
 		end
 	end
@@ -307,7 +298,7 @@ function queryClient(nodeCT)
 		end
 		local msgOOB = {};
 		msgOOB.type = OOB_MSGTYPE_PRONEQUERY;
-		msgOOB.sCTNodeID = ActorManager.getCTNodeName(rSource);
+		msgOOB.sCTNodeID = DB.getPath(nodeCT);
 		Comm.deliverOOBMessage(msgOOB, sOwner);
 	else
 		ChatManager.SystemMessage(Interface.getString("msg_NotConnected"));
@@ -323,19 +314,20 @@ function sendCloseWindowCmd(nodeCT)
 	if sOwner then
 		local msgOOB = {};
 		msgOOB.type = OOB_MSGTYPE_CLOSEQUERY;
-		msgOOB.sCTNodeID = nodeCT;
+		msgOOB.sCTNodeID = DB.getPath(nodeCT);
 		Comm.deliverOOBMessage(msgOOB, sOwner);
 	else
 		ChatManager.SystemMessage(Interface.getString("msg_NotConnected"));
 	end
 end
 
-function handleProneQueryClient()
+function handleProneQueryClient(msgOOB)
 	if OptionsManager.isOption('WTWON', 'off') then
 		return;
 	end
-	openProneWindow();
+	local nodeCT = DB.findNode(msgOOB.sCTNodeID);
+	openProneWindow(nodeCT);
 end
-function handleCloseProneQuery()
-	closeProneWindow();
+function handleCloseProneQuery(msgOOB)
+	closeProneWindow(msgOOB.sCTNodeID);
 end

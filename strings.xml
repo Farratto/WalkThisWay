@@ -10,6 +10,7 @@
 	<string name="query_msg_2">Would you like to expend half your speed in movement to stand up?</string>
 	<string name="query_msg_pfrpg2">Would you like to expend an action to stand up?</string>
 	<string name="query_msg_nocost">Would you like to stand up?</string>
+	<string name="query_msg_athlete">Would you like expend 5 feet of movement to hop up?</string>
 	<string name="speed_title">Current Speed</string>
 	<string name="header_traveled">Distance Traveled This Turn</string>
 	<string name="map_units">map units</string>
@@ -24,6 +25,7 @@
 	<string name="option_WtW_On">Enable Prone Reminder Window funcationality</string>
 	<string name="option_label_WESC">Enable SPEED effect calculations</string>
 	<string name="option_label_move_on">Enable movement tracking</string>
+	<string name="option_label_enforce_move">Enforce movement limitations</string>
 	<string name="option_WtW_Allow_Player_Choice">Allow players to turn prone reminder windows on or off (requires restart)</string>
 	<string name="option_WtW_On_Player_Choice">Reminder window to stand when you are prone</string>
 	<string name="option_WtW_On_DM_Choice">Prone reminder windows for characters not owned by players</string>
@@ -31,6 +33,7 @@
 	<string name="option_label_DDLU">Units for displaying Speed</string>
 	<string name="option_label_ADEC">Automatically kill character that reaches 6 stacks of exhaustion</string>
 	<string name="option_label_DDCU">Distance units used in spell effects (only change if you know what you're doing)</string>
+	<string name="option_label_animated_move">Animated movement indicator</string>
 	<string name="option_val_meters">Meters</string>
 	<string name="option_val_tiles">Tiles</string>
 	<string name="option_val_feet">Feet</string>

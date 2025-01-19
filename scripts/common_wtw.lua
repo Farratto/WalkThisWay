@@ -5,6 +5,7 @@
 -- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 -- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
 -- luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly
+-- luacheck: globals convNumToIdNodeName
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 local _sBetterGoldPurity = '';
@@ -25,19 +26,19 @@ local aEffectVarMap = {
 
 function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
+end
 
+function onTabletopInit()
 	if EffectManager5EBCE then
-		_sBetterGoldPurity = checkBetterGoldPurity(); --luacheck: ignore 111
-	end
-
-	if Session.IsHost then
-		tExtensions = Extension.getExtensions(); --luacheck: ignore 111
+		_sBetterGoldPurity = checkBetterGoldPurity();
 	end
 end
 
 -- Matches on the filname/foldername or on the name defined in the extension.xml
 function hasExtension(sExtName)
-	for _,sExtension in ipairs(tExtensions) do --luacheck: ignore 113
+	if not tExtensions[1] then tExtensions = Extension.getExtensions() end
+	if not sExtName then return end
+	for _,sExtension in ipairs(tExtensions) do
 		if sExtension == sExtName then
 			return true;
 		end
@@ -1072,3 +1073,32 @@ function getEffectsBonusByTypeLightly(rActor, aEffectType, bAddEmptyBonus, aFilt
 	return results, nEffectCount;
 end
 -- luacheck: pop
+
+function convNumToIdNodeName(nId)
+	if not nId then
+		Debug.console("WtWCommon.convNumToIdNodeName - not nId");
+		return;
+	end
+	if not string.match(tostring(nId), '^id%-%d%d%d%d%d$') then
+		nId = tonumber(nId);
+		if not nId or nId < 1 or math.floor(nId) ~= nId then
+			Debug.console("MovementManager.convNumToIdNodeName - not nId or nId < 1 or math.floor(nId) ~= nId")
+			return;
+		end
+		nId = tostring(nId);
+		local nZeros = 5 - #nId;
+		local sId = 'id-'
+		while nZeros > 0 do
+			sId = sId..'0'
+		end
+		return sId..nId;
+	else
+		local sReturn = string.match(nId, '%d+');
+		local nReturn = tonumber(sReturn);
+		if not nReturn then
+			Debug.console("WtWCommon.convNumToIdNodeName - not nReturn");
+		else
+			return nReturn;
+		end
+	end
+end

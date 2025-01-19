@@ -4,6 +4,38 @@
 	attribution and copyright information.
 -->
 <root version="3.0">
+	<windowclass name="prone_query">
+		<frame>utilitybox</frame>
+		<placement>
+			<size width="330" height="220" />
+		</placement>
+		<minimize>minimized_WtW</minimize>
+		<sizelimits >
+			<maximum width="450" height="300" />
+			<minimum width="263" height="175" />
+			<dynamic />
+		</sizelimits>
+		<sheetdata>
+			<windowtitlebar_utilitybox name="title">
+				<field>name</field>
+				<prefix>prone_title</prefix>
+			</windowtitlebar_utilitybox>
+			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
+			<anchor_content_utilitybox_top />
+			<anchor_content_utilitybox_bottom />
+			<sub_content_buttons_bottom name="sub_buttons">
+				<class>prone_query_bottom</class>
+			</sub_content_buttons_bottom>
+			<area_content_framed_groupbox name="contentframe" />
+			<subwindow name="pronequerymsg">
+				<anchored to="contentframe" position="over" />
+				<class>prone_query_msg_new</class>
+				<activate />
+			</subwindow>
+			<resize_utilitybox />
+		</sheetdata>
+	</windowclass>
+
 	<windowclass name="prone_query_small">
 		<frame>utilitybox</frame>
 		<placement>
@@ -36,6 +68,16 @@
 		</sheetdata>
 	</windowclass>
 
+	<windowclass name="prone_query_athlete" copy="prone_query_small">
+		<sheetdata>
+			<subwindow name="pronequerymsg" merge="replace">
+				<anchored to="contentframe" position="over" />
+				<class>prone_query_msg_athlete</class>
+				<activate />
+			</subwindow>
+		</sheetdata>
+	</windowclass>
+
 	<windowclass name="prone_query_not5e" copy="prone_query_small">
 		<sheetdata>
 			<subwindow name="pronequerymsg" merge="replace">
@@ -60,7 +102,7 @@
 		<sheetdata>
 			<anchor_content_top />
 			<button_deny name="deny" />
-			<button_affirm name="affirm" />
+			<button_stand name="stand" />
 		</sheetdata>
 	</windowclass>
 
@@ -76,6 +118,36 @@
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<static textres="query_msg_2" />
+			</stringc_content_noframe_noscroll_static_top>
+		</sheetdata>
+	</windowclass>
+	<windowclass name="prone_query_msg_new">
+		<sheetdata>
+			<anchor_content_top />
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<font>reference-page-header</font>
+				<static textres="query_msg_1" />
+			</stringc_content_noframe_noscroll_static_top>
+			<spacer_content_top />
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<static textres="query_msg_2" />
+				<script>
+					function onInit()
+						if Session.RulesetName == '5E' then
+							local nodeCT = CombatManager.getActiveCT();
+							--local nodeCT = window.getDatabaseNode();
+							if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
+								setValue(Interface.getString('query_msg_athlete'));
+							end
+						elseif Session.RulesetName == "PFRPG2" then
+							setValue(Interface.getString('query_msg_pfrpg2'));
+						else
+							setValue(Interface.getString('query_msg_nocost'));
+						end
+					end
+				</script>
 			</stringc_content_noframe_noscroll_static_top>
 		</sheetdata>
 	</windowclass>
@@ -112,13 +184,38 @@
 		</sheetdata>
 	</windowclass>
 
-	<template name="button_affirm">
+	<windowclass name="prone_query_msg_athlete">
+		<sheetdata>
+			<anchor_content_top />
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<font>reference-page-header</font>
+				<static textres="query_msg_1" />
+			</stringc_content_noframe_noscroll_static_top>
+			<spacer_content_top />
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<static textres="query_msg_athlete" />
+			</stringc_content_noframe_noscroll_static_top>
+		</sheetdata>
+	</windowclass>
+
+	<template name="button_stand">
 		<button_boolean>
 			<anchored>
 				<left anchor="center" offset="15" />
 			</anchored>
 			<text>Stand Up</text>
 			<script>
+				function onInit()
+					if Session.RulesetName == "5E" then
+						local nodeCT = CombatManager.getActiveCT();
+						--local nodeCT = window.getDatabaseNode();
+						if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
+							setText('Hop Up', 'Hop Up');
+						end
+					end
+				end
 				function onButtonPress()
 					ProneManager.standUp();
 					ProneManager.closeProneWindow();

@@ -143,7 +143,7 @@
 			<anchored>
 				<right anchor="center" offset="-15" />
 			</anchored>
-			<text>Reset</text>
+			<text>Undo Last Step</text>
 			<script>
 				function onInit()
 					update();
@@ -154,9 +154,9 @@
 				function onButtonPress()
 					local nodeCT = DB.getParent(window.getDatabaseNode());
 					--MovementManager.setStartPosi(nodeCT);
-					MovementManager.updateDistTraveled(nodeCT, 0, false);
-					local rActor = ActorManager.resolveActor(nodeCT);
-					ActorManager5E.getDamageResistances(rActor, rActor);
+					--MovementManager.updateDistTraveled(nodeCT, 0, false);
+					MovementManager.undoLastStep(nodeCT);
+					return true;
 				end
 			</script>
 			<invisible />

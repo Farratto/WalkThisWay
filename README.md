@@ -7,13 +7,13 @@ This extension provides a small popup window at the start of a person's turn tha
 ### Installation
 
 Install from the [Fantasy Grounds Forge](https://forge.fantasygrounds.com/shop/items/1940/view). \
-You can find the source code at Farratto's [GitHub](https://github.com/Farratto/WalkThisWay/releases). \
+You can find the source code at Farratto's [GitHub](https://github.com/Farratto/WalkThisWay). \
 You can ask questions at the [Fantasy Grounds Forum](https://www.fantasygrounds.com/forums/showthread.php?82914-Walk-this-Way-for-5e). \
 Video explaining how to use at [YouTube](https://youtu.be/FmA9JoUoXps).
 
 ### Details
 
-The prone checker will also check for any conditions that dissalow a creature to stand up.  If it finds one, it will not ask the player if they want to stand up.  The following conditions are currently supported.
+The prone checker will also check for any conditions that disallow a creature to stand up.  If it finds one, it will not ask the player if they want to stand up.  The following conditions are currently supported.
 
 * Grappled; Paralyzed; Petrified; Restrained; Unconscious; Tasha's Hideous Laughter; Unable to Stand; SPEED: none; NOSTAND; SPEED: max(0)
 
@@ -36,7 +36,7 @@ The speed effects that are recognized:
 | SPEED: halved | halves all speeds (after inc/dec); stackable |
 | SPEED: doubled | doubles all speeds (after inc/dec); stackable |
 
-Supports RAW encumbered (both standard and variant), exhaustion, and Dash rules. \
+Supports RAW encumbered (both standard and variant), exhaustion, Dash, and 2024 Athlete Feat rules. \
 Coming soon: reduces speed when wearing armor the character is not strong enough to wear.
 
 The extension updates all the speeds on the speed field in the combat tracker.  Character sheets still show base speed.  There is an optional window that shows all the speeds for a character and all the effects affecting their speed.You can have the window open automatically on your turn through an option setting.  Or you can open the window at any time by double-clicking the speed field on a character sheet or the combat tracker.
@@ -74,6 +74,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.2.9: Support for Athlete Feat. Improved Speed field interpretation.
 * v2.2.8: Dash processing unintentionally homebrewed: Now uses RAW.
 * v2.2.7: Effect checking not specific enough: Fixed. Past update broke PFRPG2: Fixed.
 * v2.2.6: WtW interfering with disabling effects: Fixed.
