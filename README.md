@@ -74,6 +74,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.3.0: Rare error window when mistyping SPEED effect. FIXED
 * v2.2.9: Support for Athlete Feat. Improved Speed field interpretation.
 * v2.2.8: Dash processing unintentionally homebrewed: Now uses RAW.
 * v2.2.7: Effect checking not specific enough: Fixed. Past update broke PFRPG2: Fixed.

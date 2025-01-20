@@ -689,9 +689,11 @@ function speedCalculator(nodeCT, bCalledFromParse)
 					end
 				end
 			else
-				nSpeedMod = nSpeedMod + nMod;
-				nMod = nil;
-				table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+				if nMod then
+					nSpeedMod = nSpeedMod + nMod;
+					nMod = nil;
+					table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+				end
 			end
 		end
 		if StringManager.startsWith(sRmndrLower, 'dec') then
