@@ -28,8 +28,8 @@ function onInit()
 			EffectManager.registerEffectCompType("SPEED", { bIgnoreTarget = true, bNoDUSE = true,
 				bIgnoreOtherFilter = true, bIgnoreExpire = true
 			});
-				--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE bIgnoreTarget
-				--continued: bSpell bOneShot bIgnoreExpire
+				--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE
+				--continued: bSpell bOneShot bIgnoreExpire bIgnoreTarget
 			DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
 			DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
 			DB.addHandler('combattracker.list.*.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
@@ -76,7 +76,7 @@ function onClose()
 			--DB.removeHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			OptionsManager.unregisterCallback('DDCU', reparseAllBaseSpeeds);
 			OptionsManager.unregisterCallback('WESC', recalcAllSpeeds);
-			CombatRecordManager.onRecordTypeEvent = fonRecordTypeEvent; --luacheck: ignore 113
+			CombatRecordManager.onRecordTypeEvent = fonRecordTypeEvent;
 		end
 		OptionsManager.unregisterCallback('DDLU', handlePrefChange);
 	end
@@ -112,7 +112,7 @@ function setOptions()
 end
 
 function onRecordTypeEventWtW(sRecordType, tCustom)
-	fonRecordTypeEvent(sRecordType, tCustom); --luacheck: ignore 212 113
+	fonRecordTypeEvent(sRecordType, tCustom);
 	if Session.IsHost then
 		parseBaseSpeed(tCustom.nodeCT, true);
 	end
@@ -288,14 +288,14 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
 	if not nodeFGSpeed then
 		if bCalledFromParse then
-			Debug.console("SpeedManager.speedCalculator - Parsing base speed failed.");
+			Debug.console("SpeedManager.speedCalculator - bCalledFromParse");
 			return;
 		else
 			parseBaseSpeed(nodeCT, false);
 		end
 		nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
 		if not nodeFGSpeed then
-			Debug.console("SpeedManager.speedCalculator - Parsing base speed failed.");
+			Debug.console("SpeedManager.speedCalculator - not nodeFGSpeed");
 			return;
 		end
 	end
@@ -1020,9 +1020,9 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		nBonusSpeed = nCurrentSpeed - nBaseSpeed
 		DB.setValue(nodeCharWtW, 'bonus', 'number', nBonusSpeed);
 		DB.setValue(nodeCharWtW, 'currentspeed', 'number', nCurrentSpeed);
-		if ActorManager.isPC(rActor) then
-			DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
-		end
+		--if ActorManager.isPC(rActor) then
+		--	DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
+		--end
 		return true;
 	else
 		Debug.console("SpeedManager.updateDisplaySpeed - no sReturn");
@@ -1060,7 +1060,6 @@ function reparseBaseSpeed(nodeSpeed, nodeCT)
 	end
 
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	--DB.setPublic(nodeCTWtW, true);
 	local nodeHover = DB.getChild(nodeCTWtW, 'hover');
 	if nodeHover then DB.deleteNode(nodeHover) end
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
@@ -1069,24 +1068,32 @@ function reparseBaseSpeed(nodeSpeed, nodeCT)
 end
 
 function parseBaseSpeed(nodeCT, bCalc)
-	if not nodeCT then
-		Debug.console("SpeedManager.parseBaseSpeed - not nodeCT");
-		return;
-	end
-	if not Session.IsHost then
-		Debug.console("SpeedManager.parseBaseSpeed - not host");
+	if not nodeCT or not Session.IsHost then
+		Debug.console("SpeedManager.parseBaseSpeed - not nodeCT or not host");
 		return;
 	end
 
-	local sFGSpeed = DB.getValue(nodeCT, 'speed')
-	if not sFGSpeed then
-		Debug.console("SpeedManager.parseBaseSpeed - no base speed found");
-		sFGSpeed = '30 ft.'
+	local sFGSpeed = DB.getValue(nodeCT, 'speed', '0')
+	local bNoBaseSpeed;
+	if sFGSpeed == '0' then
+		bNoBaseSpeed = true;
+		--sFGSpeed = '30 ft.'
 	end
 
 	if ActorManager.isPC(nodeCT) then
 		local nodeChar = ActorManager.getCreatureNode(nodeCT);
 		local nodeSpeed = DB.getChild(nodeChar, 'speed');
+		if bNoBaseSpeed then
+			Debug.console("SpeedManager.setCharSheetSpeed - bNoBaseSpeed");
+			local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
+			local nCharWtWSpeedBase = DB.getValue(nodeCharWtW, 'base', 0);
+			if nCharWtWSpeedBase == 0 then setCharSheetSpeed(nil, nodeChar, nodeSpeed) end
+			local nCharWtWSpeedBase = DB.getValue(nodeCharWtW, 'base', 0);
+			if nCharWtWSpeedBase == 0 then
+				Debug.console("SpeedManager.parseBaseSpeed - nCharWtWSpeedBase is still 0, defaulting to 30 ft");
+				sFGSpeed = '30 ft.';
+			end
+		end
 		local nodeFGSpeedSpecial = DB.getValue(nodeSpeed, 'special');
 		if nodeFGSpeedSpecial and nodeFGSpeedSpecial ~= '' then
 			sFGSpeed = sFGSpeed .. '; ' .. nodeFGSpeedSpecial;
@@ -1102,11 +1109,12 @@ function parseBaseSpeed(nodeCT, bCalc)
 		end
 	end
 
-	local bReturn;
+	--local bReturn;
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
 	if not nodeFGSpeed then
 		nodeFGSpeed = DB.createChild(nodeCTWtW, 'FGSpeed');
-		local aSpdTypeSplit,_ = StringManager.split(sFGSpeed, ',;', true)
+		--local aSpdTypeSplit,_ = StringManager.split(sFGSpeed, ',;', true)
+		local aSpdTypeSplit = StringManager.split(sFGSpeed, ',;', true)
 		local sFinalUnits = '';
 		local sLngthUnits = '';
 		local sStripPattern = '';
@@ -1174,12 +1182,12 @@ function parseBaseSpeed(nodeCT, bCalc)
 			DB.setValue(nodeSpeedRcrd, 'type', 'string', sType);
 		end
 		DB.setValue(nodeCTWtW, 'units', 'string', sFinalUnits);
-		bReturn = true;
+		--bReturn = true;
 	end
 	if not DB.getValue(nodeCTWtW, 'currentSpeed') or bCalc then
 		speedCalculator(nodeCT, true);
 	end
-	return bReturn;
+	--return bReturn;
 end
 
 function setAllCharSheetSpeeds()
@@ -1193,31 +1201,26 @@ function setAllCharSheetSpeeds()
 		setCharSheetSpeed(nil, nodeChar);
 	end
 end
-function setCharSheetSpeed(nodeUpdated, nodeChar)
-	if not Session.IsHost then
-		Debug.console("SpeedManager.setCharSheetSpeed - not host");
-		return;
-	end
-	if not nodeUpdated and not nodeChar then
-		Debug.console("SpeedManager.setCharSheetSpeed - not nodeUpdated and not nodeChar");
+function setCharSheetSpeed(nodeUpdated, nodeChar, nodeSpeed)
+	if (not nodeUpdated and not nodeChar) or not Session.IsHost then
+		Debug.console("SpeedManager.setCharSheetSpeed - not host or (not nodeUpdated and not nodeChar)");
 		return;
 	end
 
-	local nodeSpeed;
 	if not nodeChar then
-		nodeSpeed = DB.getParent(nodeUpdated);
+		if not nodeSpeed then nodeSpeed = DB.getParent(nodeUpdated) end
 		nodeChar = DB.getParent(nodeSpeed);
 	end
 	if not nodeSpeed then nodeSpeed = DB.getChild(nodeChar, 'speed') end
-	local nTotalSpeed = DB.getValue(nodeSpeed, 'total');
+	local nTotalSpeed = DB.getValue(nodeSpeed, 'total', 0);
 	local nBaseSpeed;
 	local nSpeedSet;
 
-	if (not nTotalSpeed) or (nTotalSpeed == 0) then
-		nBaseSpeed = DB.getValue(nodeSpeed, 'base');
-		if (not nBaseSpeed) or (nBaseSpeed == 0) then
+	if nTotalSpeed == 0 then
+		nBaseSpeed = DB.getValue(nodeSpeed, 'base', 0);
+		if nBaseSpeed == 0 then
 			nSpeedSet = 30;
-			Debug.console("SpeedManager.setCharSheetSpeed - not nBaseSpeed or nBaseSpeed is 0");
+			Debug.console("SpeedManager.setCharSheetSpeed - nTotalSpeed and nBaseSpeed are 0");
 		else
 			nSpeedSet = nBaseSpeed;
 		end
@@ -1226,13 +1229,9 @@ function setCharSheetSpeed(nodeUpdated, nodeChar)
 	end
 
 	local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
-	local nBaseWtW = DB.getValue(nodeCharWtW, 'base');
-	if (not nBaseWtW) or (nBaseWtW == 0) then
+	local nBaseWtW = DB.getValue(nodeCharWtW, 'base', 0);
+	if nBaseWtW == 0 or nBaseWtW ~= nSpeedSet then
 		DB.setValue(nodeCharWtW, 'base', 'number', nSpeedSet);
-	else
-		if nBaseWtW ~= nSpeedSet then
-			DB.setValue(nodeCharWtW, 'base', 'number', nSpeedSet);
-		end
 	end
 end
 
@@ -1295,9 +1294,6 @@ function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
 			return;
 		end
 	end
-	--if (OptionsManager.isOption('VERBOSE_EXHAUSTION', "mnm") or OptionsManager.isOption('VERBOSE_EXHAUSTION',
-	--	"verbose")) and not OptionsManager.isOption("GAVE", "2024"
-	--) then return end
 
 	local sNewEffect;
 	local nSpeedAdjust;

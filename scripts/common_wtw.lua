@@ -1081,8 +1081,10 @@ function convNumToIdNodeName(nId)
 	end
 	if not string.match(tostring(nId), '^id%-%d%d%d%d%d$') then
 		nId = tonumber(nId);
-		if not nId or nId < 1 or math.floor(nId) ~= nId then
-			Debug.console("MovementManager.convNumToIdNodeName - not nId or nId < 1 or math.floor(nId) ~= nId")
+		--if not nId or nId < 1 or math.floor(nId) ~= nId then
+		if not nId then
+			--Debug.console("MovementManager.convNumToIdNodeName - not nId or nId < 1 or math.floor(nId) ~= nId")
+			Debug.console("MovementManager.convNumToIdNodeName - not nId")
 			return;
 		end
 		nId = tostring(nId);
@@ -1090,6 +1092,7 @@ function convNumToIdNodeName(nId)
 		local sId = 'id-'
 		while nZeros > 0 do
 			sId = sId..'0'
+			nZeros = nZeros - 1;
 		end
 		return sId..nId;
 	else

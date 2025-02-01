@@ -124,7 +124,7 @@
 					setVisible(OptionsManager.isOption('move_on', "on"));
 				end
 				function onButtonPress()
-					MovementManager.processTravelDist(nodeCT);
+					MovementManager.processTravelDist(nodeCT, true);
 				end
 				function onDragStart(button, x, y, draginfo)
 					local sName = DB.getValue(nodeCT, 'name', '');
@@ -206,33 +206,9 @@
 	<!-- Character Sheet Mods -->
 	<windowclass name="charsheet_sensescombat" merge="join">
 		<sheetdata>
-			<number_charspeed name="speed" source="WalkThisWay.base">
-				<script>
-					local nodeW;
-					function onInit()
-						nodeW = window.getDatabaseNode();
-						local nodeCT = ActorManager.getCTNode(nodeW);
-						if not nodeCT then setTooltipText("") end
-					end
-					function onHover(state)
-						if state then
-							local nodeCT = ActorManager.getCTNode(nodeW);
-							if nodeCT then
-								setTooltipText(Interface.getString("tooltip_dclick_swindow"))
-							else
-								setTooltipText("");
-							end
-						end
-					end
-					function onDoubleClick()
-						local nodeCT = ActorManager.getCTNode(nodeW);
-						if nodeCT then
-							local wSpeed = SpeedManager.openSpeedWindow(nodeCT);
-						end
-						return true;
-					end
-				</script>
-				<tooltip textres="tooltip_dclick_swindow" />
+			<number_charspeed_wtw name="speed_WtW" source="WalkThisWay.base" />
+			<number_charspeed name="speed" source="speed.total" merge="join">
+				<invisible />
 			</number_charspeed>
 		</sheetdata>
 	</windowclass>
@@ -368,5 +344,47 @@
 				end
 			</script>
 		</stringcontrol>
+	</template>
+	<template name="number_charspeed_wtw">
+<!--		<number_chartotal> -->
+		<number_charspeed>
+			<anchored to="initiative" position="righthigh" offset="20,0" width="40" height="30" />
+			<script>
+				local nodeW;
+				function onInit()
+					nodeW = window.getDatabaseNode();
+					local nodeCT = ActorManager.getCTNode(nodeW);
+					if not nodeCT then setTooltipText("") end
+				end
+				function onHover(state)
+					if state then
+						local nodeCT = ActorManager.getCTNode(nodeW);
+						if nodeCT then
+							setTooltipText(Interface.getString("tooltip_dclick_swindow"))
+						else
+							setTooltipText("");
+						end
+					end
+				end
+				function onDoubleClick()
+					local nodeCT = ActorManager.getCTNode(nodeW);
+					if nodeCT then
+						local wSpeed = SpeedManager.openSpeedWindow(nodeCT);
+					end
+					return true;
+				end
+			</script>
+<!--
+			<font>reference-b-large</font>
+			<modifierfield>speed.temporary</modifierfield>
+			<modifiersize>mini</modifiersize>
+			<description textres="char_tooltip_speed" />
+			<tooltip textres="tooltip_dclick_swindow" />
+-->
+			<source name="speed.base" merge="delete" />
+			<source name="speed.armor" merge="delete" />
+			<source name="speed.misc" merge="delete" />
+		</number_charspeed>
+<!--		</number_chartotal> -->
 	</template>
 </root>
