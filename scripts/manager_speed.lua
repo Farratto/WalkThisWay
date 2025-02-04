@@ -1069,6 +1069,7 @@ end
 
 function parseBaseSpeed(nodeCT, bCalc)
 	if not nodeCT or not Session.IsHost then
+		Debug.printstack();
 		Debug.console("SpeedManager.parseBaseSpeed - not nodeCT or not host");
 		return;
 	end

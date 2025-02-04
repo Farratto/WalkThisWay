@@ -5,10 +5,11 @@
 -- luacheck: globals updateSpeedWindows updateOptionChange handleNewMap onHotKeyTravelDistance processTravelDist
 -- luacheck: globals deleteTempTokens processTempTokens prepAsset addLayer deleteLayer getHighestSpeed
 -- luacheck: globals returnTokenToLKGStep undoLastStep onMoveMM addStep fonMove enforceMove fonWheelHeightHelper
--- luacheck: globals onWheelHeightHelperMM _bSettingToken
+-- luacheck: globals onWheelHeightHelperMM _bSettingToken freplaceCombatantToken replaceCombatantTokenMM
 
 fonMove = '';
 fonWheelHeightHelper = '';
+freplaceCombatantToken = '';
 local _bSettingToken;
 
 function onInit()
@@ -23,11 +24,13 @@ function onInit()
 		OptionsManager.registerCallback('move_on', updateOptionChange);
 		if OptionsManager.isOption('move_on', 'on') then
 			CombatManager.setCustomTurnStart(processTurnStart);
-			DB.addHandler('combattracker.list.*.tokenrefnode', 'onUpdate', handleNewMap);
+			--DB.addHandler('combattracker.list.*.tokenrefnode', 'onUpdate', handleNewMap);
 		end
 	end
 	fonMove = Token.onMove;
 	Token.onMove = onMoveMM;
+	freplaceCombatantToken = CombatManager.replaceCombatantToken;
+	CombatManager.replaceCombatantToken = replaceCombatantTokenMM;
 	fonWheelHeightHelper = TokenManager.onWheelHeightHelper; --client
 	TokenManager.onWheelHeightHelper = onWheelHeightHelperMM; --client
 	Interface.addKeyedEventHandler("onHotkeyActivated", "traveleddistance", onHotKeyTravelDistance); --client
@@ -37,7 +40,7 @@ function onClose()
 		if Session.RulesetName == "5E" then
 			OptionsManager.unregisterCallback('move_on', updateSpeedWindows);
 			if OptionsManager.isOption('move_on', 'on') then
-				DB.removeHandler('combattracker.list.*.tokenrefnode', 'onUpdate', handleNewMap);
+				--DB.removeHandler('combattracker.list.*.tokenrefnode', 'onUpdate', handleNewMap);
 			end
 		end
 	end
@@ -46,9 +49,9 @@ end
 function updateOptionChange() --client
 	if OptionsManager.isOption('move_on', 'on') then
 		CombatManager.setCustomTurnStart(processTurnStart);
-		DB.addHandler('combattracker.list.*.tokenrefnode', 'onUpdate', handleNewMap);
+		--DB.addHandler('combattracker.list.*.tokenrefnode', 'onUpdate', handleNewMap);
 	else
-		DB.removeHandler('combattracker.list.*.tokenrefnode', 'onUpdate', handleNewMap);
+		--DB.removeHandler('combattracker.list.*.tokenrefnode', 'onUpdate', handleNewMap);
 	end
 	updateSpeedWindows();
 end
@@ -63,11 +66,23 @@ function updateSpeedWindows() --client
 	end
 end
 
-function handleNewMap(tokenrefnode)
-	local nodeCT = DB.getParent(tokenrefnode);
-	local tokenCT = CombatManager.getTokenFromCT(nodeCT);
-	if tokenCT then
-		--local sContainerCurrent = DB.getPath(tokenCT.getContainerNode());
+function replaceCombatantTokenMM(nodeCT, newTokenInstance)
+	freplaceCombatantToken(nodeCT, newTokenInstance);
+
+end
+function handleNewMap(nodeCT, newTokenInstance)
+	if not nodeCT or not Session.IsHost then
+		Debug.console("MovementManager.handleNewMap - not nodeCT or not Session.IsHost");
+		return;
+	end
+	if not newTokenInstance then newTokenInstance = CombatManager.getTokenFromCT(nodeCT) end
+	if not newTokenInstance then
+		Debug.console("MovementManager.handleNewMap - not newTokenInstance");
+		return;
+	end
+	--local tokenCT = CombatManager.getTokenFromCT(nodeCT);
+	--if tokenCT then
+		local sContainerCurrent = DB.getPath(newTokenInstance.getContainerNode());
 		local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 		local tSteps = DB.getChildren(nodeCTWtW, 'steps');
 		local nStep = -1;
@@ -79,19 +94,24 @@ function handleNewMap(tokenrefnode)
 				nStep = nStepCurrent;
 			end
 		end
-		if tokenrefnode ~= sContainerLK then
-			processTravelDist(nodeCT, true, tokenCT, true);
+		--if tokenrefnode ~= sContainerLK then
+		if sContainerCurrent ~= sContainerLK then
+			--processTravelDist(nodeCT, true, tokenCT, true);
+			processTravelDist(nodeCT, true, newTokenInstance, true);
 			if not nStep then
 				Debug.console("MovementManager.handleNewMap - not nStep");
 				nStep = 0;
 			end
-			local xStart, yStart = tokenCT.getPosition();
-			local hStart = tokenCT.getHeight();
-			updateDistTraveled(nodeCT, 0, nil, xStart, yStart, tokenCT, hStart, nil, nStep, nil, nil, true);
+			--local xStart, yStart = tokenCT.getPosition();
+			--local hStart = tokenCT.getHeight();
+			local xStart, yStart = newTokenInstance.getPosition();
+			local hStart = newTokenInstance.getHeight();
+			--updateDistTraveled(nodeCT, 0, nil, xStart, yStart, tokenCT, hStart, nil, nStep, nil, nil, true);
+			updateDistTraveled(nodeCT,0,nil,xStart,yStart,newTokenInstance,hStart,nil,nStep,nil,nil,true);
 		end
-	else
-		Debug.console("MovementManager.handleNewMap - not tokenCT");
-	end
+	--else
+	--	Debug.console("MovementManager.handleNewMap - not tokenCT");
+	--end
 end
 
 --called by hitting button, step 1
@@ -486,14 +506,14 @@ function deleteTempTokens(nodeCT)
 		local sContainer = DB.getValue(nodeTempToken, 'sContainer');
 		if sContainer then
 			deleteLayer(sContainer, nil, 'Arrow Layer');
-			local nId = DB.getValue(nodeTempToken, 'nId', '');
-			if nId then nId = tonumber(nId) end
+			local nId = DB.getValue(nodeTempToken, 'nId');
 			if nId then
 				local nodeToken = Token.getToken(sContainer, nId);
 				if nodeToken then
 					nodeToken.delete();
 				else
 					Debug.console("MovementManager.deleteTempTokens - not nodeToken");
+					Debug.console("sContainer = "..sContainer..". nId = "..tostring(nId));
 				end
 			end
 		end

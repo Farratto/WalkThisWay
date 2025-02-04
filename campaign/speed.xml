@@ -210,6 +210,10 @@
 			<number_charspeed name="speed" source="speed.total" merge="join">
 				<invisible />
 			</number_charspeed>
+			<label_charfieldtop>
+				<anchored to="speed_WtW" offset="0,15" />
+				<static textres="char_label_speed" />
+			</label_charfieldtop>
 		</sheetdata>
 	</windowclass>
 	<windowclass name="npc_combat_top_2024" merge="join">

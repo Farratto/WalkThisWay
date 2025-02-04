@@ -74,6 +74,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.3.2: Speed label not displaying on PC main tab. FIXED
 * v2.3.1: Sometimes reporting incorrect speed on player character sheets: FIXED
 * v2.3.0: Rare error window when mistyping SPEED effect. FIXED
 * v2.2.9: Support for Athlete Feat. Improved Speed field interpretation.
