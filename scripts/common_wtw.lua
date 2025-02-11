@@ -5,7 +5,7 @@
 -- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 -- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
 -- luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly
--- luacheck: globals convNumToIdNodeName
+-- luacheck: globals convNumToIdNodeName roundNumber
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 local _sBetterGoldPurity = '';
@@ -1081,9 +1081,7 @@ function convNumToIdNodeName(nId)
 	end
 	if not string.match(tostring(nId), '^id%-%d%d%d%d%d$') then
 		nId = tonumber(nId);
-		--if not nId or nId < 1 or math.floor(nId) ~= nId then
 		if not nId then
-			--Debug.console("MovementManager.convNumToIdNodeName - not nId or nId < 1 or math.floor(nId) ~= nId")
 			Debug.console("MovementManager.convNumToIdNodeName - not nId")
 			return;
 		end
@@ -1104,4 +1102,22 @@ function convNumToIdNodeName(nId)
 			return nReturn;
 		end
 	end
+end
+
+function roundNumber(nInput)
+	--accommidation for negative numbers
+	local nMultiplier = 1;
+	if nInput < 0 then
+		nMultiplier = -1;
+		nInput = nMultiplier * nInput;
+	end
+
+	local nWhole = math.floor(nInput);
+	local nDec = nInput - nWhole;
+
+	if nDec >= 0.5 then
+		return nMultiplier * (nWhole + 1);
+	end
+
+	return nMultiplier * nWhole;
 end

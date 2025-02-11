@@ -206,10 +206,38 @@
 	<!-- Character Sheet Mods -->
 	<windowclass name="charsheet_sensescombat" merge="join">
 		<sheetdata>
-			<number_charspeed_wtw name="speed_WtW" source="WalkThisWay.base" />
+			<number_charspeed_wtw name="speed_WtW" source="WalkThisWay.base" >
+				<script>
+					function onInit()
+						if WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
+							setVisible(false);
+							setEnabled(false);
+						end
+					end
+				</script>
+			</number_charspeed_wtw>
 			<number_charspeed name="speed" source="speed.total" merge="join">
-				<invisible />
+<!--				<invisible /> -->
+				<script>
+					function onInit()
+						if not WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
+							setVisible(false);
+						end
+					end
+				</script>
 			</number_charspeed>
+			<label_charfieldtop>
+				<anchored to="speed_WtW" offset="0,15" />
+				<static textres="char_label_speed" />
+				<script>
+					function onInit()
+						if WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
+							setVisible(false);
+							setEnabled(false);
+						end
+					end
+				</script>
+			</label_charfieldtop>
 		</sheetdata>
 	</windowclass>
 	<windowclass name="npc_combat_top_2024" merge="join">
@@ -337,10 +365,10 @@
 			<invisible/>
 			<script merge="replace">
 				function onInit()
-					setVisible(false)
+					setVisible(false);
 				end
 				function refresh()
-					setVisible(false)
+					setVisible(false);
 				end
 			</script>
 		</stringcontrol>

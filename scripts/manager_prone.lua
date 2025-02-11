@@ -239,7 +239,8 @@ function openProneWindow(sNodeCT) --luacheck: ignore 212
 	if Session.IsHost and OptionsManager.isOption('WTWONDM', 'off') then
 		return;
 	end
-	Interface.openWindow('prone_query', 'WalkThisWay');
+	local wProneQuery = Interface.openWindow('prone_query', 'WalkThisWay');
+	if wProneQuery then wProneQuery.bringToFront() end
 	--Interface.openWindow('prone_query', sNodeCT);
 end
 

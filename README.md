@@ -45,6 +45,8 @@ Option setting (for GM and players) to change the units that speed is displayed 
 
 Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted
 
+Note: Known limitation with Mad Nomad's Character Sheet Tweaks: Changed units will not display on player character sheets (but still works on CT, speed windows, and NPCs)
+
 ### Other Rulesets
 
 This extension was designed with 5e in mind, but I have ported it to work on most (all?) rulesets.
@@ -74,6 +76,8 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.3.3: Negative Interaction with MNM CharSheet Tweaks. FIXED
+* v2.3.2: Speed label not displaying on PC main tab. FIXED
 * v2.3.1: Sometimes reporting incorrect speed on player character sheets: FIXED
 * v2.3.0: Rare error window when mistyping SPEED effect. FIXED
 * v2.2.9: Support for Athlete Feat. Improved Speed field interpretation.

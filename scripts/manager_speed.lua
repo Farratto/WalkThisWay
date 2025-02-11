@@ -366,7 +366,9 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	local nSpeedMax = nil;
 	local nDash = 0;
 	if tAccomSpeed then
-		nDash = tAccomSpeed['nDash'];
+		if tAccomSpeed['nDash'] then
+			nDash = tAccomSpeed['nDash'];
+		end
 		if tAccomSpeed['nSpeedMax'] then
 			nSpeedMax = tonumber(tAccomSpeed['nSpeedMax']);
 		end
@@ -1069,6 +1071,7 @@ end
 
 function parseBaseSpeed(nodeCT, bCalc)
 	if not nodeCT or not Session.IsHost then
+		Debug.printstack();
 		Debug.console("SpeedManager.parseBaseSpeed - not nodeCT or not host");
 		return;
 	end
@@ -1398,11 +1401,12 @@ function openSpeedWindow(nodeCT)
 		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nFGSpeed));
 	end
 
-	local wSpeed = Interface.findWindow('speed_window', nodeCTWtW);
+	--local wSpeed = Interface.findWindow('speed_window', nodeCTWtW);
+	local wSpeed = Interface.openWindow('speed_window', nodeCTWtW);
 	if wSpeed then
 		wSpeed.bringToFront();
-	else
-		Interface.openWindow('speed_window', nodeCTWtW);
+	--else
+	--	Interface.openWindow('speed_window', nodeCTWtW);
 	end
 end
 
