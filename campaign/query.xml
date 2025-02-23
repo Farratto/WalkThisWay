@@ -20,7 +20,7 @@
 				<field>name</field>
 				<prefix>prone_title</prefix>
 			</windowtitlebar_utilitybox>
-			<windowmenubar_utilitybox name="windowmenubar_utilitybox" />
+			<windowmenubar_utilitybox_basic name="windowmenubar_utilitybox" />
 			<anchor_content_utilitybox_top />
 			<anchor_content_utilitybox_bottom />
 			<sub_content_buttons_bottom name="sub_buttons">
@@ -36,6 +36,51 @@
 		</sheetdata>
 	</windowclass>
 
+	<template name="windowmenubar_utilitybox_basic">
+		<windowmenubar_basic>
+			<anchored offset="-7,7" />
+		</windowmenubar_basic>
+	</template>
+	<template name="windowmenubar_basic">
+		<windowmenubar>
+			<class>windowmenubar_basic</class>
+		</windowmenubar>
+	</template>
+	<windowclass name="windowmenubar_basic" copy="windowmenubar">
+		<script>
+			function onInit()
+				local wTop = UtilityManager.getTopWindow(self);
+
+				-- LEFT MENU BUTTONS
+				local tLeftButtons = {};
+				if not wTop.windowmenu or not wTop.windowmenu[1].nolink then
+					table.insert(tLeftButtons, "link");
+				end
+				if #tLeftButtons > 0 then
+					table.insert(tLeftButtons, "");
+				end
+				ToolbarManager.addList(self, tLeftButtons, "left");
+
+				-- RIGHT MENU BUTTONS
+				local tRightButtons = {};
+				if wTop and not wTop.noclose then
+					table.insert(tRightButtons, "close");
+				end
+				if wTop and wTop.isMinimizeable() then
+					table.insert(tRightButtons, "minimize");
+				end
+				if wTop and wTop.helplinkres or wTop.helplink or self.getWindowMenuHelpLink then
+					table.insert(tRightButtons, "help");
+				end
+				if #tRightButtons > 0 then
+					table.insert(tRightButtons, "");
+				end
+				ToolbarManager.addList(self, tRightButtons, "right");
+			end
+		</script>
+	</windowclass>
+
+<!--
 	<windowclass name="prone_query_small">
 		<frame>utilitybox</frame>
 		<placement>
@@ -98,14 +143,6 @@
 		</sheetdata>
 	</windowclass>
 
-	<windowclass name="prone_query_bottom">
-		<sheetdata>
-			<anchor_content_top />
-			<button_deny name="deny" />
-			<button_stand name="stand" />
-		</sheetdata>
-	</windowclass>
-
 	<windowclass name="prone_query_msg">
 		<sheetdata>
 			<anchor_content_top />
@@ -118,36 +155,6 @@
 			<stringc_content_noframe_noscroll_static_top>
 				<center />
 				<static textres="query_msg_2" />
-			</stringc_content_noframe_noscroll_static_top>
-		</sheetdata>
-	</windowclass>
-	<windowclass name="prone_query_msg_new">
-		<sheetdata>
-			<anchor_content_top />
-			<stringc_content_noframe_noscroll_static_top>
-				<center />
-				<font>reference-page-header</font>
-				<static textres="query_msg_1" />
-			</stringc_content_noframe_noscroll_static_top>
-			<spacer_content_top />
-			<stringc_content_noframe_noscroll_static_top>
-				<center />
-				<static textres="query_msg_2" />
-				<script>
-					function onInit()
-						if Session.RulesetName == '5E' then
-							local nodeCT = CombatManager.getActiveCT();
-							--local nodeCT = window.getDatabaseNode();
-							if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
-								setValue(Interface.getString('query_msg_athlete'));
-							end
-						elseif Session.RulesetName == "PFRPG2" then
-							setValue(Interface.getString('query_msg_pfrpg2'));
-						else
-							setValue(Interface.getString('query_msg_nocost'));
-						end
-					end
-				</script>
 			</stringc_content_noframe_noscroll_static_top>
 		</sheetdata>
 	</windowclass>
@@ -199,6 +206,53 @@
 			</stringc_content_noframe_noscroll_static_top>
 		</sheetdata>
 	</windowclass>
+-->
+
+	<windowclass name="prone_query_msg_new">
+		<sheetdata>
+			<anchor_content_top />
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<font>reference-page-header</font>
+				<static textres="query_msg_1" />
+			</stringc_content_noframe_noscroll_static_top>
+			<spacer_content_top />
+			<stringc_content_noframe_noscroll_static_top>
+				<center />
+				<static textres="query_msg_2" />
+				<script>
+					function onInit()
+						if Session.RulesetName == '5E' then
+							--local nodeCT = CombatManager.getActiveCT();
+							local nodeCT = window.getDatabaseNode();
+							if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
+								setValue(Interface.getString('query_msg_athlete'));
+							end
+						elseif Session.RulesetName == "PFRPG2" then
+							setValue(Interface.getString('query_msg_pfrpg2'));
+						else
+							setValue(Interface.getString('query_msg_nocost'));
+						end
+					end
+				</script>
+			</stringc_content_noframe_noscroll_static_top>
+			<buttoncontrol name="prone_icon">
+				<anchored width="40" height="40" >
+					<right anchor="center" offset="20" />
+					<bottom />
+				</anchored>
+				<icon normal="prone_arrow" />
+			</buttoncontrol>
+		</sheetdata>
+	</windowclass>
+
+	<windowclass name="prone_query_bottom">
+		<sheetdata>
+			<anchor_content_top />
+			<button_deny name="deny" />
+			<button_stand name="stand" />
+		</sheetdata>
+	</windowclass>
 
 	<template name="button_stand">
 		<button_boolean>
@@ -209,16 +263,17 @@
 			<script>
 				function onInit()
 					if Session.RulesetName == "5E" then
-						local nodeCT = CombatManager.getActiveCT();
-						--local nodeCT = window.getDatabaseNode();
+						--local nodeCT = CombatManager.getActiveCT();
+						local nodeCT = window.getDatabaseNode();
 						if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
 							setText('Hop Up', 'Hop Up');
 						end
 					end
 				end
 				function onButtonPress()
-					ProneManager.standUp();
-					ProneManager.closeProneWindow();
+					local nodeCT = window.getDatabaseNode();
+					ProneManager.standUp(nodeCT);
+					ProneManager.closeProneWindow(nodeCT);
 				end
 			</script>
 		</button_boolean>
@@ -232,7 +287,8 @@
 			<text>Stay Prone</text>
 			<script>
 				function onButtonPress()
-					ProneManager.closeProneWindow();
+					local nodeCT = window.getDatabaseNode();
+					ProneManager.closeProneWindow(nodeCT);
 				end
 			</script>
 		</button_boolean>

@@ -24,7 +24,7 @@
 	<string name="option_header_WtW">Walk this Way (GM)</string>
 	<string name="option_WtW_On">Enable Prone Reminder Window funcationality</string>
 	<string name="option_label_WESC">Enable SPEED effect calculations</string>
-	<string name="option_label_move_on">Enable movement tracking</string>
+	<string name="option_label_move_on">Enable movement manager - Dev Testing</string>
 	<string name="option_label_enforce_move">Enforce movement limitations</string>
 	<string name="option_label_live_move">Live movement tracking (laggy)</string>
 	<string name="option_label_difficult_move">Difficult terrain tracking</string>

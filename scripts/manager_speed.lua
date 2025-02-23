@@ -88,7 +88,6 @@ function setOptions()
 	--Old 4th = ("option_label_" .. sKey)
 	if Session.IsHost then
 		if Session.RulesetName == "5E" then
-			OptionsManager.registerOptionData({	sKey = 'WESC', sGroupRes = 'option_header_WtW', tCustom = { default = "on" } });
 			OptionsManager.registerOptionData({	sKey = 'DDCU', sGroupRes = "option_header_WtW",
 				tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
 					baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
@@ -107,6 +106,7 @@ function setOptions()
 	});
 
 	if Session.RulesetName == "5E" then
+		OptionsManager.registerOptionData({	sKey = 'WESC', sGroupRes = 'option_header_WtW', tCustom = { default = "on" } });
 		OptionsManager.registerCallback('DDLU', handlePrefChange);
 	end
 end
@@ -390,13 +390,10 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	local tBannedTypes = {};
 	local tModdedTypes = {};
 	for _,v in ipairs(tSpeedEffects) do
-		--WtW parsing
 		local sRemainder;
 		local bRecognizedRmndr = false;
 		local sSpdMatch = string.match(v.original, '^[Ss][Pp][Ee][Ee][Dd]%s*:%s*');
 		local sMinusSpeed = string.gsub(v.original, sSpdMatch, '');
-		--local sVClauseLower = string.lower(v.original);
-		--local sMinusSpeed = sVClauseLower:gsub('^speed%s-:%s*', '');
 		local sMod = string.match(sMinusSpeed, '^%S+');
 		local nMod = nil;
 		if DiceManager.isDiceString(sMod) then
@@ -900,20 +897,8 @@ function parseSpeedType(sType, tFGSpeedNew, bMatch)
 end
 
 function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest)
-	if not Session.IsHost then
-		Debug.console("SpeedManager.updateDisplaySpeed - not isHost");
-		return;
-	end
-	if not nodeCT then
-		Debug.console("SpeedManager.updateDisplaySpeed - not nodeCT");
-		return;
-	end
-	if not tFGSpeedNew then
-		Debug.console("SpeedManager.updateDisplaySpeed - not tFGSpeedNew");
-		return;
-	end
-	if not nBaseSpeed then
-		Debug.console("SpeedManager.updateDisplaySpeed - not nBaseSpeed");
+	if not Session.IsHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed then
+		Debug.console("SpeedManager.updateDisplaySpeed - not isHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed");
 		return;
 	end
 
@@ -938,6 +923,8 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 	local sReturn = '';
 	local nBonusSpeed;
 	local nCurrentSpeed = nBaseSpeed;
+	local sMarker = '';
+	if tEffectNames[1] then sMarker = '*' end
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
 		tSpdRcrd.velocity = tSpdRcrd.velocity * nConvFactor
 		if sUnitsPrefer == 'ft.' then
@@ -967,15 +954,15 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 			local sQualifier = string.match(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$');
 			if sQualifier then
 				if k == 1 then
-					sReturn = sVelWithUnits .. ' ' .. sQualifier
+					sReturn = sVelWithUnits .. ' ' .. sQualifier;
 				else
-					sReturn = sVelWithUnits .. ' ' .. sQualifier .. ', ' .. sReturn
+					sReturn = sVelWithUnits .. ' ' .. sQualifier .. ', ' .. sReturn;
 				end
 			else
 				if k == 1 then
-					sReturn = sVelWithUnits
+					sReturn = sVelWithUnits;
 				else
-					sReturn = sVelWithUnits .. ', ' .. sReturn
+					sReturn = sVelWithUnits .. ', ' .. sReturn;
 				end
 			end
 		else
@@ -983,20 +970,21 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 			if sQualifier then
 				local sTypeSansQual = string.gsub(tSpdRcrd.type, '%s*%(%s*%S*%s*%)%s*$', '');
 				if k == 1 then
-					sReturn = sTypeSansQual .. ' ' .. sVelWithUnits .. ' ' .. sQualifier
+					sReturn = sTypeSansQual .. ' ' .. sVelWithUnits .. ' ' .. sQualifier;
 				else
-					sReturn = sReturn .. ', ' .. sTypeSansQual .. ' ' .. sVelWithUnits .. ' ' .. sQualifier
+					sReturn = sReturn ..', '..sTypeSansQual..' '..sVelWithUnits..' '..sQualifier;
 				end
 			else
 				if k == 1 then
-					sReturn = tSpdRcrd.type .. ' ' .. sVelWithUnits
+					sReturn = tSpdRcrd.type .. ' ' .. sVelWithUnits;
 				else
-					sReturn = sReturn .. ', ' .. tSpdRcrd.type .. ' ' .. sVelWithUnits
+					sReturn = sReturn .. ', ' .. tSpdRcrd.type .. ' ' .. sVelWithUnits;
 				end
 			end
 		end
 	end
 	DB.setValue(nodeCTWtW, 'highest', 'number', nHighest * nConvFactor);
+	sReturn = sReturn .. sMarker;
 	sReturn = StringManager.strip(sReturn);
 	if sReturn and sReturn ~= '' then
 		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', sReturn);
@@ -1022,9 +1010,6 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		nBonusSpeed = nCurrentSpeed - nBaseSpeed
 		DB.setValue(nodeCharWtW, 'bonus', 'number', nBonusSpeed);
 		DB.setValue(nodeCharWtW, 'currentspeed', 'number', nCurrentSpeed);
-		--if ActorManager.isPC(rActor) then
-		--	DB.setValue(nodeCharWtW, 'base', 'number', nBaseSpeed);
-		--end
 		return true;
 	else
 		Debug.console("SpeedManager.updateDisplaySpeed - no sReturn");
@@ -1116,7 +1101,6 @@ function parseBaseSpeed(nodeCT, bCalc)
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
 	if not nodeFGSpeed then
 		nodeFGSpeed = DB.createChild(nodeCTWtW, 'FGSpeed');
-		--local aSpdTypeSplit,_ = StringManager.split(sFGSpeed, ',;', true)
 		local aSpdTypeSplit = StringManager.split(sFGSpeed, ',;', true)
 		local sFinalUnits = '';
 		local sLngthUnits = '';
@@ -1351,7 +1335,7 @@ function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
 				end
 			end
 		else
-			EffectManager.addEffect("", "", nodeCT, { sName = sNewEffect }, bShowMsg);
+			EffectManager.addEffect("", "", nodeCT, { sName = sNewEffect, nDuration = 0 }, bShowMsg);
 		end
 	end
 end

@@ -43,7 +43,7 @@ The extension updates all the speeds on the speed field in the combat tracker.  
 
 Option setting (for GM and players) to change the units that speed is displayed in.  Current choices are feet, meters, and tiles.  Automatically rounds final speed down to nearest half tile.  Another option for the GM to change the units that spell effect speeds work with.
 
-Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted
+Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted, Temporal Fixation
 
 Note: Known limitation with Mad Nomad's Character Sheet Tweaks: Changed units will not display on player character sheets (but still works on CT, speed windows, and NPCs)
 
@@ -76,6 +76,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.3.4: FIXED: several minor bugs. Shout out to RocketVaultGames for constant vigilence!
 * v2.3.3: Negative Interaction with MNM CharSheet Tweaks. FIXED
 * v2.3.2: Speed label not displaying on PC main tab. FIXED
 * v2.3.1: Sometimes reporting incorrect speed on player character sheets: FIXED

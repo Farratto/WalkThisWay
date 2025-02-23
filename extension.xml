@@ -24,6 +24,7 @@
 -->
 		<icon name="WtW_icon" file="graphics/shoe.webp" />
 		<icon name="minimized_WtW" file="graphics/minimized_WtW.webp" />
+		<icon name="prone_arrow" file="graphics/prone_arrow.webp" />
 		<framedef name="leathergreen">
 			<bitmap file="graphics/headerpoweratwill.webp" />
 				<!-- L/T/R/B -->

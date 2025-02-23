@@ -1,12 +1,14 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
--- luacheck: globals clientGetOption checkProne checkHideousLaughter setPQvalue setOptions processTurnStart
+-- luacheck: globals clientGetOption checkProne checkHideousLaughter setOptions processTurnStart
 -- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild
 -- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery
 
 OOB_MSGTYPE_PRONEQUERY = "pronequery";
 OOB_MSGTYPE_CLOSEQUERY = "closequery";
+
+local nMoved = 0;
 
 function onInit()
 	setOptions();
@@ -24,25 +26,23 @@ function setOptions()
 -- DEFAULT BEHAVIORS FOR OPTIONS: sType = "option_entry_cycler", on|off, default = off
 --Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client"
 	--Old 4th = ("option_label_" .. sKey)
-	if Session.IsHost then
-		if Session.RulesetName == "5E" then
-			OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
-										'option_entry_cycler', {
-				labels = 'option_val_off',
-				values = 'off',
-				baselabel = 'option_val_on',
-				baseval = 'on',
-				default = 'on'
-			});
-		end
-		OptionsManager.registerOption2('APCW', false, 'option_header_WtW', 'option_WtW_Allow_Player_Choice', 'option_entry_cycler', {
-			labels = 'option_val_on',
-			values = 'on',
-			baselabel = 'option_val_off',
-			baseval = 'off',
-			default = 'off'
+	if Session.RulesetName == "5E" then
+		OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
+									'option_entry_cycler', {
+			labels = 'option_val_off',
+			values = 'off',
+			baselabel = 'option_val_on',
+			baseval = 'on',
+			default = 'on'
 		});
 	end
+	OptionsManager.registerOption2('APCW', false, 'option_header_WtW', 'option_WtW_Allow_Player_Choice', 'option_entry_cycler', {
+		labels = 'option_val_on',
+		values = 'on',
+		baselabel = 'option_val_off',
+		baseval = 'off',
+		default = 'off'
+	});
 	if clientGetOption('APCW') == "on" then
 		OptionsManager.registerOption2('WTWONPLR', true, "option_header_client", 'option_WtW_On_Player_Choice',
 									   'option_entry_cycler', {
@@ -71,21 +71,16 @@ function clientGetOption(sKey)
 end
 
 function processTurnStart(nodeCT)
-	local rSource = ActorManager.resolveActor(nodeCT);
-	local sOwner = WtWCommon.getControllingClient(nodeCT);
-
 	if OptionsManager.isOption('WTWON', 'off') then
 		return;
 	end
-	if not checkProne(rSource) then
+	if not checkProne(nodeCT) then
 		return;
 	end
+	local sOwner = WtWCommon.getControllingClient(nodeCT);
 	if sOwner then
-		queryClient(nodeCT)
+		queryClient(nodeCT, sOwner)
 	else
-		if rSource.sName then
-			setPQvalue(rSource.sName);
-		end
 		local sNodeCT = DB.getPath(nodeCT);
 		openProneWindow(sNodeCT);
 	end
@@ -202,16 +197,6 @@ function checkHideousLaughter(rActor)
 	return false;
 end
 
-function setPQvalue(sName)
-	local nodeWTW = DB.createNode('WalkThisWay');
-	if Session.IsHost then DB.setPublic(nodeWTW, true) end
-	local nodeNameField = DB.getChild(nodeWTW, 'name');
-	if not nodeNameField then
-		DB.createChild(nodeWTW, 'proneQuery', 'string');
-	end
-	DB.setValue(nodeWTW, 'name', 'string', sName);
-end
-
 function delWTWdataChild(sChildNode)
 	local nodeWTW = DB.findNode('WalkThisWay');
 	if not nodeWTW then
@@ -225,78 +210,156 @@ function delWTWdataChild(sChildNode)
 end
 
 function closeAllProneWindows(nodeCT)
-	local sNodeCT = DB.getPath(nodeCT);
-	closeProneWindow(sNodeCT);
-	if WtWCommon.getControllingClient(nodeCT) then
-		sendCloseWindowCmd(nodeCT);
+	local sOwner = WtWCommon.getControllingClient(nodeCT);
+	if sOwner then
+		sendCloseWindowCmd(nodeCT, sOwner);
+	else
+		closeProneWindow(nodeCT);
 	end
 end
 
-function openProneWindow(sNodeCT) --luacheck: ignore 212
+-- luacheck: push ignore 561
+function openProneWindow(nodeCT)
 	if OptionsManager.isOption('WTWON', 'off') or OptionsManager.isOption('WTWONPLR', 'off') then
 		return;
 	end
 	if Session.IsHost and OptionsManager.isOption('WTWONDM', 'off') then
 		return;
 	end
-	local wProneQuery = Interface.openWindow('prone_query', 'WalkThisWay');
+	local wProneQuery = Interface.openWindow('prone_query', DB.getPath(nodeCT));
 	if wProneQuery then wProneQuery.bringToFront() end
-	--Interface.openWindow('prone_query', sNodeCT);
+	local tWindowsQuery = Interface.getWindows('prone_query');
+	if tWindowsQuery[6] then
+		local x = -75;
+		local y = -75;
+		for _,w in pairs(tWindowsQuery) do
+			x = x + 75;
+			y = y + 75;
+			w.setPosition(x, y);
+		end
+	elseif tWindowsQuery[2] then
+		local nWidth1, nHeight1, w1, w2, w3, w4, w5;
+		local tDimensions = {};
+		for k,w in pairs(tWindowsQuery) do
+			if not nWidth1 then
+				nWidth1, nHeight1 = w.getSize();
+				local x, y = w.getPosition();
+				w1 = w;
+				local aDimension = {};
+				aDimension['x'] = x;
+				aDimension['y'] = y;
+				table.insert(tDimensions, aDimension);
+			else
+				local x, y = w.getPosition();
+				local aDimension = {};
+				aDimension['x'] = x;
+				aDimension['y'] = y;
+				table.insert(tDimensions, aDimension);
+			end
+			if not w2 and k == 2 then w2 = w end
+			if not w3 and k == 3 then w3 = w end
+			if not w4 and k == 4 then w4 = w end
+			if not w5 and k == 5 then w5 = w end
+		end
+		for k,v in ipairs(tDimensions) do
+			local x = v.x;
+			local y = v.y;
+			for key,value in ipairs(tDimensions) do
+				if key ~= k then
+					local exe = value.x;
+					local why = value.y;
+					if exe == x and why == y then
+						nMoved = nMoved + 1;
+						if nMoved == 1 then
+							local win;
+							if key == 1 then win = w1 end
+							if key == 2 then win = w2 end
+							if key == 3 then win = w3 end
+							if key == 4 then win = w4 end
+							if key == 5 then win = w5 end
+							win.setPosition(x - nWidth1, y);
+						elseif nMoved == 2 then
+							local win;
+							if key == 1 then win = w1 end
+							if key == 2 then win = w2 end
+							if key == 3 then win = w3 end
+							if key == 4 then win = w4 end
+							if key == 5 then win = w5 end
+							win.setPosition(x + nWidth1, y);
+						elseif nMoved == 3 then
+							local win;
+							if key == 1 then win = w1 end
+							if key == 2 then win = w2 end
+							if key == 3 then win = w3 end
+							if key == 4 then win = w4 end
+							if key == 5 then win = w5 end
+							win.setPosition(x, y + nHeight1);
+						else
+							local win;
+							if key == 1 then win = w1 end
+							if key == 2 then win = w2 end
+							if key == 3 then win = w3 end
+							if key == 4 then win = w4 end
+							if key == 5 then win = w5 end
+							win.setPosition(x, y - nHeight1);
+						end
+					end
+				end
+			end
+		end
+	end
 end
+--luacheck: pop
 
-function closeProneWindow(sNodeCT) --luacheck: ignore 212
-	local wProneQuery = Interface.findWindow('prone_query', 'WalkThisWay');
-	--local wProneQuery = Interface.findWindow('prone_query', sNodeCT;
+function closeProneWindow(nodeCT)
+	local wProneQuery = Interface.findWindow('prone_query', DB.getPath(nodeCT));
 	if wProneQuery then wProneQuery.close() end
 	delWTWdataChild('proneQuery');
+	nMoved = 0;
 end
 
-function standUp()
-	local nodeActiveCT = CombatManager.getActiveCT();
+function standUp(nodeCT)
+	if not nodeCT then nodeCT = CombatManager.getActiveCT() end
 	local sStoodUp = 'Stood Up; SPEED: halved';
 	local sHoppedUp = 'Hopped up; SPEED: 5 dec';
 
-	WtWCommon.removeEffectClause(nodeActiveCT, "Prone");
+	WtWCommon.removeEffectClause(nodeCT, "Prone");
 	if Session.IsHost then
 		if Session.RulesetName == "5E" then
-			if ActorManager5E.hasRollFeat2024(nodeActiveCT, 'Athlete') then
-				EffectManager.addEffect("", "", nodeActiveCT, {
+			if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
+				EffectManager.addEffect("", "", nodeCT, {
 					sName = sHoppedUp, nDuration = 1, sChangeState = "rts" }, "");
 			else
-				EffectManager.addEffect("", "", nodeActiveCT, {
+				EffectManager.addEffect("", "", nodeCT, {
 					sName = sStoodUp, nDuration = 1, sChangeState = "rts" }, "");
 			end
 		else
-			EffectManager.addEffect("", "", nodeActiveCT, {
+			EffectManager.addEffect("", "", nodeCT, {
 				sName = 'Stood Up', nDuration = 1 }, "");
 		end
 	else
 		if Session.RulesetName == "5E" then
-			if ActorManager5E.hasRollFeat2024(nodeActiveCT, 'Athlete') then
-				WtWCommon.notifyApplyHostCommands(nodeActiveCT, 0, {
+			if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
+				WtWCommon.notifyApplyHostCommands(nodeCT, 0, {
 					sName = sHoppedUp, nDuration = 1, sChangeState = "rts" });
 			else
-				WtWCommon.notifyApplyHostCommands(nodeActiveCT, 0, {
+				WtWCommon.notifyApplyHostCommands(nodeCT, 0, {
 					sName = sStoodUp, nDuration = 1, sChangeState = "rts" });
 			end
 		else
-			WtWCommon.notifyApplyHostCommands(nodeActiveCT, 0, {
+			WtWCommon.notifyApplyHostCommands(nodeCT, 0, {
 				sName = 'Stood Up', nDuration = 1, sChangeState = "rts" });
 		end
 	end
 end
 
-function queryClient(nodeCT)
+function queryClient(nodeCT, sOwner)
 	if OptionsManager.isOption('WTWON', 'off') then
 		return;
 	end
-	local sOwner = WtWCommon.getControllingClient(nodeCT);
-	local rSource = ActorManager.resolveActor(nodeCT);
+	if not sOwner then sOwner = WtWCommon.getControllingClient(nodeCT) end
 
 	if sOwner then
-		if rSource.sName then
-			setPQvalue(rSource.sName);
-		end
 		local msgOOB = {};
 		msgOOB.type = OOB_MSGTYPE_PRONEQUERY;
 		msgOOB.sCTNodeID = DB.getPath(nodeCT);
@@ -306,12 +369,12 @@ function queryClient(nodeCT)
 	end
 end
 
-function sendCloseWindowCmd(nodeCT)
+function sendCloseWindowCmd(nodeCT, sOwner)
 	if not Session.IsHost then
 		Debug.console('ProneManager.sendCloseWindowCmd - not IsHost');
 		return;
 	end
-	local sOwner = WtWCommon.getControllingClient(nodeCT);
+	if not sOwner then sOwner = WtWCommon.getControllingClient(nodeCT) end
 	if sOwner then
 		local msgOOB = {};
 		msgOOB.type = OOB_MSGTYPE_CLOSEQUERY;
@@ -330,5 +393,5 @@ function handleProneQueryClient(msgOOB)
 	openProneWindow(nodeCT);
 end
 function handleCloseProneQuery(msgOOB)
-	closeProneWindow(msgOOB.sCTNodeID);
+	closeProneWindow(DB.findNode(msgOOB.sCTNodeID));
 end

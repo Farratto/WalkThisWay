@@ -20,7 +20,7 @@
 			<windowtitlebar_charsheethelper name="title">
 				<prefix>speed_title</prefix>
 			</windowtitlebar_charsheethelper>
-			<windowmenubar_charsheethelper name="windowmenubar" />
+			<windowmenubar_charsheethelper_basic name="windowmenubar" />
 			<anchor_content_charsheethelper_top name="contentanchor" />
 			<anchor_content_charsheethelper_bottom />
 			<anchor_listitem_right name="rightanchor" />
@@ -207,6 +207,7 @@
 	<windowclass name="charsheet_sensescombat" merge="join">
 		<sheetdata>
 			<number_charspeed_wtw name="speed_WtW" source="WalkThisWay.base" >
+<!--
 				<script>
 					function onInit()
 						if WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
@@ -215,9 +216,9 @@
 						end
 					end
 				</script>
+-->
 			</number_charspeed_wtw>
 			<number_charspeed name="speed" source="speed.total" merge="join">
-<!--				<invisible /> -->
 				<script>
 					function onInit()
 						if not WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
@@ -238,6 +239,7 @@
 					end
 				</script>
 			</label_charfieldtop>
+			<speed_bonus_control />
 		</sheetdata>
 	</windowclass>
 	<windowclass name="npc_combat_top_2024" merge="join">
@@ -355,11 +357,6 @@
 			</script>
 		</number_static>
 	</template>
-	<windowclass name="charsheet_sensescombat" merge="join">
-		<sheetdata>
-			<speed_bonus_control />
-		</sheetdata>
-	</windowclass>
 	<template name = "MNMBONUSSPEED" merge="join">
 		<stringcontrol name="value">
 			<invisible/>
@@ -374,15 +371,19 @@
 		</stringcontrol>
 	</template>
 	<template name="number_charspeed_wtw">
-<!--		<number_chartotal> -->
 		<number_charspeed>
 			<anchored to="initiative" position="righthigh" offset="20,0" width="40" height="30" />
 			<script>
 				local nodeW;
 				function onInit()
-					nodeW = window.getDatabaseNode();
-					local nodeCT = ActorManager.getCTNode(nodeW);
-					if not nodeCT then setTooltipText("") end
+					if WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
+						setVisible(false);
+						setEnabled(false);
+					else
+						nodeW = window.getDatabaseNode();
+						local nodeCT = ActorManager.getCTNode(nodeW);
+						if not nodeCT then setTooltipText("") end
+					end
 				end
 				function onHover(state)
 					if state then
@@ -402,17 +403,14 @@
 					return true;
 				end
 			</script>
-<!--
-			<font>reference-b-large</font>
-			<modifierfield>speed.temporary</modifierfield>
-			<modifiersize>mini</modifiersize>
-			<description textres="char_tooltip_speed" />
-			<tooltip textres="tooltip_dclick_swindow" />
--->
 			<source name="speed.base" merge="delete" />
 			<source name="speed.armor" merge="delete" />
 			<source name="speed.misc" merge="delete" />
 		</number_charspeed>
-<!--		</number_chartotal> -->
+	</template>
+	<template name="windowmenubar_charsheethelper_basic">
+		<windowmenubar_basic>
+			<anchored offset="0,1" />
+		</windowmenubar_basic>
 	</template>
 </root>
