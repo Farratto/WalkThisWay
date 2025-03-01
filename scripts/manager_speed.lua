@@ -3,10 +3,11 @@
 
 -- luacheck: globals speedCalculator handleExhaustion setAllCharSheetSpeeds setCharSheetSpeed
 -- luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow getConversionFactor
--- luacheck: globals parseBaseSpeed onRecordTypeEventWtW reparseBaseSpeed reparseAllBaseSpeeds recalcAllSpeeds
+-- luacheck: globals parseBaseSpeed onRecordTypeEventWtW reparseBaseSpeed reparseAllBaseSpeeds
 -- luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
--- luacheck: globals turnStartChecks registerPreference getPreference sendPrefRegistration handlePrefRegistration
--- luacheck: globals handlePrefChange checkFitness parseSpeedType onTabletopInit
+-- luacheck: globals turnStartChecks registerPreference getPreference sendPrefRegistration
+-- luacheck: globals handlePrefChange checkFitness parseSpeedType onTabletopInit recalcAllSpeeds
+-- luacheck: globals handlePrefRegistration roundMph
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_REGPREF = 'regpreference';
@@ -112,10 +113,13 @@ function setOptions()
 end
 
 function onRecordTypeEventWtW(sRecordType, tCustom)
-	fonRecordTypeEvent(sRecordType, tCustom);
+	local bResult = fonRecordTypeEvent(sRecordType, tCustom);
+
 	if Session.IsHost then
 		parseBaseSpeed(tCustom.nodeCT, true);
 	end
+
+	return bResult;
 end
 
 function callSpeedCalcEffectUpdated(nodeEffectChild)
@@ -186,6 +190,17 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 			return 1.5;
 		elseif sDesiredUnits == 'tiles' then
 			return 1;
+		else
+			Debug.console('SpeedManager.getConversionFactor - Invalid units.');
+			return 1;
+		end
+	elseif sCurrentUnits == 'mph' then
+		if sDesiredUnits == 'ft.' then
+			return 8.8;
+		elseif sDesiredUnits == 'm' then
+			return 2.68224;
+		elseif sDesiredUnits == 'tiles' then
+			return 1.76;
 		else
 			Debug.console('SpeedManager.getConversionFactor - Invalid units.');
 			return 1;
@@ -302,14 +317,17 @@ function speedCalculator(nodeCT, bCalledFromParse)
 
 	local nBaseSpeed;
 	local tFGSpeedNew = {};
+	local bNoBase = true;
 	for _,v in pairs(DB.getChildren(nodeCTWtW, 'FGSpeed')) do
 		local tSpdRcrd = {};
 		tSpdRcrd['velocity'] = DB.getValue(v, 'velocity');
 		tSpdRcrd['type'] = DB.getValue(v, 'type');
 		table.insert(tFGSpeedNew, tSpdRcrd);
 		if tSpdRcrd['type'] == '' or string.lower(tSpdRcrd['type']) == 'walk' then
-			nBaseSpeed = tSpdRcrd['velocity']
+			nBaseSpeed = tSpdRcrd['velocity'];
+			bNoBase = false;
 		end
+		if not nBaseSpeed then nBaseSpeed = tSpdRcrd['velocity'] end
 	end
 	nBaseSpeed = tonumber(nBaseSpeed);
 	if not nBaseSpeed then
@@ -339,7 +357,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			tSpdRcrd['type'] = 'Walk';
 		end
 		table.insert(tRoot, tSpdRcrd);
-		local bReturn = updateDisplaySpeed(nodeCT, tRoot, nBaseSpeed, false, sPref, tEffectNames, 0);
+		local bReturn = updateDisplaySpeed(nodeCT,tRoot,nBaseSpeed,false,sPref,tEffectNames,0,bNoBase);
 		return bReturn;
 	end
 
@@ -832,7 +850,9 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		if nVel and nVel > nHighest then nHighest = nVel end
 	end
 
-	local bReturn = updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest);
+	local bReturn = updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames
+		, nHighest, bNoBase
+	);
 	return bReturn;
 end
 -- luacheck: pop
@@ -896,7 +916,7 @@ function parseSpeedType(sType, tFGSpeedNew, bMatch)
 	return nFound, bExactMatch, sQualifier, sTypeFly, sTypeHover, sTypeSpider, bMatchSpider;
 end
 
-function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest)
+function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest, bNoBase)
 	if not Session.IsHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed then
 		Debug.console("SpeedManager.updateDisplaySpeed - not isHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed");
 		return;
@@ -923,6 +943,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 	local sReturn = '';
 	local nBonusSpeed;
 	local nCurrentSpeed = nBaseSpeed;
+	local bCurrentFound;
 	local sMarker = '';
 	if tEffectNames[1] then sMarker = '*' end
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
@@ -945,8 +966,12 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 
 		local sVelWithUnits = tostring(tSpdRcrd.velocity) .. ' ' .. sUnitsPrefer
 
+		if bNoBase and not bCurrentFound then
+			nCurrentSpeed = tSpdRcrd.velocity;
+			bCurrentFound = true;
+		end
 		if tSpdRcrd.type == '' or (string.match(tSpdRcrd.type, '^Walk')) then
-			nCurrentSpeed = tSpdRcrd.velocity
+			nCurrentSpeed = tSpdRcrd.velocity;
 			if bProne then
 				sReturn = "Crawl " .. sVelWithUnits;
 				break;
@@ -1063,10 +1088,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 
 	local sFGSpeed = DB.getValue(nodeCT, 'speed', '0')
 	local bNoBaseSpeed;
-	if sFGSpeed == '0' then
-		bNoBaseSpeed = true;
-		--sFGSpeed = '30 ft.'
-	end
+	if sFGSpeed == '0' then bNoBaseSpeed = true end
 
 	if ActorManager.isPC(nodeCT) then
 		local nodeChar = ActorManager.getCreatureNode(nodeCT);
@@ -1105,16 +1127,26 @@ function parseBaseSpeed(nodeCT, bCalc)
 		local sFinalUnits = '';
 		local sLngthUnits = '';
 		local sStripPattern = '';
+		local sMphAdd;
 		local sUnitsGave = OptionsManager.getOption('DDCU');
 		for _,sSpdTypeSplit in ipairs(aSpdTypeSplit) do
 			local nodeSpeedRcrd = DB.createChild(nodeFGSpeed);
 			local sVelocity = string.match(sSpdTypeSplit, '%d+');
 			local sRemainder = string.gsub(sSpdTypeSplit, '%d+', '', 1);
+			local sMph = string.match(sSpdTypeSplit, '%d+%s+mph');
+			if sMph then
+				sMphAdd = string.match(sSpdTypeSplit, '%(%s*%d+%s+mph%s*%)');
+				if sMphAdd then
+					sMphAdd = string.gsub(sMphAdd, '%(', '');
+					sMphAdd = string.gsub(sMphAdd, '%)', '');
+					sMphAdd = '%('..sMphAdd..'%)';
+				end
+			end
 			local sType;
 			local bConverted = false;
 			local nConvFactor = 1;
 			if sLngthUnits == '' then
-				local aUnitsSplit,_ = StringManager.split(sSpdTypeSplit, '%s+', true)
+				local aUnitsSplit = StringManager.split(sSpdTypeSplit, '%s+', true)
 				local bFound = false;
 				for _,word in ipairs(aUnitsSplit) do
 					if not bFound then
@@ -1130,7 +1162,13 @@ function parseBaseSpeed(nodeCT, bCalc)
 						if bFound then sLngthUnits = word end
 					end
 				end
-				if not bFound then sLngthUnits = sUnitsGave end
+				if not bFound then
+					if sMph then
+						sLngthUnits = 'mph';
+					else
+						sLngthUnits = sUnitsGave;
+					end
+				end
 				sFinalUnits = sLngthUnits
 				if string.lower(sFinalUnits) == 'ft' or string.lower(sFinalUnits) == 'ft.' then
 					sFinalUnits = 'ft.';
@@ -1152,7 +1190,10 @@ function parseBaseSpeed(nodeCT, bCalc)
 				end
 				if sStripPattern == '' then sStripPattern = sLngthUnits end
 			end
-			sType,_ = string.gsub(sRemainder, sStripPattern, '');
+			if sMphAdd then
+				sRemainder = string.gsub(sRemainder, sMphAdd, '');
+			end
+			sType = string.gsub(sRemainder, sStripPattern, '');
 			sType = StringManager.strip(sType);
 			sType = StringManager.capitalize(sType);
 			if sType == '' then sType = 'Walk' end
@@ -1163,18 +1204,19 @@ function parseBaseSpeed(nodeCT, bCalc)
 					break;
 				end
 				nVelocity = nVelocity * nConvFactor;
+				if sLngthUnits == 'mph' then
+					nVelocity = roundMph(nVelocity, sFinalUnits);
+				end
 				sVelocity = tostring(nVelocity);
 			end
 			DB.setValue(nodeSpeedRcrd, 'velocity', 'number', sVelocity);
 			DB.setValue(nodeSpeedRcrd, 'type', 'string', sType);
 		end
 		DB.setValue(nodeCTWtW, 'units', 'string', sFinalUnits);
-		--bReturn = true;
 	end
 	if not DB.getValue(nodeCTWtW, 'currentSpeed') or bCalc then
 		speedCalculator(nodeCT, true);
 	end
-	--return bReturn;
 end
 
 function setAllCharSheetSpeeds()
@@ -1419,4 +1461,29 @@ function handleSpeedWindowClient(msgOOB)
 	if OptionsManager.isOption('AOSW', 'on') then
 		openSpeedWindow(msgOOB.sCTNodeID);
 	end
+end
+
+function roundMph(number, sUnitsPrefer)
+	if number then tonumber(number) end
+	if not number then
+		Debug.console("SpeedManager.roundMph - not number");
+		return number;
+	end
+	if not sUnitsPrefer then sUnitsPrefer = 'ft.' end
+	if sUnitsPrefer == 'ft.' then
+		number = number / 2.5;
+		number = WtWCommon.roundNumber(number);
+		number = number * 2.5;
+	elseif sUnitsPrefer == 'tiles' then
+		number = number / 0.5;
+		number = WtWCommon.roundNumber(number);
+		number = number * 0.5;
+	else
+		if sUnitsPrefer == 'm' then
+			number = number / 0.75;
+			number = WtWCommon.roundNumber(number);
+			number = number * 0.75;
+		end
+	end
+	return number;
 end

@@ -2,11 +2,11 @@
 -- attribution and copyright information.
 
 -- luacheck: globals getTokenPosition calcDistance updateDistTraveled processTurnStart getDistTraveled
--- luacheck: globals updateSpeedWindows updateOptionChange handleNewMap onHotKeyTravelDistance processTravelDist
+-- luacheck: globals updateSpeedWindows updateOptionChange handleNewMap onHotKeyTravelDistance
 -- luacheck: globals deleteTempTokens processTempTokens prepAsset addLayer deleteLayer getHighestSpeed
--- luacheck: globals returnTokenToLKGStep undoLastStep onMoveMM addStep fonMove enforceMove fonWheelHeightHelper
--- luacheck: globals onWheelHeightHelperMM _bSettingToken getGridPosi onTokenRefUpdated handleProcessTraveled
--- luacheck: globals handleUndoLastStep
+-- luacheck: globals returnTokenToLKGStep undoLastStep onMoveMM addStep fonMove enforceMove
+-- luacheck: globals onWheelHeightHelperMM _bSettingToken getGridPosi onTokenRefUpdated
+-- luacheck: globals handleUndoLastStep processTravelDist fonWheelHeightHelper handleProcessTraveled
 
 OOB_MSGTYPE_PROCESS_TRAVELED = 'process_traveled';
 OOB_MSGTYPE_UNDO_LASTSTEP = 'undo_laststep';
@@ -18,24 +18,24 @@ function onInit()
 	OptionsManager.registerOptionData({	sKey = 'move_on', sGroupRes = 'option_header_WtW', tCustom = {
 		default = "on" }
 	});
+	OptionsManager.registerOptionData({	sKey = 'enforce_move', sGroupRes = 'option_header_WtW' });
+	OptionsManager.registerOptionData({ sKey = 'live_move', sGroupRes = 'option_header_WtW' });
+	OptionsManager.registerOptionData({ sKey = 'difficult_move', sGroupRes = 'option_header_WtW' });
+	OptionsManager.registerCallback('move_on', updateOptionChange);
 	if Session.IsHost then
-		OptionsManager.registerOptionData({	sKey = 'enforce_move', sGroupRes = 'option_header_WtW' });
-		--OptionsManager.registerOptionData({ sKey = 'animated_move', sGroupRes = 'option_header_WtW' });
-		OptionsManager.registerOptionData({ sKey = 'live_move', sGroupRes = 'option_header_WtW' });
-		OptionsManager.registerOptionData({ sKey = 'difficult_move', sGroupRes = 'option_header_WtW' });
-		OptionsManager.registerCallback('move_on', updateOptionChange);
 		if OptionsManager.isOption('move_on', 'on') then
 			CombatManager.setCustomTurnStart(processTurnStart);
 		end
 		DB.addHandler('combattracker.list.*.tokenrefid', 'onUpdate', onTokenRefUpdated);
 		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_PROCESS_TRAVELED, handleProcessTraveled);
 		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_UNDO_LASTSTEP, handleUndoLastStep);
-		fonMove = Token.onMove;
-		Token.onMove = onMoveMM;
 	end
-	fonWheelHeightHelper = TokenManager.onWheelHeightHelper; --client
-	TokenManager.onWheelHeightHelper = onWheelHeightHelperMM; --client
-	Interface.addKeyedEventHandler("onHotkeyActivated", "traveleddistance", onHotKeyTravelDistance); --client
+
+	fonMove = Token.onMove;
+	Token.onMove = onMoveMM;
+	fonWheelHeightHelper = TokenManager.onWheelHeightHelper;
+	TokenManager.onWheelHeightHelper = onWheelHeightHelperMM;
+	Interface.addKeyedEventHandler("onHotkeyActivated", "traveleddistance", onHotKeyTravelDistance);
 end
 
 function updateOptionChange()
@@ -63,8 +63,6 @@ function onTokenRefUpdated(nodeUpdated)
 	)));
 	if newTokenInstance then
 		handleNewMap(nodeCT, newTokenInstance);
-	--else
-	--	Debug.console("MovementManager.onTokenRefUpdated - not newTokenInstance");
 	end
 end
 function handleNewMap(nodeCT, newTokenInstance)
@@ -95,45 +93,17 @@ function processTravelDist(nodeCT, bStep, tokenMap, sContainerLK, xCurrIn, yCurr
 		Debug.console("MovementManager.processTravelDist - not nodeCT");
 		return;
 	end
-	if not Session.IsHost then
-		local msgOOB = {};
-		msgOOB.type = OOB_MSGTYPE_PROCESS_TRAVELED;
-		msgOOB.sCTNodeID = DB.getPath(nodeCT);
-		if bStep ~= nil then msgOOB.sStepBool = tostring(bStep) end
-		if sContainerLK then msgOOB.sContainer = sContainerLK end
-		if xCurrIn then msgOOB.sX = tostring(xCurrIn) end
-		if yCurrIn then msgOOB.sY = tostring(yCurrIn) end
-		Comm.deliverOOBMessage(msgOOB, '');
-		return;
-	end
 
 	local nDist, sSuffix, xCurrent, yCurrent, tokenCT, hCurrent, nodeLastStep, nStep, xStart, yStart =
 		getDistTraveled(nodeCT, tokenMap, sContainerLK, xCurrIn, yCurrIn
 	);
 	if nDist then
-		updateDistTraveled(nodeCT, nDist, sSuffix, xCurrent, yCurrent, tokenCT, hCurrent, nodeLastStep, nStep
-			, xStart, yStart, bStep, sContainerLK
+		updateDistTraveled(nodeCT, nDist, sSuffix, xCurrent, yCurrent, tokenCT, hCurrent, nodeLastStep
+			, nStep, xStart, yStart, bStep, sContainerLK
 		);
 	else
 		Debug.console("WalkThisWay.processTravelDist - not nDist");
 	end
-	return;
-end
-function handleProcessTraveled(msgOOB)
-	if not Session.IsHost then return end
-
-	local bStep, sContainerLK, xCurrIn, yCurrIn;
-
-	local nodeCT = DB.findNode(msgOOB.sCTNodeID);
-	if msgOOB.sStepBool then
-		if msgOOB.sStepBool == 'true' then bStep = true end
-		if msgOOB.sStepBool == 'false' then bStep = false end
-	end
-	if msgOOB.sContainer then sContainerLK = msgOOB.sContainer end
-	if msgOOB.sX then xCurrIn = msgOOB.sX end
-	if msgOOB.sY then yCurrIn = msgOOB.sY end
-
-	processTravelDist(nodeCT, bStep, nil, sContainerLK, xCurrIn, yCurrIn);
 end
 
 function onHotKeyTravelDistance(draginfo)
@@ -292,18 +262,36 @@ function updateDistTraveled(nodeCT, nDist, sSuffix, xCurrent, yCurrent, tokenCT,
 	DB.setValue(nodePosi, 'y', 'number', yCurrent);
 	DB.setValue(nodePosi, 'h', 'number', hCurrent);
 
+	local sTraveled = "Start";
+	if nTraveled ~= 0 then sTraveled = tostring(nTraveledConv).." "..sPref end
+	if bStep then
+		DB.setValue(nodeCTWtW, 'traveled', 'string', sTraveled);
+		WtWCommon.propagateTextWidget(tokenCT, nil, 'moved', true, true);
+	else
+		WtWCommon.propagateTextWidget(tokenCT, sTraveled, 'moved', false, true, 'draglabel', -13);
+	end
+
+	if not Session.IsHost then
+		local msgOOB = {};
+		msgOOB.type = OOB_MSGTYPE_PROCESS_TRAVELED;
+		msgOOB.sCTNodeID = DB.getPath(nodeCT);
+		msgOOB.sDist = tostring(nDist);
+		msgOOB.sUndo = tostring(bUndo);
+		msgOOB.sStepBool = tostring(bStep);
+		msgOOB.sStepNum = tostring(nStep);
+		msgOOB.sNodeStep = DB.getPath(nodeStep);
+		Comm.deliverOOBMessage(msgOOB, '');
+		return;
+	end
+
 	if not sContainerLK then sContainerLK = tokenCT.getContainerNode() end
 	if nDist >= 0 and not bUndo then
-		--local SourceX, SourceY, nAssetWidth, nAssetHeight, sPrefColor, nAssetAngle;
 		local SourceX, SourceY, nAssetWidth, nAssetHeight, nAssetAngle;
 		if (bStep and nDist >= 5) or nDist >= 7.5 then
-			--SourceX, SourceY, nAssetWidth, nAssetHeight, sPrefColor, nAssetAngle = prepAsset(
 			SourceX, SourceY, nAssetWidth, nAssetHeight, nAssetAngle = prepAsset(
-				--tokenCT, xStart, yStart, sOwner, nodeCT, nStep, sContainerLK, xCurrent, yCurrent, bStep
 				tokenCT, xStart, yStart, nodeCT, nStep, sContainerLK, xCurrent, yCurrent, bStep
 			);
 		end
-		--addLayer(sContainerLK,SourceX,SourceY,nAssetWidth,nAssetHeight,sPrefColor,nAssetAngle,bStep);
 		addLayer(sContainerLK, SourceX, SourceY, nAssetWidth, nAssetHeight, nAssetAngle);
 	end
 
@@ -314,26 +302,6 @@ function updateDistTraveled(nodeCT, nDist, sSuffix, xCurrent, yCurrent, tokenCT,
 		nodeNewStep = nodeStep;
 	end
 
-	local sTraveled = "Start";
-	if nTraveled ~= 0 then sTraveled = tostring(nTraveledConv).." "..sPref end
-	if bStep then
-		DB.setValue(nodeCTWtW, 'traveled', 'string', sTraveled);
-		--local widgetMoved = tokenCT.findWidget('moved');
-		--if widgetMoved then widgetMoved.destroy() end
-		WtWCommon.propagateTextWidget(tokenCT, nil, 'moved', true);
-	else
-		--local widgetMoved = tokenCT.findWidget('moved');
-		--if widgetMoved then
-		--	widgetMoved.setText(sTraveled);
-		--else
-		--	local tWidget = { name = 'moved', position = 'topcenter', frame = 'token_ordinal', frameoffset =
-		--		'7,1,7,1', font = 'token_ordinal', text = sTraveled
-		--	};
-		--	local widgetMoved = tokenCT.addTextWidget(tWidget);
-		--	widgetMoved.setMaxWidth(350);
-		--end
-		WtWCommon.propagateTextWidget(tokenCT, sTraveled, 'moved');
-	end
 	if bStep and nDist >= 0 and not bUndo then
 		processTempTokens(nodeCT, nTraveledConv, nStep, sTraveled, xCurrent, yCurrent, tokenCT, hCurrent
 			, nodeNewStep, sContainerLK
@@ -341,9 +309,24 @@ function updateDistTraveled(nodeCT, nDist, sSuffix, xCurrent, yCurrent, tokenCT,
 	end
 end
 --luacheck: pop
+function handleProcessTraveled(msgOOB)
+	if not Session.IsHost then return end
+
+	local nodeCT = DB.findNode(msgOOB.sCTNodeID);
+	local nDist = tonumber(msgOOB.sDist);
+	local nStep = tonumber(msgOOB.sStepNum);
+	local nodeStep = DB.findNode(msgOOB.sNodeStep);
+	local bStep;
+	if msgOOB.sStepBool == 'true' then bStep = true end
+	if msgOOB.sStepBool == 'false' then bStep = false end
+	local bUndo;
+	if msgOOB.sUndo == 'true' then bUndo = true end
+	if msgOOB.sUndo == 'false' then bUndo = false end
+
+	--updateDistTraveled(nodeCT, nDist, sSuffix, xCurrent, yCurrent, tokenCT, hCurrent, nodeStep, nStep, xStart, yStart, bStep, sContainerLK, bUndo)
+end
 
 --called by updateDistTraveled, step 4
---function processTempTokens(nodeCT,nTraveledConv,nStep,sTraveled,xCurrent,yCurrent,tokenCT,hCurrent,sOwner,nodeStep,nodeContainer)
 function processTempTokens(nodeCT, nTraveledConv, nStep, sTraveled, xCurrent, yCurrent, tokenCT, hCurrent
 	, nodeStep,nodeContainer
 )
@@ -370,11 +353,6 @@ function processTempTokens(nodeCT, nTraveledConv, nStep, sTraveled, xCurrent, yC
 		local _,sImageDistSuffix = TokenManager.getImageGridUnits(tokenCT);
 		sTraveled = tostring(nTraveledConv)..sImageDistSuffix;
 	end
-	--local tWidget = { name = "moved", position = "topcenter", frame = 'token_ordinal', frameoffset = '7,1,7,1'
-	--	, font = 'token_ordinal', text = sTraveled,
-	--};
-	--local widgetMoved = tokenNew.addTextWidget(tWidget);
-	--widgetMoved.setMaxWidth(350);
 	WtWCommon.propagateTextWidget(tokenNew, sTraveled, 'moved');
 
 	local sName = ActorManager.getDisplayName(nodeCT);
@@ -384,7 +362,7 @@ function processTempTokens(nodeCT, nTraveledConv, nStep, sTraveled, xCurrent, yC
 		tokenNew.setName(sName.." - Step "..tostring(nStep)); --this becomes tooltip
 	end
 	tokenNew.sendToBack();
-	tokenNew.setPublicEdit(false);
+	if Session.IsHost then tokenNew.setPublicEdit(false) end
 	tokenCT.bringToFront();
 
 	--Save token so we can delete it later
@@ -434,18 +412,11 @@ function prepAsset(tokenMap, xStart, yStart, nodeCT, nStep, nodeImage, xFinish, 
 		SourceY = yStart + ((nMoveDist - 1.7) * math.sin(angleRad));
 	end
 
-	--local sPrefColor = 'C3000000';
-	--if sOwner then
-	--	sPrefColor = 'C3'..string.sub(User.getIdentityColor(sOwner), 3);
-	--else
-	--	sPrefColor = 'C3'..string.sub(User.getCurrentIdentityColors(), 3);
-	--end
-
 	--store data to perhaps redraw or delete at a later time
 	if not nodeImage then nodeImage = tokenMap.getContainerNode() end
 	local sContainer = DB.getPath(nodeImage);
 	local nodeWTW = DB.createNode('WalkThisWay');
-	DB.setPublic(nodeWTW, true);
+	if Session.IsHost then DB.setPublic(nodeWTW, true) end
 	local nodeArrows = DB.createChild(nodeWTW, 'arrows');
 	local nodeArrow;
 	if bStep then
@@ -456,7 +427,6 @@ function prepAsset(tokenMap, xStart, yStart, nodeCT, nStep, nodeImage, xFinish, 
 		DB.setValue(nodeArrow, 'SourceY', 'number', SourceY);
 		DB.setValue(nodeArrow, 'nAssetWidth', 'number', nAssetWidth);
 		DB.setValue(nodeArrow, 'nAssetHeight', 'number', nAssetHeight);
-		--DB.setValue(nodeArrow, 'sPrefColor', 'string', sPrefColor);
 		DB.setValue(nodeArrow, 'nAssetAngle', 'number', nAssetAngle);
 	else
 		local nodeArrowId = DB.createChild(nodeArrows, 'temp');
@@ -464,7 +434,6 @@ function prepAsset(tokenMap, xStart, yStart, nodeCT, nStep, nodeImage, xFinish, 
 	end
 	DB.setValue(nodeArrow, 'sContainer', 'string', sContainer);
 
-	--return SourceX, SourceY, nAssetWidth, nAssetHeight, sPrefColor, nAssetAngle;
 	return SourceX, SourceY, nAssetWidth, nAssetHeight, nAssetAngle;
 end
 
@@ -497,14 +466,12 @@ function addLayer(nodeImage, xStart, yStart, nWidth, nHeight, nAngle)
 					local SourceY = DB.getValue(nodeArrow, 'SourceY');
 					local nAssetWidth = DB.getValue(nodeArrow, 'nAssetWidth');
 					local nAssetHeight = DB.getValue(nodeArrow, 'nAssetHeight');
-					--local sPrefColor = DB.getValue(nodeArrow, 'sPrefColor');
 					local nAssetAngle = DB.getValue(nodeArrow, 'nAssetAngle');
 					if SourceX and SourceY and nAssetWidth and nAssetHeight and nAssetAngle then
 						if not nLayerID then
 							nLayerID = Image.addLayer(nodeImage, 'paint', { name = 'Arrow Layer' });
 						end
 						Image.addLayerPaintStamp(nodeImage, nLayerID, {	asset=sAsset, x=SourceX, y=SourceY
-							--, w=nAssetWidth, h=nAssetHeight, color=sPrefColor, angle=nAssetAngle
 							, w=nAssetWidth, h=nAssetHeight, color=sColor, angle=nAssetAngle
 						});
 					end
@@ -617,6 +584,7 @@ end
 
 --called by processTravelDist, step 2
 function getDistTraveled(nodeCT, tokenCT, sContainerLK, xCurrent, yCurrent)
+	Debug.console("getDistTraveled called");
 	if not nodeCT then
 		Debug.console("MovementManager.getDistTraveled - not nodeCT");
 	end
@@ -815,10 +783,8 @@ function undoLastStep(nodeCT)
 				local SourceY = DB.getValue(nodeArrow, 'SourceY');
 				local nAssetWidth = DB.getValue(nodeArrow, 'nAssetWidth');
 				local nAssetHeight = DB.getValue(nodeArrow, 'nAssetHeight');
-				--local sPrefColor = DB.getValue(nodeArrow, 'sPrefColor');
 				local nAssetAngle = DB.getValue(nodeArrow, 'nAssetAngle');
 				if SourceX and SourceY and nAssetWidth and nAssetHeight and nAssetAngle then
-					--addLayer(sNodeImage,SourceX,SourceY,nAssetWidth,nAssetHeight,sPrefColor,nAssetAngle);
 					addLayer(sNodeImage,SourceX,SourceY,nAssetWidth,nAssetHeight,nAssetAngle);
 				end
 			end
@@ -832,13 +798,15 @@ end
 
 --called anytime a token is moved
 function onMoveMM(target)
-	if not Session.IsHost or _bSettingToken or Input.isShiftPressed() or (not OptionsManager.isOption('live_move'
-		, 'on') and not OptionsManager.isOption('enforce_move', "on")
-	) then
-		return;
-	end
+	if _bSettingToken or Input.isShiftPressed() then return end
+
 	local nodeCT = CombatManager.getCTFromToken(target);
 	if not nodeCT then return end
+	local sOwner = WtWCommon.getControllingClient(nodeCT);
+	if sOwner then
+		if Session.IsHost then return end
+		if Session.UserName ~= sOwner then return end
+	end
 
 	--determine grid space
 	local xCurrent, yCurrent = target.getPosition();
@@ -870,13 +838,10 @@ function onMoveMM(target)
 end
 
 --called when token height is adjusted
-function onWheelHeightHelperMM(tokenCT, notches) --client
+function onWheelHeightHelperMM(tokenCT, notches)
 	fonWheelHeightHelper(tokenCT, notches);
-	if _bSettingToken or (not OptionsManager.isOption('live_move', 'on') and not OptionsManager.isOption(
-		'enforce_move', "on")
-	) then
-		return;
-	end
+
+	if _bSettingToken then return end
 
 	local nodeCT = CombatManager.getCTFromToken(tokenCT);
 	if not nodeCT then return end

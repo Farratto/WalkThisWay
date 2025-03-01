@@ -76,6 +76,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.4.0: FEATURE: vehicle support. FIXED: rare nil error. Minor aesthetic improvements.
 * v2.3.4: FIXED: several minor bugs. Shout out to RocketVaultGames for constant vigilence!
 * v2.3.3: Negative Interaction with MNM CharSheet Tweaks. FIXED
 * v2.3.2: Speed label not displaying on PC main tab. FIXED

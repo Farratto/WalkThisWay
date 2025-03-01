@@ -49,17 +49,14 @@ function hasExtension(sExtName)
 end
 
 function checkBetterGoldPurity()
-	local tExtensions = Extension.getExtensions()
-	local sReturn
-	for _,sExtension in ipairs(tExtensions) do
-		if sExtension == 'BetterCombatEffects' then
-			sReturn = 'pyrite'
-		end
-		if sExtension == 'BetterCombatEffectsGold' then
-			sReturn = 'gold'
-		end
+	local sReturn;
+	if EffectConditionalManagerDnDBCE then
+		sReturn = 'gold'
+	elseif BCEDnDManager then
+		sReturn = 'pyrite'
 	end
-	return sReturn
+
+	return sReturn;
 end
 
 function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, bReturnNode, bFindAll)
@@ -1125,8 +1122,8 @@ function roundNumber(nInput)
 	return nMultiplier * nWhole;
 end
 
-function propagateTextWidget(tokenMap, sText, sName, bDestroy, sPosition, sFrame, sFrameOffset, sFont
-	, nMaxWidth
+function propagateTextWidget(tokenMap, sText, sName, bDestroy, bSelf, sFont, nY, sPosition, sFrame
+	, sFrameOffset
 )
 	if not tokenMap or not sName or (not sText and bDestroy == nil) then
 		Debug.console("WtWCommon.propagateTextWidget - not sText or not sName or not sText and bDestroy is not nil");
@@ -1137,7 +1134,8 @@ function propagateTextWidget(tokenMap, sText, sName, bDestroy, sPosition, sFrame
 	if sPosition then
 		msgOOB.sPosition = sPosition;
 	else
-		sPosition = 'topcenter';
+		--sPosition = 'topcenter';
+		sPosition = 'top';
 	end
 	if sFrame then
 		msgOOB.sFrame = sFrame;
@@ -1154,10 +1152,10 @@ function propagateTextWidget(tokenMap, sText, sName, bDestroy, sPosition, sFrame
 	else
 		sFont = 'token_ordinal';
 	end
-	if nMaxWidth then
-		msgOOB.sMaxWidth = tostring(nMaxWidth);
+	if nY and tonumber(nY) then
+		msgOOB.sY = tostring(nY);
 	else
-		nMaxWidth = 350;
+		nY = 0;
 	end
 
 	--make widget here first
@@ -1171,21 +1169,22 @@ function propagateTextWidget(tokenMap, sText, sName, bDestroy, sPosition, sFrame
 		end
 	else
 		local tWidget = { name = sName, position = sPosition, frame = sFrame, frameoffset = sFrameOffset
-			, font = sFont, text = sText
+			, font = sFont, text = sText, y = nY
 		};
-		widgetNew = tokenMap.addTextWidget(tWidget);
-		widgetNew.setMaxWidth(nMaxWidth);
+		tokenMap.addTextWidget(tWidget);
 	end
 
 	--command creation of widget throughout
-	msgOOB.type = OOB_MSGTYPE_PROPAGATE_WIDGET_TEXT;
-	msgOOB.tokenId = tostring(tokenMap.getId())
-	msgOOB.tokenContainer = DB.getPath(tokenMap.getContainerNode())
-	msgOOB.sName = sName;
-	msgOOB.sText = sText;
-	msgOOB.sIgnore = Session.UserName;
-	if Session.IsHost then msgOOB.host = 'true' end
-	Comm.deliverOOBMessage(msgOOB);
+	if not bSelf then
+		msgOOB.type = OOB_MSGTYPE_PROPAGATE_WIDGET_TEXT;
+		msgOOB.tokenId = tostring(tokenMap.getId())
+		msgOOB.tokenContainer = DB.getPath(tokenMap.getContainerNode())
+		msgOOB.sName = sName;
+		msgOOB.sText = sText;
+		msgOOB.sIgnore = Session.UserName;
+		if Session.IsHost then msgOOB.host = 'true' end
+		Comm.deliverOOBMessage(msgOOB);
+	end
 end
 
 function handleTextWidgetPropagation(msgOOB)
@@ -1218,7 +1217,7 @@ function handleTextWidgetPropagation(msgOOB)
 		end
 		widgetNew.setText(sText);
 	else
-		local sPosition, sFrame, sFrameOffset, sFont, nMaxWidth;
+		local sPosition, sFrame, sFrameOffset, sFont, nY;
 		if msgOOB.sPosition then
 			sPosition = msgOOB.sPosition;
 		else
@@ -1239,15 +1238,14 @@ function handleTextWidgetPropagation(msgOOB)
 		else
 			sFont = 'token_ordinal';
 		end
-		if msgOOB.sMaxWidth then
-			nMaxWidth = tonumber(msgOOB.sMaxWidth);
+		if msgOOB.sY then
+			nY = tonumber(msgOOB.sY);
 		else
-			nMaxWidth = 350;
+			nY = 0;
 		end
 		local tWidget = { name = sName, position = sPosition, frame = sFrame, frameoffset = sFrameOffset
-			, font = sFont, text = sText
+			, font = sFont, text = sText, y = nY
 		};
-		widgetNew = tokenMap.addTextWidget(tWidget);
-		widgetNew.setMaxWidth(nMaxWidth);
+		tokenMap.addTextWidget(tWidget);
 	end
 end

@@ -5,14 +5,13 @@
 -->
 <root version="3.0">
 	<!-- Main Window -->
-	<windowclass name="speed_window">
-		<frame>charsheethelper</frame>
+	<windowclass name="speed_window" copy="charsheethelper_base">
 		<placement>
-			<size width="330" height="240" />
+			<size width="280" height="252" />
 		</placement>
 		<sizelimits >
-			<maximum width="450" height="600" />
-			<minimum width="180" height="125" />
+			<maximum width="600" height="600" />
+			<minimum width="180" height="150" />
 			<dynamic />
 		</sizelimits>
 		<minimize>minimized_WtW</minimize>
@@ -20,28 +19,32 @@
 			<windowtitlebar_charsheethelper name="title">
 				<prefix>speed_title</prefix>
 			</windowtitlebar_charsheethelper>
-			<windowmenubar_charsheethelper_basic name="windowmenubar" />
-			<anchor_content_charsheethelper_top name="contentanchor" />
-			<anchor_content_charsheethelper_bottom />
-			<anchor_listitem_right name="rightanchor" />
+			<windowmenubar_charsheethelper name="menubar" merge="delete" />
+			<windowmenubar_charsheethelper_basic name="menubar" />
 <!--
 			<sub_content_buttons_bottom name="sub_buttons">
 				<class>speed_buttons_bottom</class>
 			</sub_content_buttons_bottom>
 -->
-			<area_content name="contentframe" />
-			<subwindow name="speedwindowcontent" >
-				<anchored to="contentframe" position="over" />
+			<sub_content_framed_groupbox name="content">
 				<class>speed_window_content</class>
-				<activate />
-			</subwindow>
-			<resize_utilitybox />
+			</sub_content_framed_groupbox>
+			<scrollbar_content />
 		</sheetdata>
 	</windowclass>
 	<windowclass name="speed_window_content">
+		<script>
+			function onInit()
+				self.updateDisplay();
+			end
+			function updateDisplay()
+				local tFields = { "headertraveled", "traveled", };
+				WindowManager.callSafeControlsSetVisible(self, tFields, OptionsManager.isOption("move_on", "on"));
+			end
+		</script>
 		<sheetdata>
 			<anchor_content_top />
-			<anchor_listitem_left name="leftanchor" />
+
 			<header_content_framed_headersimple>
 				<center />
 				<static textres="speed_title" />
@@ -49,54 +52,36 @@
 			<string_content_noframe_static_top name="currentSpeed">
 				<center />
 			</string_content_noframe_static_top>
+
 			<header_content_framed_headersimple name="headertraveled">
 				<center />
 				<static textres="header_traveled" />
-				<script>
-					function onInit()
-						update();
-					end
-					function update()
-						setVisible(OptionsManager.isOption('move_on', "on"));
-					end
-				</script>
 				<invisible />
 			</header_content_framed_headersimple>
 			<string_content_noframe_static_top name="traveled">
 				<center />
 				<suffix>map_units</suffix>
-				<script>
-					function onInit()
-						update();
-					end
-					function update()
-						setVisible(OptionsManager.isOption('move_on', "on"));
-					end
-				</script>
 				<invisible />
 			</string_content_noframe_static_top>
+
 			<header_content_framed_headersimple name="speedeffectstitle">
 				<center />
 				<static textres="speed_effects_title" />
 			</header_content_framed_headersimple>
-			<windowlist name="list">
-				<anchored>
-					<top parent="speedeffectstitle" anchor="bottom" />
-					<left parent="leftanchor" />
-				</anchored>
+
+			<list_content_top name="list">
+				<anchored><right offset="0" /></anchored>
 				<datasource>.effectNames</datasource>
 				<class>effect_names</class>
-			</windowlist>
-			<scrollbar_content_list />
+			</list_content_top>
 		</sheetdata>
 	</windowclass>
 	<windowclass name="effect_names">
 		<sheetdata>
 			<anchor_listitem_left name="leftanchor" />
-			<anchor_listitem_left name="rightanchor" />
-			<string_listitem_left_static name="name" >
-				<anchored width="400" />
-			</string_listitem_left_static >
+			<anchor_listitem_right name="rightanchor" />
+
+			<string_listitem_center_static name="name" />
 		</sheetdata>
 	</windowclass>
 
@@ -202,22 +187,30 @@
 			</string_ct>
 		</sheetdata>
 	</windowclass>
+	<windowclass name="ct_section_active_vehicle" merge="join">
+		<sheetdata>
+			<string_ct name="speed" merge="delete" />
+			<string_ct name="WalkThisWay.currentSpeed">
+				<anchored to="speedlabel" position="righthigh" offset="5,0" height="20">
+					<right parent="anchor_section" />
+				</anchored>
+				<script>
+					function onDoubleClick()
+						local nodeW = window.getDatabaseNode();
+						SpeedManager.openSpeedWindow(nodeW);
+						return true;
+					end
+				</script>
+				<tooltip textres="tooltip_dclick_swindow" />
+				<readonly />
+			</string_ct>
+		</sheetdata>
+	</windowclass>
 
 	<!-- Character Sheet Mods -->
 	<windowclass name="charsheet_sensescombat" merge="join">
 		<sheetdata>
-			<number_charspeed_wtw name="speed_WtW" source="WalkThisWay.base" >
-<!--
-				<script>
-					function onInit()
-						if WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
-							setVisible(false);
-							setEnabled(false);
-						end
-					end
-				</script>
--->
-			</number_charspeed_wtw>
+			<number_charspeed_wtw name="speed_WtW" source="WalkThisWay.base" />
 			<number_charspeed name="speed" source="speed.total" merge="join">
 				<script>
 					function onInit()
@@ -239,7 +232,11 @@
 					end
 				</script>
 			</label_charfieldtop>
-			<speed_bonus_control />
+			<speed_bonus_control>
+				<anchored merge="join">
+					<left anchor="right" offset="25" merge="replace"/>
+				</anchored>
+			</speed_bonus_control>
 		</sheetdata>
 	</windowclass>
 	<windowclass name="npc_combat_top_2024" merge="join">
@@ -294,9 +291,43 @@
 						nodePath = DB.getPath(nodeW);
 						bOnCT = string.match(nodePath, 'combattracker');
 						if not bOnCT then setVisible(false) end
-						if bOnCT and super and super.onInit then
-							super.onInit();
-						end
+						if bOnCT and super and super.onInit then super.onInit() end
+					end
+				</script>
+			</speed_bonus_control>
+			<string_content_column name="speed" merge="join">
+				<script>
+					local nodeW, nodePath, bOnCT;
+					function onInit()
+						nodeW = window.getDatabaseNode();
+						nodePath = DB.getPath(nodeW);
+						bOnCT = string.match(nodePath, 'combattracker');
+						if not bOnCT then setTooltipText("") end
+					end
+					function onDoubleClick()
+						if bOnCT then SpeedManager.openSpeedWindow(nodeW) end
+						return true;
+					end
+				</script>
+				<tooltip textres="tooltip_dclick_swindow" />
+			</string_content_column>
+		</sheetdata>
+	</windowclass>
+	<windowclass name="vehicle_combat_top" merge="join">
+		<sheetdata>
+			<speed_bonus_control>
+				<anchored to="speed" width="32" height="20">
+					<top anchor="top" offset="-7"/>
+					<left anchor="left" offset="-30"/>
+				</anchored>
+				<script>
+					function onInit()
+						local nodeW, nodePath, bOnCT;
+						nodeW = window.getDatabaseNode();
+						nodePath = DB.getPath(nodeW);
+						bOnCT = string.match(nodePath, 'combattracker');
+						if not bOnCT then setVisible(false) end
+						if bOnCT and super and super.onInit then super.onInit() end
 					end
 				</script>
 			</speed_bonus_control>

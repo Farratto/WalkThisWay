@@ -11,7 +11,7 @@
 	<string name="query_msg_pfrpg2">Would you like to expend an action to stand up?</string>
 	<string name="query_msg_nocost">Would you like to stand up?</string>
 	<string name="query_msg_athlete">Would you like expend 5 feet of movement to hop up?</string>
-	<string name="speed_title">Current Speed</string>
+	<string name="speed_title">Speed</string>
 	<string name="header_traveled">Distance Traveled This Turn</string>
 	<string name="map_units">map units</string>
 	<string name="speed_effects_title">Effects Affecting Your Speed</string>
