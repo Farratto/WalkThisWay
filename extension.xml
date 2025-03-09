@@ -19,9 +19,6 @@
 		<script name="WtWCommon" file="scripts/common_wtw.lua" />
 		<script name="ProneManager" file="scripts/manager_prone.lua" />
 		<script name="SpeedManager" file="scripts/manager_speed.lua" ruleset="5E" />
-<!--
-		<script name="MovementManager" file="scripts/manager_movement.lua" ruleset="5E" />
--->
 		<icon name="WtW_icon" file="graphics/shoe.webp" />
 		<icon name="minimized_WtW" file="graphics/minimized_WtW.webp" />
 		<icon name="prone_arrow" file="graphics/prone_arrow.webp" />

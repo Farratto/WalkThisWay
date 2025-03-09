@@ -26,33 +26,33 @@ function setOptions()
 -- DEFAULT BEHAVIORS FOR OPTIONS: sType = "option_entry_cycler", on|off, default = off
 --Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client"
 	--Old 4th = ("option_label_" .. sKey)
-	if Session.RulesetName == "5E" then
-		OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
-									'option_entry_cycler', {
-			labels = 'option_val_off',
-			values = 'off',
-			baselabel = 'option_val_on',
-			baseval = 'on',
-			default = 'on'
-		});
-	end
-	OptionsManager.registerOption2('APCW', false, 'option_header_WtW', 'option_WtW_Allow_Player_Choice', 'option_entry_cycler', {
-		labels = 'option_val_on',
-		values = 'on',
-		baselabel = 'option_val_off',
-		baseval = 'off',
-		default = 'off'
-	});
-	if clientGetOption('APCW') == "on" then
-		OptionsManager.registerOption2('WTWONPLR', true, "option_header_client", 'option_WtW_On_Player_Choice',
-									   'option_entry_cycler', {
-			labels = 'option_val_off',
-			values = 'off',
-			baselabel = 'option_val_on',
-			baseval = 'on',
-			default = 'on'
-		});
-	else
+	--if Session.RulesetName == "5E" then
+	--	OptionsManager.registerOption2('WTWON', false, 'option_header_WtW', 'option_WtW_On',
+	--								'option_entry_cycler', {
+	--		labels = 'option_val_off',
+	--		values = 'off',
+	--		baselabel = 'option_val_on',
+	--		baseval = 'on',
+	--		default = 'on'
+	--	});
+	--end
+	--OptionsManager.registerOption2('APCW', false, 'option_header_WtW', 'option_WtW_Allow_Player_Choice', 'option_entry_cycler', {
+	--	labels = 'option_val_on',
+	--	values = 'on',
+	--	baselabel = 'option_val_off',
+	--	baseval = 'off',
+	--	default = 'off'
+	--});
+	--if clientGetOption('APCW') == "on" then
+	--	OptionsManager.registerOption2('WTWONPLR', true, "option_header_client", 'option_WtW_On_Player_Choice',
+	--								   'option_entry_cycler', {
+	--		labels = 'option_val_off',
+	--		values = 'off',
+	--		baselabel = 'option_val_on',
+	--		baseval = 'on',
+	--		default = 'on'
+	--	});
+	--else
 		OptionsManager.registerOption2('WTWONDM', false, "option_header_WtW", 'option_WtW_On_DM_Choice',
 									   'option_entry_cycler', {
 			labels = 'option_val_off',
@@ -61,7 +61,7 @@ function setOptions()
 			baseval = 'on',
 			default = 'on'
 		});
-	end
+	--end
 end
 
 function clientGetOption(sKey)
@@ -71,12 +71,11 @@ function clientGetOption(sKey)
 end
 
 function processTurnStart(nodeCT)
-	if OptionsManager.isOption('WTWON', 'off') then
-		return;
-	end
-	if not checkProne(nodeCT) then
-		return;
-	end
+	--if OptionsManager.isOption('WTWON', 'off') then
+	--	return;
+	--end
+	if not checkProne(nodeCT) then return end
+
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 	if sOwner then
 		queryClient(nodeCT, sOwner)
@@ -87,9 +86,9 @@ function processTurnStart(nodeCT)
 end
 
 function checkProne(nodeCT)
-	if OptionsManager.isOption('WTWON', 'off') then
-		return;
-	end
+	--if OptionsManager.isOption('WTWON', 'off') then
+	--	return;
+	--end
 	if not nodeCT then
 		Debug.console("ProneManager.checkProne - not nodeCT");
 		return;
@@ -220,12 +219,11 @@ end
 
 -- luacheck: push ignore 561
 function openProneWindow(nodeCT)
-	if OptionsManager.isOption('WTWON', 'off') or OptionsManager.isOption('WTWONPLR', 'off') then
-		return;
-	end
-	if Session.IsHost and OptionsManager.isOption('WTWONDM', 'off') then
-		return;
-	end
+	--if OptionsManager.isOption('WTWON', 'off') or OptionsManager.isOption('WTWONPLR', 'off') then
+	--	return;
+	--end
+	if Session.IsHost and OptionsManager.isOption('WTWONDM', 'off') then return end
+
 	local wProneQuery = Interface.openWindow('prone_query', DB.getPath(nodeCT));
 	if wProneQuery then wProneQuery.bringToFront() end
 	local tWindowsQuery = Interface.getWindows('prone_query');
@@ -354,9 +352,9 @@ function standUp(nodeCT)
 end
 
 function queryClient(nodeCT, sOwner)
-	if OptionsManager.isOption('WTWON', 'off') then
-		return;
-	end
+	--if OptionsManager.isOption('WTWON', 'off') then
+	--	return;
+	--end
 	if not sOwner then sOwner = WtWCommon.getControllingClient(nodeCT) end
 
 	if sOwner then
@@ -386,9 +384,9 @@ function sendCloseWindowCmd(nodeCT, sOwner)
 end
 
 function handleProneQueryClient(msgOOB)
-	if OptionsManager.isOption('WTWON', 'off') then
-		return;
-	end
+	--if OptionsManager.isOption('WTWON', 'off') then
+	--	return;
+	--end
 	local nodeCT = DB.findNode(msgOOB.sCTNodeID);
 	openProneWindow(nodeCT);
 end

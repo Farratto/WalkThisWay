@@ -5,10 +5,9 @@
 -- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 -- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
 -- luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly
--- luacheck: globals convNumToIdNodeName roundNumber propagateTextWidget handleTextWidgetPropagation
+-- luacheck: globals convNumToIdNodeName roundNumber
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
-OOB_MSGTYPE_PROPAGATE_WIDGET_TEXT = 'propagate_widget_text';
 local _sBetterGoldPurity = '';
 local tExtensions = {};
 local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
@@ -27,7 +26,6 @@ local aEffectVarMap = {
 
 function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
-	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_PROPAGATE_WIDGET_TEXT, handleTextWidgetPropagation);
 end
 
 function onTabletopInit()
@@ -474,10 +472,10 @@ end
 
 ---For a given cohort actor, determine the root character node that owns it
 function getRootCommander(rActor)
-	if not rActor then
-		Debug.console("WtWCommon.getRootCommander - rActor doesn't exist");
-		return;
-	end
+	--if not rActor then
+	--	Debug.console("WtWCommon.getRootCommander - rActor doesn't exist");
+	--	return;
+	--end
 	local sRecord = ActorManager.getCreatureNodeName(rActor);
 	local sRecordSansModule = StringManager.split(sRecord, "@")[1];
 	local aRecordPathSansModule = StringManager.split(sRecordSansModule, ".");
@@ -489,24 +487,22 @@ end
 
 --Returns nil for inactive identities and those owned by the GM
 function getControllingClient(nodeCT)
-	if not nodeCT then
-		Debug.console("WtWCommon.getControllingClient - not nodeCT");
-		return;
-	end
-	local sPCNode = nil;
+	--if not nodeCT then
+	--	Debug.console("WtWCommon.getControllingClient - not nodeCT");
+	--	return;
+	--end
+	local sPCNode;
 	local rActor = ActorManager.resolveActor(nodeCT);
 	local sNPCowner;
 	if ActorManager.isPC(nodeCT) then
 		sPCNode = ActorManager.getCreatureNodeName(rActor);
 	else
-		sNPCowner = DB.getValue(nodeCT, "NPCowner", "");
-		if sNPCowner == "" then
+		sNPCowner = DB.getValue(nodeCT, 'NPCowner', '');
+		if sNPCowner == '' then
 			if Pets and Pets.isCohort(rActor) then
 				sPCNode = getRootCommander(rActor);
-			else
-				if FriendZone and FriendZone.isCohort(rActor) then
-					sPCNode = getRootCommander(rActor);
-				end
+			--elseif FriendZone and FriendZone.isCohort(rActor) then
+			--	sPCNode = getRootCommander(rActor);
 			end
 		end
 	end
@@ -514,7 +510,7 @@ function getControllingClient(nodeCT)
 	if sPCNode or sNPCowner then
 		for _, value in pairs(User.getAllActiveIdentities()) do
 			if sPCNode then
-				if "charsheet." .. value == sPCNode then
+				if 'charsheet.' .. value == sPCNode then
 					return User.getIdentityOwner(value);
 				end
 			end
@@ -1120,132 +1116,4 @@ function roundNumber(nInput)
 	end
 
 	return nMultiplier * nWhole;
-end
-
-function propagateTextWidget(tokenMap, sText, sName, bDestroy, bSelf, sFont, nY, sPosition, sFrame
-	, sFrameOffset
-)
-	if not tokenMap or not sName or (not sText and bDestroy == nil) then
-		Debug.console("WtWCommon.propagateTextWidget - not sText or not sName or not sText and bDestroy is not nil");
-		return;
-	end
-
-	local msgOOB = {};
-	if sPosition then
-		msgOOB.sPosition = sPosition;
-	else
-		--sPosition = 'topcenter';
-		sPosition = 'top';
-	end
-	if sFrame then
-		msgOOB.sFrame = sFrame;
-	else
-		sFrame = 'token_ordinal';
-	end
-	if sFrameOffset then
-		msgOOB.sFrameOffset = sFrameOffset;
-	else
-		sFrameOffset = '7,1,7,1';
-	end
-	if sFont then
-		msgOOB.sFont = sFont;
-	else
-		sFont = 'token_ordinal';
-	end
-	if nY and tonumber(nY) then
-		msgOOB.sY = tostring(nY);
-	else
-		nY = 0;
-	end
-
-	--make widget here first
-	local widgetNew = tokenMap.findWidget(sName);
-	if widgetNew then
-		if bDestroy then
-			widgetNew.destroy();
-			msgOOB.sDestroy = 'true';
-		else
-			widgetNew.setText(sText);
-		end
-	else
-		local tWidget = { name = sName, position = sPosition, frame = sFrame, frameoffset = sFrameOffset
-			, font = sFont, text = sText, y = nY
-		};
-		tokenMap.addTextWidget(tWidget);
-	end
-
-	--command creation of widget throughout
-	if not bSelf then
-		msgOOB.type = OOB_MSGTYPE_PROPAGATE_WIDGET_TEXT;
-		msgOOB.tokenId = tostring(tokenMap.getId())
-		msgOOB.tokenContainer = DB.getPath(tokenMap.getContainerNode())
-		msgOOB.sName = sName;
-		msgOOB.sText = sText;
-		msgOOB.sIgnore = Session.UserName;
-		if Session.IsHost then msgOOB.host = 'true' end
-		Comm.deliverOOBMessage(msgOOB);
-	end
-end
-
-function handleTextWidgetPropagation(msgOOB)
-	--if msgOOB.sIgnore == Session.UserName then return end
-	if msgOOB.sIgnore == Session.UserName and ((not	Session.IsHost and not msgOOB.host) or
-		(Session.IsHost and msgOOB.host)
-	) then
-		return;
-	end
-
-	local nId = tonumber(msgOOB.tokenId);
-	local sContainer = msgOOB.tokenContainer;
-	local tokenMap = Token.getToken(sContainer, nId);
-	if not tokenMap then
-		Debug.console("WtWCommon.handleTextWidgetPropagation - not tokenMap");
-		return;
-	end
-
-	local bDestroy;
-	if msgOOB.sDestroy then bDestroy = true end
-	local sText;
-	if msgOOB.sText then sText = msgOOB.sText end
-
-	local sName = msgOOB.sName;
-	local widgetNew = tokenMap.findWidget(sName);
-	if widgetNew then
-		if bDestroy then
-			widgetNew.destroy();
-			return;
-		end
-		widgetNew.setText(sText);
-	else
-		local sPosition, sFrame, sFrameOffset, sFont, nY;
-		if msgOOB.sPosition then
-			sPosition = msgOOB.sPosition;
-		else
-			sPosition = 'topcenter';
-		end
-		if msgOOB.sFrame then
-			sFrame = msgOOB.sFrame;
-		else
-			sFrame = 'token_ordinal';
-		end
-		if msgOOB.sFrameOffset then
-			sFrameOffset = msgOOB.sFrameOffset;
-		else
-			sFrameOffset = '7,1,7,1';
-		end
-		if msgOOB.sFont then
-			sFont = msgOOB.sFont;
-		else
-			sFont = 'token_ordinal';
-		end
-		if msgOOB.sY then
-			nY = tonumber(msgOOB.sY);
-		else
-			nY = 0;
-		end
-		local tWidget = { name = sName, position = sPosition, frame = sFrame, frameoffset = sFrameOffset
-			, font = sFont, text = sText, y = nY
-		};
-		tokenMap.addTextWidget(tWidget);
-	end
 end

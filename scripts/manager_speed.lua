@@ -1,27 +1,36 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
--- luacheck: globals speedCalculator handleExhaustion setAllCharSheetSpeeds setCharSheetSpeed
+-- luacheck: globals speedCalculator handleExhaustion setAllCharSheetSpeeds setCharSheetSpeed onLoginWtW
 -- luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow getConversionFactor
--- luacheck: globals parseBaseSpeed onRecordTypeEventWtW reparseBaseSpeed reparseAllBaseSpeeds
+-- luacheck: globals parseBaseSpeed onRecordTypeEventWtW reparseBaseSpeed reparseAllBaseSpeeds handleSlash
 -- luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
--- luacheck: globals turnStartChecks registerPreference getPreference sendPrefRegistration
--- luacheck: globals handlePrefChange checkFitness parseSpeedType onTabletopInit recalcAllSpeeds
--- luacheck: globals handlePrefRegistration roundMph
+-- luacheck: globals turnStartChecks registerPreference getPreference sendPrefRegistration requestPref
+-- luacheck: globals handlePrefChange checkFitness parseSpeedType onTabletopInit recalcAllSpeeds tidyUnits
+-- luacheck: globals handlePrefRegistration roundMph onIdentityActivationWtW handlePrefRequest onTurnEndWtW
+-- luacheck: globals handleCloseSpeedWindow closeSpeedWindow
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
+OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
 OOB_MSGTYPE_REGPREF = 'regpreference';
+OOB_MSGTYPE_REQPREF = 'request_preference'
 
-local fonRecordTypeEvent = '';
+local fonRecordTypeEvent;
+local fonIdentityActivation;
+local fonLogin;
 local tClientPrefs = {};
 local bLoopProt;
 local nodeUbiquinated;
+
 
 function onInit()
 	setOptions();
 
 	if Session.RulesetName == "5E" then
 		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_SPEEDWINDOW, handleSpeedWindowClient);
+		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSESPEEDWINDOW, handleCloseSpeedWindow);
+		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
+		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REQPREF, sendPrefRegistration);
 	end
 
 	if Session.IsHost then
@@ -42,20 +51,25 @@ function onInit()
 			--DB.addHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
 			CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
-			OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
+			fonIdentityActivation = User.onIdentityActivation;
+			User.onIdentityActivation = onIdentityActivationWtW;
+			fonLogin = User.onLogin;
+			User.onLogin = onLoginWtW;
 		end
 		CombatManager.setCustomTurnStart(turnStartChecks);
-	else
-		if Session.RulesetName == "5E" then
-			local sPref = OptionsManager.getOption('DDLU');
-			sendPrefRegistration(sPref);
+		CombatManager.setCustomTurnEnd(onTurnEndWtW);
+		local nodeWTW = DB.createNode('WalkThisWay');
+		DB.setPublic(nodeWTW, true);
+		if not DB.getValue(nodeWTW, 'effectUnits') then
+			DB.setValue(nodeWTW, 'effectUnits', 'string', 'ft.');
 		end
+		Comm.registerSlashHandler('distunits', handleSlash, '[ft|m|tiles]')
 	end
 end
 
 function onTabletopInit()
-	if Session.IsHost then
-		if Session.RulesetName == "5E" then
+	if Session.RulesetName == "5E" then
+		if Session.IsHost then
 			reparseAllBaseSpeeds();
 			setAllCharSheetSpeeds();
 			recalcAllSpeeds();
@@ -63,53 +77,33 @@ function onTabletopInit()
 	end
 end
 
-function onClose()
-	if Session.RulesetName == "5E" then
-		if Session.IsHost then
-			DB.removeHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
-			DB.removeHandler('combattracker.list.*.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
-			DB.removeHandler('combattracker.list.*.effects','onChildDeleted',callSpeedCalcEffectDeleted);
-			DB.removeHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
-			DB.removeHandler('charsheet.*.speed.total','onUpdate', setCharSheetSpeed);
-			DB.removeHandler('charsheet.*.speed.base','onUpdate', setCharSheetSpeed);
-			--DB.removeHandler('charsheet.*.speed.special','onUpdate', reparseBaseSpeed);
-			--DB.removeHandler("charsheet.*.inventorylist.*.carried", "onUpdate", checkFitness);
-			--DB.removeHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
-			OptionsManager.unregisterCallback('DDCU', reparseAllBaseSpeeds);
-			OptionsManager.unregisterCallback('WESC', recalcAllSpeeds);
-			CombatRecordManager.onRecordTypeEvent = fonRecordTypeEvent;
-		end
-		OptionsManager.unregisterCallback('DDLU', handlePrefChange);
-	end
-end
-
 function setOptions()
 -- DEFAULT BEHAVIORS FOR OPTIONS: sType = "option_entry_cycler", on|off, default = off
 --Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client"
 	--Old 4th = ("option_label_" .. sKey)
+	if Session.RulesetName == "5E" then
+		OptionsManager.registerOptionData({	sKey = 'WESC', sGroupRes = 'option_header_WtW', tCustom = { default = "on" } });
+	end
 	if Session.IsHost then
 		if Session.RulesetName == "5E" then
-			OptionsManager.registerOptionData({	sKey = 'DDCU', sGroupRes = "option_header_WtW",
-				tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
-					baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
-				}
-			});
 			OptionsManager.registerOptionData({	sKey = 'ADEC', sGroupRes = "option_header_WtW" });
-			OptionsManager.registerCallback('DDCU', reparseAllBaseSpeeds);
 			OptionsManager.registerCallback('WESC', recalcAllSpeeds);
 		end
 	end
-	OptionsManager.registerOptionData({	sKey = 'AOSW', bLocal = true });
+	OptionsManager.registerOptionData({	sKey = 'AOSW', sGroupRes = "option_header_WtW", bLocal = true });
+	OptionsManager.registerOptionData({	sKey = 'ACSW', sGroupRes = "option_header_WtW", bLocal = true });
 	OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
 		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
 			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
 		}
 	});
+	OptionsManager.registerCallback('DDLU', handlePrefChange);
+end
 
-	if Session.RulesetName == "5E" then
-		OptionsManager.registerOptionData({	sKey = 'WESC', sGroupRes = 'option_header_WtW', tCustom = { default = "on" } });
-		OptionsManager.registerCallback('DDLU', handlePrefChange);
-	end
+function onLoginWtW(username, activated)
+	if fonLogin then fonLogin(username, activated) end
+
+	if not activated then recalcAllSpeeds() end
 end
 
 function onRecordTypeEventWtW(sRecordType, tCustom)
@@ -117,6 +111,12 @@ function onRecordTypeEventWtW(sRecordType, tCustom)
 
 	if Session.IsHost then
 		parseBaseSpeed(tCustom.nodeCT, true);
+		if MovementManager then
+			if not tCustom.nodeRecord then
+				tCustom.nodeRecord = DB.findNode(tCustom.sRecord);
+			end
+			MovementManager.setWtwDbOwner(tCustom.nodeRecord, tCustom.nodeCT);
+		end
 	end
 
 	return bResult;
@@ -164,8 +164,8 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 			return 0.3;
 		elseif sDesiredUnits == 'tiles' then
 			return 0.2;
-		elseif sDesiredUnits == 'ft.' then
-			return 1;
+		elseif sDesiredUnits == 'mi.' then
+			return 1 / 5280;
 		else
 			Debug.console('SpeedManager.getConversionFactor - Invalid units.');
 			return 1;
@@ -177,8 +177,9 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 		elseif sDesiredUnits == 'tiles' then
 			nReturn = 1 / 1.5;
 			return nReturn;
-		elseif sDesiredUnits == 'm' then
-			return 1;
+		elseif sDesiredUnits == 'mi.' then
+			nReturn = 1 / 1609.344;
+			return nReturn;
 		else
 			Debug.console('SpeedManager.getConversionFactor - Invalid units.');
 			return 1;
@@ -188,8 +189,6 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 			return 5;
 		elseif sDesiredUnits == 'm' then
 			return 1.5;
-		elseif sDesiredUnits == 'tiles' then
-			return 1;
 		else
 			Debug.console('SpeedManager.getConversionFactor - Invalid units.');
 			return 1;
@@ -211,93 +210,101 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 	end
 end
 
-function sendPrefRegistration(sPref, bRecalc)
+function onIdentityActivationWtW(identityname, username, activated)
+	if fonIdentityActivation then fonIdentityActivation(identityname, username, activated) end
+
+	if activated then requestPref(username) end
+end
+function sendPrefRegistration(msgOOB, sPref) --luacheck: ignore 312
 	local sOwner = Session.UserName;
-	local msgOOB = {};
+	msgOOB = {};
 	msgOOB.type = OOB_MSGTYPE_REGPREF;
+	if not sPref then sPref = OptionsManager.getOption('DDLU') end
 	msgOOB.sPref = sPref;
 	msgOOB.sOwner = sOwner;
-	if bRecalc then
-		msgOOB.nRecalc = '1'
-	else
-		msgOOB.nRecalc = '0'
-	end
-	Comm.deliverOOBMessage(msgOOB, sOwner);
+	Comm.deliverOOBMessage(msgOOB);
 end
 function handlePrefRegistration(msgOOB)
-	if not Session.IsHost then
-		Debug.console("SpeedManager.handlePrefRegistration - not isHost");
-		return;
-	end
+	if not Session.IsHost then return end
+
 	registerPreference(msgOOB.sOwner, msgOOB.sPref);
-	if msgOOB.nRecalc == '1' then
-		recalcAllSpeeds();
-	end
+	recalcAllSpeeds(msgOOB.sOwner);
+end
+function requestPref(sUser)
+	local msgOOB = {};
+	msgOOB.type = OOB_MSGTYPE_REQPREF;
+	Comm.deliverOOBMessage(msgOOB, sUser);
 end
 
 function handlePrefChange(sOptionKey)
 	if Session.IsHost then
 		recalcAllSpeeds();
 	else
-		local sPref = OptionsManager.getOption(sOptionKey);
-		sendPrefRegistration(sPref, true);
+		sendPrefRegistration(nil, OptionsManager.getOption(sOptionKey));
 	end
 end
 function registerPreference(sOwner, sPref)
-	if not Session.IsHost then
-		Debug.console("SpeedManager.registerPreference - not isHost");
-		return;
-	end
-	if not sOwner then
-		Debug.console("SpeedManager.registerPreference - not sOwner");
-		return;
-	end
-	if not sPref then
-		Debug.console("SpeedManager.registerPreference - not sPref");
-		return;
-	end
+	--if not Session.IsHost then
+	--	Debug.console("SpeedManager.registerPreference - not isHost");
+	--	return;
+	--end
+	--if not sOwner then
+	--	Debug.console("SpeedManager.registerPreference - not sOwner");
+	--	return;
+	--end
+	--if not sPref then
+	--	Debug.console("SpeedManager.registerPreference - not sPref");
+	--	return;
+	--end
 	for k,_ in pairs(tClientPrefs) do
 		if k == sOwner then
 			tClientPrefs[k] = sPref;
-			return true;
+			return;
 		end
 	end
 	tClientPrefs[sOwner] = sPref;
-	return true;
 end
 
 function getPreference(sOwner)
-	if not Session.IsHost then
-		Debug.console("SpeedManager.getPreference - not isHost");
-		return;
-	end
-	if not sOwner then
-		Debug.console("SpeedManager.getPreference - not sOwner");
-		return;
-	end
+	--if not Session.IsHost then
+	--	Debug.console("SpeedManager.getPreference - not isHost");
+	--	return;
+	--end
+	--if not sOwner then
+	--	Debug.console("SpeedManager.getPreference - not sOwner");
+	--	return;
+	--end
 	for k,v in pairs(tClientPrefs) do
 		if k == sOwner then
 			return v;
 		end
 	end
-	return false;
+	return nil;
 end
 
-function recalcAllSpeeds()
+function recalcAllSpeeds(sOwner)
 	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
-		speedCalculator(nodeCT);
+		if sOwner then
+			if sOwner == WtWCommon.getControllingClient(nodeCT) then
+				speedCalculator(nodeCT);
+				if MovementManager then MovementManager.setConvFactor(nodeCT) end
+			end
+		else
+			speedCalculator(nodeCT);
+			if MovementManager then MovementManager.setConvFactor(nodeCT) end
+		end
 	end
 end
 
 -- luacheck: push ignore 561
 function speedCalculator(nodeCT, bCalledFromParse)
-	if not nodeCT then
-		Debug.console("SpeedManager.speedCalculator - not nodeCT");
-		return;
-	end
-	if not Session.IsHost then
-		Debug.console("SpeedManager.speedCalculator - not isHost");
-	end
+	--if not nodeCT then
+	--	Debug.console("SpeedManager.speedCalculator - not nodeCT");
+	--	return;
+	--end
+	--if not Session.IsHost then
+	--	Debug.console("SpeedManager.speedCalculator - not isHost");
+	--end
 
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
@@ -737,7 +744,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		end
 		if not bRecognizedRmndr and sRmndrLower ~= '' then
 			Debug.console("SpeedManager.speedCalculator - Syntax Error - "..tostring(sRmndrLower)..
-				" is not a recognized command.  Use inc, dec, max, doubled, halved, difficult, or type.  See the README or forum for more specifics about syntax."
+				" is not a recognized command.	Use inc, dec, max, doubled, halved, difficult, or type.	 See the README or forum for more specifics about syntax."
 			);
 		else
 			if nMod then
@@ -931,7 +938,10 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 	local sLngthUnits = DB.getValue(nodeCTWtW, 'units');
 	if not sLngthUnits or sLngthUnits == '' then
 		Debug.console("SpeedManager.updateDisplaySpeed - units not in DB");
-		sLngthUnits = OptionsManager.getOption('DDCU');
+		--sLngthUnits = OptionsManager.getOption('DDCU');
+		local nodeWTW = DB.createNode('WalkThisWay');
+		DB.setPublic(nodeWTW, true);
+		sLngthUnits = DB.getValue(nodeWTW, 'effectUnits');
 	end
 	if sLngthUnits ~= sUnitsPrefer then
 		nConvFactor = getConversionFactor(sLngthUnits, sUnitsPrefer);
@@ -1128,7 +1138,10 @@ function parseBaseSpeed(nodeCT, bCalc)
 		local sLngthUnits = '';
 		local sStripPattern = '';
 		local sMphAdd;
-		local sUnitsGave = OptionsManager.getOption('DDCU');
+		--local sUnitsGave = OptionsManager.getOption('DDCU');
+		local nodeWTW = DB.createNode('WalkThisWay');
+		DB.setPublic(nodeWTW, true);
+		local sUnitsGave = DB.getValue(nodeWTW, 'effectUnits');
 		for _,sSpdTypeSplit in ipairs(aSpdTypeSplit) do
 			local nodeSpeedRcrd = DB.createChild(nodeFGSpeed);
 			local sVelocity = string.match(sSpdTypeSplit, '%d+');
@@ -1170,15 +1183,16 @@ function parseBaseSpeed(nodeCT, bCalc)
 					end
 				end
 				sFinalUnits = sLngthUnits
-				if string.lower(sFinalUnits) == 'ft' or string.lower(sFinalUnits) == 'ft.' then
-					sFinalUnits = 'ft.';
-				end
-				if string.lower(sFinalUnits) == 'm.' or string.lower(sFinalUnits) == 'm' then
-					sFinalUnits = 'm';
-				end
-				if string.lower(sFinalUnits) == 'tiles.' or string.lower(sFinalUnits) == 'tiles' then
-					sFinalUnits = 'tiles';
-				end
+				--if string.lower(sFinalUnits) == 'ft' or string.lower(sFinalUnits) == 'ft.' then
+				--	sFinalUnits = 'ft.';
+				--end
+				--if string.lower(sFinalUnits) == 'm.' or string.lower(sFinalUnits) == 'm' then
+				--	sFinalUnits = 'm';
+				--end
+				--if string.lower(sFinalUnits) == 'tiles.' or string.lower(sFinalUnits) == 'tiles' then
+				--	sFinalUnits = 'tiles';
+				--end
+				sFinalUnits = tidyUnits(sFinalUnits);
 				if sFinalUnits ~= sUnitsGave then
 					nConvFactor = getConversionFactor(sFinalUnits, sUnitsGave);
 					sFinalUnits = sUnitsGave;
@@ -1418,22 +1432,25 @@ end
 
 function openSpeedWindow(nodeCT)
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	if Session.IsHost then DB.setPublic(nodeCTWtW, true) end
-	local rActor = ActorManager.resolveActor(nodeCT);
-	DB.setValue(nodeCTWtW, 'name', 'string', tostring(rActor.sName));
+	DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'name', ''));
 	local sCurrentSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
 	if not sCurrentSpeed then
-		local nFGSpeed = DB.getValue(nodeCT, 'speed');
-		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', tostring(nFGSpeed));
+		local nFGSpeed = DB.getValue(nodeCT, 'speed', '');
+		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', nFGSpeed);
 	end
 
-	--local wSpeed = Interface.findWindow('speed_window', nodeCTWtW);
-	local wSpeed = Interface.openWindow('speed_window', nodeCTWtW);
+	local wSpeed = Interface.findWindow('speed_window', nodeCTWtW);
 	if wSpeed then
 		wSpeed.bringToFront();
-	--else
-	--	Interface.openWindow('speed_window', nodeCTWtW);
+	else
+		Interface.openWindow('speed_window', nodeCTWtW);
 	end
+end
+function closeSpeedWindow(nodeCT)
+	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+
+	local wSpeed = Interface.findWindow('speed_window', nodeCTWtW);
+	if wSpeed then wSpeed.close() end
 end
 
 function turnStartChecks(nodeCT)
@@ -1450,17 +1467,26 @@ function turnStartChecks(nodeCT)
 			msgOOB.sCTNodeID = DB.getPath(nodeCT);
 			Comm.deliverOOBMessage(msgOOB, sOwner);
 		else
-			if OptionsManager.isOption('AOSW', 'on') then
-				openSpeedWindow(nodeCT);
-			end
+			if OptionsManager.isOption('AOSW', 'on') then openSpeedWindow(nodeCT) end
 		end
 	end
 end
-
-function handleSpeedWindowClient(msgOOB)
-	if OptionsManager.isOption('AOSW', 'on') then
-		openSpeedWindow(msgOOB.sCTNodeID);
+function onTurnEndWtW(nodeCT)
+	local sOwner = WtWCommon.getControllingClient(nodeCT);
+	if sOwner then
+		local msgOOB = {};
+		msgOOB.type = OOB_MSGTYPE_CLOSESPEEDWINDOW;
+		msgOOB.sCTNodeID = DB.getPath(nodeCT);
+		Comm.deliverOOBMessage(msgOOB, sOwner);
+	else
+		if OptionsManager.isOption('ACSW', 'on') then closeSpeedWindow(nodeCT) end
 	end
+end
+function handleSpeedWindowClient(msgOOB)
+	if OptionsManager.isOption('AOSW', 'on') then openSpeedWindow(msgOOB.sCTNodeID) end
+end
+function handleCloseSpeedWindow(msgOOB)
+	if OptionsManager.isOption('ACSW', 'on') then closeSpeedWindow(msgOOB.sCTNodeID) end
 end
 
 function roundMph(number, sUnitsPrefer)
@@ -1486,4 +1512,35 @@ function roundMph(number, sUnitsPrefer)
 		end
 	end
 	return number;
+end
+
+function handleSlash(_, sParams)
+	if not Session.IsHost then return end
+
+	local sUnitsClean = tidyUnits(sParams);
+	if not sUnitsClean then
+		local tMsg = {};
+		tMsg.text = "Only three options are supported: ft, m, or tiles. Contact author of WalkThisWay if you desire additional options."
+		Comm.addChatMessage(tMsg)
+		return;
+	end
+
+	local nodeWTW = DB.createNode('WalkThisWay');
+	DB.setPublic(nodeWTW, true);
+	DB.setValue(nodeWTW, 'effectUnits', 'string', sUnitsClean);
+	reparseAllBaseSpeeds();
+end
+
+function tidyUnits(sUnitsGave)
+	local sReturn = nil;
+	if string.lower(sUnitsGave) == 'ft' or string.lower(sUnitsGave) == 'ft.' then
+		sReturn = 'ft.';
+	end
+	if string.lower(sUnitsGave) == 'm.' or string.lower(sUnitsGave) == 'm' then
+		sReturn = 'm';
+	end
+	if string.lower(sUnitsGave) == 'tiles.' or string.lower(sUnitsGave) == 'tiles' then
+		sReturn = 'tiles';
+	end
+	return sReturn;
 end

@@ -12,8 +12,6 @@
 	<string name="query_msg_nocost">Would you like to stand up?</string>
 	<string name="query_msg_athlete">Would you like expend 5 feet of movement to hop up?</string>
 	<string name="speed_title">Speed</string>
-	<string name="header_traveled">Distance Traveled This Turn</string>
-	<string name="map_units">map units</string>
 	<string name="speed_effects_title">Effects Affecting Your Speed</string>
 	<string name="tooltip_dclick_swindow">Double click to open speed window</string>
 
@@ -24,18 +22,13 @@
 	<string name="option_header_WtW">Walk this Way (GM)</string>
 	<string name="option_WtW_On">Enable Prone Reminder Window funcationality</string>
 	<string name="option_label_WESC">Enable SPEED effect calculations</string>
-	<string name="option_label_move_on">Enable movement manager - Dev Testing</string>
-	<string name="option_label_enforce_move">Enforce movement limitations</string>
-	<string name="option_label_live_move">Live movement tracking (laggy)</string>
-	<string name="option_label_difficult_move">Difficult terrain tracking</string>
 	<string name="option_WtW_Allow_Player_Choice">Allow players to turn prone reminder windows on or off (requires restart)</string>
 	<string name="option_WtW_On_Player_Choice">Reminder window to stand when you are prone</string>
 	<string name="option_WtW_On_DM_Choice">Prone reminder windows for characters not owned by players</string>
-	<string name="option_label_AOSW">Open speed details window on turn start</string>
+	<string name="option_label_AOSW">Auto-open speed details window on turn start</string>
+	<string name="option_label_ACSW">Auto-close speed details window on turn end</string>
 	<string name="option_label_DDLU">Units for displaying Speed</string>
 	<string name="option_label_ADEC">Automatically kill character that reaches 6 stacks of exhaustion</string>
-	<string name="option_label_DDCU">Distance units used in spell effects (only change if you know what you're doing)</string>
-	<string name="option_label_animated_move">Animated movement indicator</string>
 	<string name="option_val_meters">Meters</string>
 	<string name="option_val_tiles">Tiles</string>
 	<string name="option_val_feet">Feet</string>

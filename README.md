@@ -41,9 +41,9 @@ Coming soon: reduces speed when wearing armor the character is not strong enough
 
 The extension updates all the speeds on the speed field in the combat tracker.  Character sheets still show base speed.  There is an optional window that shows all the speeds for a character and all the effects affecting their speed.You can have the window open automatically on your turn through an option setting.  Or you can open the window at any time by double-clicking the speed field on a character sheet or the combat tracker.
 
-Option setting (for GM and players) to change the units that speed is displayed in.  Current choices are feet, meters, and tiles.  Automatically rounds final speed down to nearest half tile.  Another option for the GM to change the units that spell effect speeds work with.
+Option setting (for GM and players) to change the units that speed is displayed in.  Current choices are feet, meters, and tiles.  Automatically rounds final speed down to nearest half tile.  Typing /distunits followed by either ft, m, or tiles will change the units that the effects are processed in.  This is advanced usage and I don't recommend unless all your effects are not in feet (unusual).
 
-Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted, Temporal Fixation
+Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted, Temporal Fixation, Step Counter
 
 Note: Known limitation with Mad Nomad's Character Sheet Tweaks: Changed units will not display on player character sheets (but still works on CT, speed windows, and NPCs)
 
@@ -76,6 +76,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.5.0: Reduced option clutter. New option to auto-close speed window. Accomodations for Step Counter
 * v2.4.0: FEATURE: vehicle support. FIXED: rare nil error. Minor aesthetic improvements.
 * v2.3.4: FIXED: several minor bugs. Shout out to RocketVaultGames for constant vigilence!
 * v2.3.3: Negative Interaction with MNM CharSheet Tweaks. FIXED

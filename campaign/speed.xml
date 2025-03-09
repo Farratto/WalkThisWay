@@ -7,11 +7,11 @@
 	<!-- Main Window -->
 	<windowclass name="speed_window" copy="charsheethelper_base">
 		<placement>
-			<size width="280" height="252" />
+			<size width="235" height="173" />
 		</placement>
 		<sizelimits >
 			<maximum width="600" height="600" />
-			<minimum width="180" height="150" />
+			<minimum width="180" height="115" />
 			<dynamic />
 		</sizelimits>
 		<minimize>minimized_WtW</minimize>
@@ -33,6 +33,7 @@
 		</sheetdata>
 	</windowclass>
 	<windowclass name="speed_window_content">
+<!--
 		<script>
 			function onInit()
 				self.updateDisplay();
@@ -42,6 +43,7 @@
 				WindowManager.callSafeControlsSetVisible(self, tFields, OptionsManager.isOption("move_on", "on"));
 			end
 		</script>
+-->
 		<sheetdata>
 			<anchor_content_top />
 
@@ -52,7 +54,7 @@
 			<string_content_noframe_static_top name="currentSpeed">
 				<center />
 			</string_content_noframe_static_top>
-
+<!--
 			<header_content_framed_headersimple name="headertraveled">
 				<center />
 				<static textres="header_traveled" />
@@ -63,7 +65,7 @@
 				<suffix>map_units</suffix>
 				<invisible />
 			</string_content_noframe_static_top>
-
+-->
 			<header_content_framed_headersimple name="speedeffectstitle">
 				<center />
 				<static textres="speed_effects_title" />
@@ -86,6 +88,7 @@
 	</windowclass>
 
 	<!-- Sub-window Bottom -->
+<!--
 	<windowclass name="speed_buttons_bottom">
 		<sheetdata>
 			<anchor_content_top />
@@ -138,8 +141,6 @@
 				end
 				function onButtonPress()
 					local nodeCT = DB.getParent(window.getDatabaseNode());
-					--MovementManager.setStartPosi(nodeCT);
-					--MovementManager.updateDistTraveled(nodeCT, 0, false);
 					MovementManager.undoLastStep(nodeCT);
 					return true;
 				end
@@ -147,7 +148,7 @@
 			<invisible />
 		</button_boolean>
 	</template>
-
+-->
 	<!-- Combat Tracker Mods -->
 	<windowclass name="ct_section_active" merge="join">
 		<sheetdata>
