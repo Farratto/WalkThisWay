@@ -27,8 +27,10 @@
 	<string name="option_WtW_On_DM_Choice">Prone reminder windows for characters not owned by players</string>
 	<string name="option_label_AOSW">Auto-open speed details window on turn start</string>
 	<string name="option_label_ACSW">Auto-close speed details window on turn end</string>
-	<string name="option_label_DDLU">Units for displaying Speed</string>
 	<string name="option_label_ADEC">Automatically kill character that reaches 6 stacks of exhaustion</string>
+
+	<!-- Common -->
+	<string name="option_label_DDLU">Units for displaying Speed</string>
 	<string name="option_val_meters">Meters</string>
 	<string name="option_val_tiles">Tiles</string>
 	<string name="option_val_feet">Feet</string>

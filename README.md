@@ -76,6 +76,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.5.3: Renewed support for Exhausted extension. Cut the cord on Step Counter.
 * v2.5.2: FIXED: introduced error when encountering creatures with no speed
 * v2.5.1: FIXED: Base Speed on PC charsheet not displaying correctly in some instances.
 * v2.5.0: Reduced option clutter. New option to auto-close speed window. Accomodations for Step Counter

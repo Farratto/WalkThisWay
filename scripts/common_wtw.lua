@@ -6,12 +6,18 @@
 -- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
 -- luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly
 -- luacheck: globals convNumToIdNodeName roundNumber
+-- luacheck: globals getPreference registerPreference handlePrefChange requestPref handlePrefRegistration
+-- luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
+OOB_MSGTYPE_REGPREF = 'regpreference';
+OOB_MSGTYPE_REQPREF = 'request_preference'
 local _sBetterGoldPurity = '';
 local tExtensions = {};
 local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
 local aExceptionDescriptors = {'steal', 'stealtemp'};
+local tClientPrefs = {};
+local fonIdentityActivation;
 
 local aEffectVarMap = {
 	["sName"] = { sDBType = "string", sDBField = "label" },
@@ -19,13 +25,27 @@ local aEffectVarMap = {
 	["sSource"] = { sDBType = "string", sDBField = "source_name", bClearOnUntargetedDrop = true },
 	["sTarget"] = { sDBType = "string", bClearOnUntargetedDrop = true },
 	["nDuration"] = { sDBType = "number", sDBField = "duration", vDBDefault = 1, sDisplay = "[D: %d]" },
-	["nInit"] = { sDBType = "number", sDBField = "init", sSourceChangeSet = "initresult", bClearOnUntargetedDrop = true },
+	["nInit"] = { sDBType = "number", sDBField = "init", sSourceChangeSet = "initresult"
+		, bClearOnUntargetedDrop = true
+	},
 	["sApply"] = { sDBType = "string", sDBField = "apply", sDisplay = "[%s]"},
-	["sChangeState"] = { sDBType = "string", sDBField = "changestate" } -- added by Farratto
+	["sChangeState"] = { sDBType = "string", sDBField = "changestate" }
 };
 
 function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
+	OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
+		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
+			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
+		}
+	});
+	OptionsManager.registerCallback('DDLU', handlePrefChange);
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REQPREF, sendPrefRegistration);
+	if Session.IsHost then
+		fonIdentityActivation = User.onIdentityActivation;
+		User.onIdentityActivation = onIdentityActivationWtW;
+	end
 end
 
 function onTabletopInit()
@@ -1116,4 +1136,133 @@ function roundNumber(nInput)
 	end
 
 	return nMultiplier * nWhole;
+end
+
+function getConversionFactor(sCurrentUnits, sDesiredUnits)
+	if not sCurrentUnits or not sDesiredUnits then
+		Debug.console('WtWCommon.getConversionFactor - not sCurrentUnits or not sDesiredUnits');
+		return 1;
+	end
+	if sCurrentUnits == sDesiredUnits then return 1 end
+	local nReturn;
+	if sCurrentUnits == 'ft.' then
+		if sDesiredUnits == 'm' then
+			return 0.3;
+		elseif sDesiredUnits == 'tiles' then
+			return 0.2;
+		elseif sDesiredUnits == 'mi.' then
+			return 1 / 5280;
+		else
+			Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+			return 1;
+		end
+	elseif sCurrentUnits == 'm' then
+		if sDesiredUnits == 'ft.' then
+			nReturn = 5 / 1.5;
+			return nReturn;
+		elseif sDesiredUnits == 'tiles' then
+			nReturn = 1 / 1.5;
+			return nReturn;
+		elseif sDesiredUnits == 'mi.' then
+			nReturn = 1 / 1609.344;
+			return nReturn;
+		else
+			Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+			return 1;
+		end
+	elseif sCurrentUnits == 'tiles' then
+		if sDesiredUnits == 'ft.' then
+			return 5;
+		elseif sDesiredUnits == 'm' then
+			return 1.5;
+		else
+			Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+			return 1;
+		end
+	elseif sCurrentUnits == 'mph' then
+		if sDesiredUnits == 'ft.' then
+			return 8.8;
+		elseif sDesiredUnits == 'm' then
+			return 2.68224;
+		elseif sDesiredUnits == 'tiles' then
+			return 1.76;
+		else
+			Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+			return 1;
+		end
+	else
+		Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+		return 1;
+	end
+end
+function onIdentityActivationWtW(identityname, username, activated)
+	if fonIdentityActivation then fonIdentityActivation(identityname, username, activated) end
+
+	if activated then requestPref(username) end
+end
+function sendPrefRegistration(msgOOB, sPref) --luacheck: ignore 312
+	local sOwner = Session.UserName;
+	msgOOB = {};
+	msgOOB.type = OOB_MSGTYPE_REGPREF;
+	if not sPref then sPref = OptionsManager.getOption('DDLU') end
+	msgOOB.sPref = sPref;
+	msgOOB.sOwner = sOwner;
+	Comm.deliverOOBMessage(msgOOB);
+end
+function handlePrefRegistration(msgOOB)
+	if not Session.IsHost then return end
+
+	registerPreference(msgOOB.sOwner, msgOOB.sPref);
+	if SpeedManager then SpeedManager.recalcAllSpeeds(msgOOB.sOwner) end
+end
+function requestPref(sUser)
+	local msgOOB = {};
+	msgOOB.type = OOB_MSGTYPE_REQPREF;
+	Comm.deliverOOBMessage(msgOOB, sUser);
+end
+function handlePrefChange(sOptionKey)
+	if Session.IsHost then
+		if SpeedManager then SpeedManager.recalcAllSpeeds() end
+	else
+		sendPrefRegistration(nil, OptionsManager.getOption(sOptionKey));
+	end
+end
+function registerPreference(sOwner, sPref)
+	--if not Session.IsHost then
+	--	Debug.console("WtWCommon.registerPreference - not isHost");
+	--	return;
+	--end
+	--if not sOwner then
+	--	Debug.console("WtWCommon.registerPreference - not sOwner");
+	--	return;
+	--end
+	--if not sPref then
+	--	Debug.console("WtWCommon.registerPreference - not sPref");
+	--	return;
+	--end
+	for k,_ in pairs(tClientPrefs) do
+		if k == sOwner then
+			tClientPrefs[k] = sPref;
+			return;
+		end
+	end
+	tClientPrefs[sOwner] = sPref;
+end
+function getPreference(sOwner)
+	--if not Session.IsHost then
+	--	Debug.console("WtWCommon.getPreference - not isHost");
+	--	return;
+	--end
+	--if not sOwner then
+	--	Debug.console("WtWCommon.getPreference - not sOwner");
+	--	return;
+	--end
+	if not sOwner then return OptionsManager.getOption('DDLU') end
+
+	for k,v in pairs(tClientPrefs) do
+		if k == sOwner then
+			return v;
+		end
+	end
+	return nil;
 end
