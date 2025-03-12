@@ -1,7 +1,7 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
--- luacheck: globals clientGetOption checkProne checkHideousLaughter setOptions processTurnStart
+-- luacheck: globals checkProne checkHideousLaughter setOptions processTurnStart
 -- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild
 -- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery
 
@@ -62,12 +62,6 @@ function setOptions()
 			default = 'on'
 		});
 	--end
-end
-
-function clientGetOption(sKey)
-	if CampaignRegistry["Opt" .. sKey] then
-		return CampaignRegistry["Opt" .. sKey];
-	end
 end
 
 function processTurnStart(nodeCT)

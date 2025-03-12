@@ -21,11 +21,6 @@
 			</windowtitlebar_charsheethelper>
 			<windowmenubar_charsheethelper name="menubar" merge="delete" />
 			<windowmenubar_charsheethelper_basic name="menubar" />
-<!--
-			<sub_content_buttons_bottom name="sub_buttons">
-				<class>speed_buttons_bottom</class>
-			</sub_content_buttons_bottom>
--->
 			<sub_content_framed_groupbox name="content">
 				<class>speed_window_content</class>
 			</sub_content_framed_groupbox>
@@ -54,18 +49,6 @@
 			<string_content_noframe_static_top name="currentSpeed">
 				<center />
 			</string_content_noframe_static_top>
-<!--
-			<header_content_framed_headersimple name="headertraveled">
-				<center />
-				<static textres="header_traveled" />
-				<invisible />
-			</header_content_framed_headersimple>
-			<string_content_noframe_static_top name="traveled">
-				<center />
-				<suffix>map_units</suffix>
-				<invisible />
-			</string_content_noframe_static_top>
--->
 			<header_content_framed_headersimple name="speedeffectstitle">
 				<center />
 				<static textres="speed_effects_title" />
@@ -87,68 +70,6 @@
 		</sheetdata>
 	</windowclass>
 
-	<!-- Sub-window Bottom -->
-<!--
-	<windowclass name="speed_buttons_bottom">
-		<sheetdata>
-			<anchor_content_top />
-			<button_reset_dist name="reset" />
-			<button_check_dist name="check" />
-		</sheetdata>
-	</windowclass>
-	<template name="button_check_dist">
-		<button_boolean>
-			<anchored>
-				<left anchor="center" offset="15" />
-			</anchored>
-			<text>Traveled</text>
-			<script>
-				local nodeCT;
-				function onInit()
-					update();
-					nodeCT = DB.getParent(window.getDatabaseNode());
-				end
-				function update()
-					setVisible(OptionsManager.isOption('move_on', "on"));
-				end
-				function onButtonPress()
-					MovementManager.processTravelDist(nodeCT, true);
-				end
-				function onDragStart(button, x, y, draginfo)
-					local sName = DB.getValue(nodeCT, 'name', '');
-					draginfo.setType("traveleddistance");
-					draginfo.setIcon("WtW_icon");
-					draginfo.setDatabaseNode(nodeCT);
-					draginfo.setDescription("Traveled - "..sName);
-					return true;
-				end
-			</script>
-			<invisible />
-		</button_boolean>
-	</template>
-	<template name="button_reset_dist">
-		<button_boolean>
-			<anchored>
-				<right anchor="center" offset="-15" />
-			</anchored>
-			<text>Undo Last Step</text>
-			<script>
-				function onInit()
-					update();
-				end
-				function update()
-					setVisible(OptionsManager.isOption('move_on', "on"));
-				end
-				function onButtonPress()
-					local nodeCT = DB.getParent(window.getDatabaseNode());
-					MovementManager.undoLastStep(nodeCT);
-					return true;
-				end
-			</script>
-			<invisible />
-		</button_boolean>
-	</template>
--->
 	<!-- Combat Tracker Mods -->
 	<windowclass name="ct_section_active" merge="join">
 		<sheetdata>
@@ -215,6 +136,8 @@
 			<number_charspeed name="speed" source="speed.total" merge="join">
 				<script>
 					function onInit()
+						if super and super.onInit then super.onInit() end
+
 						if not WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
 							setVisible(false);
 						end
@@ -226,6 +149,8 @@
 				<static textres="char_label_speed" />
 				<script>
 					function onInit()
+						if super and super.onInit then super.onInit() end
+
 						if WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
 							setVisible(false);
 							setEnabled(false);
@@ -364,6 +289,8 @@
 			<invisible />
 			<script merge="join">
 				function onInit()
+					if super and super.onInit then super.onInit() end
+
 					update();
 				end
 				function onValueChanged()
@@ -404,10 +331,17 @@
 	</template>
 	<template name="number_charspeed_wtw">
 		<number_charspeed>
+<!--		<number_chartotal> -->
+			<source name="speed.base" merge="delete" />
+			<source name="speed.armor" merge="delete" />
+			<source name="speed.misc" merge="delete" />
 			<anchored to="initiative" position="righthigh" offset="20,0" width="40" height="30" />
 			<script>
 				local nodeW;
 				function onInit()
+					--if super and super.onInit then super.onInit() end
+						--this for some reason makes it show 0 when first opening
+
 					if WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
 						setVisible(false);
 						setEnabled(false);
@@ -435,10 +369,12 @@
 					return true;
 				end
 			</script>
-			<source name="speed.base" merge="delete" />
-			<source name="speed.armor" merge="delete" />
-			<source name="speed.misc" merge="delete" />
+<!--
+			<font>reference-b-large</font>
+			<description textres="char_tooltip_speed" />
+-->
 		</number_charspeed>
+<!--		</number_chartotal> -->
 	</template>
 	<template name="windowmenubar_charsheethelper_basic">
 		<windowmenubar_basic>
