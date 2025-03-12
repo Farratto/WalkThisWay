@@ -1103,10 +1103,11 @@ function parseBaseSpeed(nodeCT, bCalc)
 	DB.setPublic(nodeWTW, true);
 	local sUnitsGave = DB.getValue(nodeWTW, 'effectUnits');
 
-	--local sFGSpeed = DB.getValue(nodeCT, 'speed', '0')
+	--dont forget some creatures dont have a speed, like objects
+	local sFGSpeed = DB.getValue(nodeCT, 'speed', '0')
 	--local bNoBaseSpeed;
 	--if sFGSpeed == '0' then bNoBaseSpeed = true end
-	local sFGSpeed = DB.getValue(nodeCT, 'speed')
+	--local sFGSpeed = DB.getValue(nodeCT, 'speed')
 
 	if ActorManager.isPC(nodeCT) then
 		local nodeChar = ActorManager.getCreatureNode(nodeCT);
