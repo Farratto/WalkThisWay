@@ -73,7 +73,32 @@
 	<!-- Combat Tracker Mods -->
 	<windowclass name="ct_section_active" merge="join">
 		<sheetdata>
-			<string_ct name="speed" merge="delete" />
+<!--			<string_ct name="speed" merge="delete" /> -->
+			<string_ct name="speed" merge="join">
+				<invisible/>
+			</string_ct>
+			<string_ct name="WalkThisWay.currentSpeed">
+				<anchored to="speedlabel" position="righthigh" offset="5,0" height="20">
+					<right parent="anchor_section" />
+				</anchored>
+				<script>
+					function onDoubleClick()
+						local nodeW = window.getDatabaseNode();
+						SpeedManager.openSpeedWindow(nodeW);
+						return true;
+					end
+				</script>
+				<tooltip textres="tooltip_dclick_swindow" />
+				<readonly />
+			</string_ct>
+		</sheetdata>
+	</windowclass>
+	<windowclass name="ct_section_active_charsheet" merge="join">
+		<sheetdata>
+<!--			<string_ct name="speed" merge="delete" /> -->
+			<string_ct name="speed" merge="join">
+				<invisible/>
+			</string_ct>
 			<string_ct name="WalkThisWay.currentSpeed">
 				<anchored to="speedlabel" position="righthigh" offset="5,0" height="20">
 					<right parent="anchor_section" />
@@ -92,7 +117,32 @@
 	</windowclass>
 	<windowclass name="ct_section_active_npc" merge="join">
 		<sheetdata>
-			<string_ct name="speed" merge="delete" />
+<!--			<string_ct name="speed" merge="delete" /> -->
+			<string_ct name="speed" merge="join">
+				<invisible/>
+			</string_ct>
+			<string_ct name="WalkThisWay.currentSpeed">
+				<anchored to="speedlabel" position="righthigh" offset="5,0" height="20">
+					<right parent="anchor_section" />
+				</anchored>
+				<script>
+					function onDoubleClick()
+						local nodeW = window.getDatabaseNode();
+						SpeedManager.openSpeedWindow(nodeW);
+						return true;
+					end
+				</script>
+				<tooltip textres="tooltip_dclick_swindow" />
+				<readonly />
+			</string_ct>
+		</sheetdata>
+	</windowclass>
+	<windowclass name="ct_section_inactive_npc" merge="join">
+		<sheetdata>
+<!--			<string_ct name="speed" merge="delete" /> -->
+			<string_ct name="speed" merge="join">
+				<invisible/>
+			</string_ct>
 			<string_ct name="WalkThisWay.currentSpeed">
 				<anchored to="speedlabel" position="righthigh" offset="5,0" height="20">
 					<right parent="anchor_section" />
@@ -111,7 +161,10 @@
 	</windowclass>
 	<windowclass name="ct_section_active_vehicle" merge="join">
 		<sheetdata>
-			<string_ct name="speed" merge="delete" />
+<!--			<string_ct name="speed" merge="delete" /> -->
+			<string_ct name="speed" merge="join">
+				<invisible/>
+			</string_ct>
 			<string_ct name="WalkThisWay.currentSpeed">
 				<anchored to="speedlabel" position="righthigh" offset="5,0" height="20">
 					<right parent="anchor_section" />

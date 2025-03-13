@@ -26,8 +26,8 @@ function onInit()
 		end
 		Comm.registerSlashHandler('distunits', handleSlash, '[ft|m|tiles]')
 
-		if Session.RulesetName == "5E" then
-			EffectManager.registerEffectCompType("SPEED", { bIgnoreTarget = true, bNoDUSE = true,
+		--if Session.RulesetName == "5E" then
+			EffectManager.registerEffectCompType('SPEED', { bIgnoreTarget = true, bNoDUSE = true,
 				bIgnoreOtherFilter = true, bIgnoreExpire = true
 			});
 				--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE
@@ -37,49 +37,50 @@ function onInit()
 			DB.addHandler('combattracker.list.*.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
 			DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
 			DB.addHandler('charsheet.*.speed.total','onUpdate', setCharSheetSpeed);
-			--DB.addHandler('charsheet.*.speed.base','onUpdate', setCharSheetSpeed);
-			--DB.addHandler('charsheet.*.speed.special','onUpdate', reparseBaseSpeed);
+			if Session.RulesetName ~= "5E" then
+				DB.addHandler('charsheet.*.speed.final','onUpdate', setCharSheetSpeed);
+			end
 			--DB.addHandler("charsheet.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			--DB.addHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
 			fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
 			CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
 			fonLogin = User.onLogin;
 			User.onLogin = onLoginWtW;
-		end
+		--end
 		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(onTurnEndWtW);
 	end
 
 	setOptions();
 
-	if Session.RulesetName == "5E" then
+	--if Session.RulesetName == "5E" then
 		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_SPEEDWINDOW, handleSpeedWindowClient);
 		OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSESPEEDWINDOW, handleCloseSpeedWindow);
-	end
+	--end
 end
 
 function onTabletopInit()
-	if Session.RulesetName == "5E" then
+	--if Session.RulesetName == "5E" then
 		if Session.IsHost then
 			reparseAllBaseSpeeds();
 			setAllCharSheetSpeeds();
 			recalcAllSpeeds();
 		end
-	end
+	--end
 end
 
 function setOptions()
 -- DEFAULT BEHAVIORS FOR OPTIONS: sType = "option_entry_cycler", on|off, default = off
 --Farratto: Undocumented default option behaviors: bLocal = false, sGroupRes = "option_header_client"
 	--Old 4th = ("option_label_" .. sKey)
-	if Session.RulesetName == "5E" then
+	--if Session.RulesetName == "5E" then
 		OptionsManager.registerOptionData({	sKey = 'WESC', sGroupRes = 'option_header_WtW', tCustom = { default = "on" } });
-	end
+	--end
 	if Session.IsHost then
-		if Session.RulesetName == "5E" then
+		--if Session.RulesetName == "5E" then
 			OptionsManager.registerOptionData({	sKey = 'ADEC', sGroupRes = "option_header_WtW" });
 			OptionsManager.registerCallback('WESC', recalcAllSpeeds);
-		end
+		--end
 	end
 	OptionsManager.registerOptionData({	sKey = 'AOSW', sGroupRes = "option_header_WtW", bLocal = true });
 	OptionsManager.registerOptionData({	sKey = 'ACSW', sGroupRes = "option_header_WtW", bLocal = true });
@@ -957,23 +958,16 @@ function parseBaseSpeed(nodeCT, bCalc)
 
 	--dont forget some creatures dont have a speed, like objects
 	local sFGSpeed = DB.getValue(nodeCT, 'speed', '0')
-	--local bNoBaseSpeed;
-	--if sFGSpeed == '0' then bNoBaseSpeed = true end
-	--local sFGSpeed = DB.getValue(nodeCT, 'speed')
+	if sFGSpeed == '' then sFGSpeed = '0' end
 
 	if ActorManager.isPC(nodeCT) then
 		local nodeChar = ActorManager.getCreatureNode(nodeCT);
 		local nodeSpeed = DB.getChild(nodeChar, 'speed');
-		if not sFGSpeed then
-			Debug.console("SpeedManager.parseBaseSpeed - not sFGSpeed");
-			local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
-			local nCharWtWSpeedBase = DB.getValue(nodeCharWtW, 'base', 0);
-			if nCharWtWSpeedBase == 0 then setCharSheetSpeed(nil, nodeChar, nodeSpeed) end
-			local nCharWtWSpeedBase = DB.getValue(nodeCharWtW, 'base', 0);
-			if nCharWtWSpeedBase == 0 then
-				Debug.console("SpeedManager.parseBaseSpeed - nCharWtWSpeedBase is still 0, defaulting to 30");
-				sFGSpeed = '30 ' .. sUnitsGave;
-			end
+		if sFGSpeed == '0' then
+			--local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
+			--local nCharWtWSpeedBase = DB.getValue(nodeCharWtW, 'base', 0);
+			--if nCharWtWSpeedBase == 0 then setCharSheetSpeed(nil, nodeChar, nodeSpeed) end
+			setCharSheetSpeed(nil, nodeChar, nodeSpeed);
 		end
 		local nodeFGSpeedSpecial = DB.getValue(nodeSpeed, 'special');
 		if nodeFGSpeedSpecial and nodeFGSpeedSpecial ~= '' then
@@ -999,13 +993,17 @@ function parseBaseSpeed(nodeCT, bCalc)
 		local sLngthUnits = '';
 		local sStripPattern = '';
 		local sMphAdd;
-		--local sUnitsGave = OptionsManager.getOption('DDCU');
-		--local nodeWTW = DB.createNode('WalkThisWay');
-		--DB.setPublic(nodeWTW, true);
-		--local sUnitsGave = DB.getValue(nodeWTW, 'effectUnits');
 		for _,sSpdTypeSplit in ipairs(aSpdTypeSplit) do
 			local nodeSpeedRcrd = DB.createChild(nodeFGSpeed);
 			local sVelocity = string.match(sSpdTypeSplit, '%d+');
+			if not sVelocity then
+				for _,node in pairs(DB.getChildren(nodeCTWtW, 'FGSpeed')) do
+					if DB.getValue(node, 'type') == 'Walk' then
+						sVelocity = DB.getValue(node, 'velocity');
+					end
+				end
+				if not sVelocity then sVelocity = '0' end
+			end
 			local sRemainder = string.gsub(sSpdTypeSplit, '%d+', '', 1);
 			local sMph = string.match(sSpdTypeSplit, '%d+%s+mph');
 			if sMph then
@@ -1024,7 +1022,9 @@ function parseBaseSpeed(nodeCT, bCalc)
 				local bFound = false;
 				for _,word in ipairs(aUnitsSplit) do
 					if not bFound then
-						if string.match(string.lower(word), '^ft%.?$') then
+						if string.match(string.lower(word), '^ft%.?$')
+							or string.match(string.lower(word), '^feet$')
+						then
 							bFound = true;
 						elseif string.match(string.lower(word), '^m%.?$') then
 							bFound = true;
@@ -1044,15 +1044,6 @@ function parseBaseSpeed(nodeCT, bCalc)
 					end
 				end
 				sFinalUnits = sLngthUnits
-				--if string.lower(sFinalUnits) == 'ft' or string.lower(sFinalUnits) == 'ft.' then
-				--	sFinalUnits = 'ft.';
-				--end
-				--if string.lower(sFinalUnits) == 'm.' or string.lower(sFinalUnits) == 'm' then
-				--	sFinalUnits = 'm';
-				--end
-				--if string.lower(sFinalUnits) == 'tiles.' or string.lower(sFinalUnits) == 'tiles' then
-				--	sFinalUnits = 'tiles';
-				--end
 				sFinalUnits = tidyUnits(sFinalUnits);
 				if sFinalUnits ~= sUnitsGave then
 					nConvFactor = WtWCommon.getConversionFactor(sFinalUnits, sUnitsGave);
@@ -1076,7 +1067,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 			local nVelocity = tonumber(sVelocity);
 			nVelocity = roundNearestHalfTile(nVelocity, false, sFinalUnits);
 
-			if bConverted then
+			if bConverted and nVelocity then
 				--local nVelocity = tonumber(sVelocity);
 				--if not nVelocity then
 				--	Debug.console('SpeedManager.parseBaseSpeed - parsing failed: not nVelocity');
@@ -1121,28 +1112,30 @@ function setCharSheetSpeed(nodeUpdated, nodeChar, nodeSpeed)
 		nodeChar = DB.getParent(nodeSpeed);
 	end
 	if not nodeSpeed then nodeSpeed = DB.getChild(nodeChar, 'speed') end
-	--local nTotalSpeed = DB.getValue(nodeSpeed, 'total', 0);
-	local nTotalSpeed = DB.getValue(nodeSpeed, 'total');
-	--local nBaseSpeed;
-	local nSpeedSet;
 
-	--if nTotalSpeed == 0 then
-	--	nBaseSpeed = DB.getValue(nodeSpeed, 'base', 0);
-	--	if nBaseSpeed == 0 then
-	--		nSpeedSet = 30;
-	--		Debug.console("SpeedManager.setCharSheetSpeed - nTotalSpeed and nBaseSpeed are 0");
-	--	else
-	--		nSpeedSet = nBaseSpeed;
-	--	end
-	--else
-		nSpeedSet = nTotalSpeed;
-	--end
+	local nSpeedSet;
+	if Session.RulesetName == "5E" then
+		nSpeedSet = DB.getValue(nodeSpeed, 'total');
+	else
+		nSpeedSet = DB.getValue(nodeSpeed, 'final');
+		if not nSpeedSet then nSpeedSet = DB.getValue(nodeSpeed, 'total') end
+	end
+	if not nSpeedSet then
+		Debug.console("Walk This Way cannot find the PC speed field for this ruleset.");
+		return;
+	end
 
 	local sPref;
-	local nodeCT = CombatManager.getCTFromNode();
+	local nodeCT = CombatManager.getCTFromNode(nodeChar);
+	local bCtSpeed = true;
 	if nodeCT then
 		local sOwner = WtWCommon.getControllingClient(nodeCT);
 		sPref = WtWCommon.getPreference(sOwner);
+		--make sure CT speed is set
+		local sSpeedCT = DB.getValue(nodeCT, 'speed');
+		if not sSpeedCT or sSpeedCT == '' then
+			bCtSpeed = false;
+		end
 	end
 	if not sPref then sPref = OptionsManager.getOption('DDLU') end
 	local nodeWTW = DB.createNode('WalkThisWay');
@@ -1156,10 +1149,9 @@ function setCharSheetSpeed(nodeUpdated, nodeChar, nodeSpeed)
 	nSpeedSet = nRounded * nConvFactor;
 
 	local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
-	--local nBaseWtW = DB.getValue(nodeCharWtW, 'base', 0);
-	--if nBaseWtW == 0 or nBaseWtW ~= nSpeedSet then
-		DB.setValue(nodeCharWtW, 'base', 'number', nSpeedSet);
-	--end
+	DB.setValue(nodeCharWtW, 'base', 'number', nSpeedSet);
+	--set CT speed if not set
+	if not bCtSpeed then DB.setValue(nodeCT, 'speed', 'string', tostring(nSpeedSet)) end
 end
 
 function accommKnownExtsSpeed(nodeCT)
@@ -1208,6 +1200,7 @@ function accommKnownExtsSpeed(nodeCT)
 end
 
 function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
+	if Session.RulesetName ~= "5E" then return end
 	if not nodeCT then
 		Debug.console("SpeedManager.handleExhaustion - not nodeCT");
 		return;
@@ -1344,7 +1337,7 @@ end
 function turnStartChecks(nodeCT)
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 
-	if Session.RulesetName == "5E" then
+	--if Session.RulesetName == "5E" then
 		if nodeUbiquinated then
 			DB.deleteNode(nodeUbiquinated);
 			nodeUbiquinated = nil;
@@ -1357,7 +1350,7 @@ function turnStartChecks(nodeCT)
 		else
 			if OptionsManager.isOption('AOSW', 'on') then openSpeedWindow(nodeCT) end
 		end
-	end
+	--end
 end
 function onTurnEndWtW(nodeCT)
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
@@ -1421,7 +1414,7 @@ end
 
 function tidyUnits(sUnitsGave)
 	local sReturn = nil;
-	if string.lower(sUnitsGave) == 'ft' or string.lower(sUnitsGave) == 'ft.' then
+	if string.lower(sUnitsGave) == 'ft' or string.lower(sUnitsGave) == 'ft.' or string.lower(sUnitsGave) == 'feet' then
 		sReturn = 'ft.';
 	end
 	if string.lower(sUnitsGave) == 'm.' or string.lower(sUnitsGave) == 'm' then

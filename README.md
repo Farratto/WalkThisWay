@@ -49,11 +49,13 @@ Note: Known limitation with Mad Nomad's Character Sheet Tweaks: Changed units wi
 
 ### Other Rulesets
 
-This extension was designed with 5e in mind, but I have ported it to work on most (all?) rulesets.
+This extension was designed with 5e in mind, but I have ported it to work on most rulesets.  I believe any ruleset will work for the prone functionality.  But since I haven't gone through the individual rules of other rulesets, I've included the folowing recognized effects:
 
 * Unable to Stand; SPEED: none; NOSTAND; Unconscious
 
 If you would like me to add to this list, or make more specific accomodations for your ruleset, please let me know.
+
+Any ruleset based on DnD or Pathfinder should work for speed calculations and thus for supporting maximum speed limitation in Step Counter.  If you find that one of these rulesets is not working or you have another ruleset you'd like me to add, please let me know.
 
 ### Pathfinder 2e
 
@@ -76,6 +78,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.6.0: Now supporting SPEED effects and movement limitation for all rulesets based on DnD or PF
 * v2.5.3: Renewed support for Exhausted extension. Cut the cord on Step Counter.
 * v2.5.2: FIXED: introduced error when encountering creatures with no speed
 * v2.5.1: FIXED: Base Speed on PC charsheet not displaying correctly in some instances.

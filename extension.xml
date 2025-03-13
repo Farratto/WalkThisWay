@@ -15,10 +15,14 @@
 	<base>
 		<includefile source="strings.xml" />
 		<includefile source="campaign/query.xml" />
-		<includefile source="campaign/speed.xml" ruleset="5E" />
+		<includefile source="campaign/speed.xml">
+			<ruleset>2E|3.5E|4E|5E|PFRPG|PFRPG2|PFRPG2-Legacy|SFRPG2|SFRPG</ruleset>
+		</includefile>
 		<script name="WtWCommon" file="scripts/common_wtw.lua" />
 		<script name="ProneManager" file="scripts/manager_prone.lua" />
-		<script name="SpeedManager" file="scripts/manager_speed.lua" ruleset="5E" />
+		<script name="SpeedManager" file="scripts/manager_speed.lua">
+			<ruleset>2E|3.5E|4E|5E|PFRPG|PFRPG2|PFRPG2-Legacy|SFRPG2|SFRPG</ruleset>
+		</script>
 		<icon name="WtW_icon" file="graphics/shoe.webp" />
 		<icon name="minimized_WtW" file="graphics/minimized_WtW.webp" />
 		<icon name="prone_arrow" file="graphics/prone_arrow.webp" />

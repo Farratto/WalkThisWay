@@ -34,11 +34,19 @@ local aEffectVarMap = {
 
 function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
-	OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
-		tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
-			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
-		}
-	});
+	if Session.RulesetName == "5E" then
+		OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
+			tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
+				baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
+			}
+		});
+	else
+		OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
+			tCustom = { labelsres = "option_val_meters", values = "m",
+				baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
+			}
+		});
+	end
 	OptionsManager.registerCallback('DDLU', handlePrefChange);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REQPREF, sendPrefRegistration);
@@ -1144,12 +1152,13 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 		return 1;
 	end
 	if sCurrentUnits == sDesiredUnits then return 1 end
-	local nReturn;
 	if sCurrentUnits == 'ft.' then
 		if sDesiredUnits == 'm' then
 			return 0.3;
 		elseif sDesiredUnits == 'tiles' then
-			return 0.2;
+			--if Session.RulesetName == "5E" then
+				return 0.2;
+			--end
 		elseif sDesiredUnits == 'mi.' then
 			return 1 / 5280;
 		else
@@ -1158,34 +1167,37 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 		end
 	elseif sCurrentUnits == 'm' then
 		if sDesiredUnits == 'ft.' then
-			nReturn = 5 / 1.5;
-			return nReturn;
+			return 5 / 1.5;
 		elseif sDesiredUnits == 'tiles' then
-			nReturn = 1 / 1.5;
-			return nReturn;
+			--if Session.RulesetName == "5E" then
+				return 1 / 1.5;
+			--end
 		elseif sDesiredUnits == 'mi.' then
-			nReturn = 1 / 1609.344;
-			return nReturn;
+			return 1 / 1609.344;
 		else
 			Debug.console('WtWCommon.getConversionFactor - Invalid units.');
 			return 1;
 		end
 	elseif sCurrentUnits == 'tiles' then
-		if sDesiredUnits == 'ft.' then
-			return 5;
-		elseif sDesiredUnits == 'm' then
-			return 1.5;
-		else
-			Debug.console('WtWCommon.getConversionFactor - Invalid units.');
-			return 1;
-		end
+		--if Session.RulesetName == "5E" then
+			if sDesiredUnits == 'ft.' then
+				return 5;
+			elseif sDesiredUnits == 'm' then
+				return 1.5;
+			else
+				Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+				return 1;
+			end
+		--end
 	elseif sCurrentUnits == 'mph' then
 		if sDesiredUnits == 'ft.' then
 			return 8.8;
 		elseif sDesiredUnits == 'm' then
 			return 2.68224;
 		elseif sDesiredUnits == 'tiles' then
-			return 1.76;
+			--if Session.RulesetName == "5E" then
+				return 1.76;
+			--end
 		else
 			Debug.console('WtWCommon.getConversionFactor - Invalid units.');
 			return 1;
