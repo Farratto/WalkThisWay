@@ -18,6 +18,7 @@ local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB
 local aExceptionDescriptors = {'steal', 'stealtemp'};
 local tClientPrefs = {};
 local fonIdentityActivation;
+--local BceEffectManager;
 
 local aEffectVarMap = {
 	["sName"] = { sDBType = "string", sDBField = "label" },
@@ -53,11 +54,12 @@ function onInit()
 	if Session.IsHost then
 		fonIdentityActivation = User.onIdentityActivation;
 		User.onIdentityActivation = onIdentityActivationWtW;
+		--if BCEManager then BceEffectManager = BCEManager.getRulesetEffectManager() end
 	end
 end
 
 function onTabletopInit()
-	if EffectManager5EBCE then
+	if CharacterListManagerBCE then
 		_sBetterGoldPurity = checkBetterGoldPurity();
 	end
 end
@@ -385,19 +387,11 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 					if rConditionalHelper.bProcessEffect and string.match(sOriginalLower, sLowerClause) then
 						if rConditionalHelper.bTargeted and not bIgnoreEffectTargets then
 							if EffectManager.isEffectTarget(v, rTarget) then
-								--if bReturnLabel then
-									return true, sLabel, v;
-								--else
-								--	return true, sLabel, v;
-								--end
+								return true, sLabel, v;
 							end
 						else
 							if not bTargetedOnly then
-								--if bReturnLabel then
-									return true, sLabel, v;
-								--else
-								--	return true, sLabel, v;
-								--end
+								return true, sLabel, v;
 							end
 						end
 					end
@@ -679,8 +673,23 @@ function processConditional(rActor, rTarget, rEffect, rEffectComp, rConditionalH
 	if not rConditionalHelper.bSkipIF and rConditionalHelper.bProcessEffect then
 		-- Handle conditionals
 		local bUntrueExt = hasExtension('IF_NOT_untrue_effects_berwind');
+		local RulesetEffectManager;
+		if EffectManager5E then
+			RulesetEffectManager = EffectManager5E;
+		elseif EffectManagerPFRPG2 then
+			RulesetEffectManager = EffectManagerPFRPG2;
+		elseif EffectManagerADND then
+			RulesetEffectManager = EffectManagerADND;
+		elseif EffectManagerSFRPG then
+			RulesetEffectManager = EffectManagerSFRPG;
+		elseif EffectManager35E then
+			RulesetEffectManager = EffectManager35E;
+		elseif EffectManager4E then
+			RulesetEffectManager = EffectManager4E;
+		end
+		if not RulesetEffectManager then return end
 		if rEffectComp.type == 'IF' or (bUntrueExt and rEffectComp.type == 'IFN') then
-			if not EffectManager5E.checkConditional(rActor, rEffect, rEffectComp.remainder) then
+			if not RulesetEffectManager.checkConditional(rActor, rEffect, rEffectComp.remainder) then
 				conditionalFail(rConditionalHelper, rEffectComp);
 			else
 				conditionalSuccess(rConditionalHelper, rEffectComp);
@@ -689,7 +698,7 @@ function processConditional(rActor, rTarget, rEffect, rEffectComp, rConditionalH
 			if not rTarget then
 				rConditionalHelper.bProcessEffect = false
 			else
-				if not EffectManager5E.checkConditional(rTarget, rEffect, rEffectComp.remainder, rActor) then
+				if not RulesetEffectManager.checkConditional(rTarget, rEffect, rEffectComp.remainder, rActor) then
 					conditionalFail(rConditionalHelper, rEffectComp);
 				else
 					conditionalSuccess(rConditionalHelper, rEffectComp);

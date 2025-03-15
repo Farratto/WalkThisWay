@@ -65,7 +65,7 @@ In addition to the above universal checks, when under the Pathfinder 2e ruleset,
 
 ### Still Being Developed
 
-If you find any additional effects, where a user is not able to stand up, please let me know.  Or any other concerns or suggestions are welcome. \
+If you find any additional effects, where a user is not able to stand up, please let me know.  Or any other concerns or suggestions are welcome.
 
 Enjoy!
 
@@ -78,6 +78,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.6.1: FIXED: nil error with speed effects on some non-5E rulesets
 * v2.6.0: Now supporting SPEED effects and movement limitation for all rulesets based on DnD or PF
 * v2.5.3: Renewed support for Exhausted extension. Cut the cord on Step Counter.
 * v2.5.2: FIXED: introduced error when encountering creatures with no speed
