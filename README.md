@@ -35,6 +35,7 @@ The speed effects that are recognized:
 | SPEED: difficult | difficult terrain handling (halves all speeds except fly) |
 | SPEED: halved | halves all speeds (after inc/dec); stackable |
 | SPEED: doubled | doubles all speeds (after inc/dec); stackable |
+| SPEED: tripled | triples all speeds (after inc/dec); stackable |
 
 Supports RAW encumbered (both standard and variant), exhaustion, Dash, and 2024 Athlete Feat rules. \
 Coming soon: reduces speed when wearing armor the character is not strong enough to wear.
@@ -63,6 +64,12 @@ In addition to the above universal checks, when under the Pathfinder 2e ruleset,
 
 * Dead; Paralyzed; Dying; Immobilized; Petrified; Restrained; Grabbed; Stunned
 
+### Pathfinder 1e
+
+In addition to the above universal checks, when under the Pathfinder 1e ruleset, this extension will check for the following conditions:
+
+* Cowering, Dazed, Dead, Dying, Grappled, Helpless, Paralyzed, Petrified, Pinned, Stable. Stunned, Unconscious, Exhausted, Entangled
+
 ### Still Being Developed
 
 If you find any additional effects, where a user is not able to stand up, please let me know.  Or any other concerns or suggestions are welcome.
@@ -78,6 +85,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.7.0: Added support for some speed-related PFRPG conditions. New speed effect: SPEED: tripled.
 * v2.6.1: FIXED: nil error with speed effects on some non-5E rulesets
 * v2.6.0: Now supporting SPEED effects and movement limitation for all rulesets based on DnD or PF
 * v2.5.3: Renewed support for Exhausted extension. Cut the cord on Step Counter.

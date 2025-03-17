@@ -154,14 +154,6 @@ end
 
 -- luacheck: push ignore 561
 function speedCalculator(nodeCT, bCalledFromParse)
-	--if not nodeCT then
-	--	Debug.console("SpeedManager.speedCalculator - not nodeCT");
-	--	return;
-	--end
-	--if not Session.IsHost then
-	--	Debug.console("SpeedManager.speedCalculator - not isHost");
-	--end
-
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
 	if not nodeFGSpeed then
@@ -256,6 +248,9 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		if tAccomSpeed['nSpeedMod'] then
 			nSpeedMod = nSpeedMod + tonumber(tAccomSpeed['nSpeedMod']);
 		end
+		if tAccomSpeed['nHalved'] then
+			nHalved = nHalved + tAccomSpeed['nHalved'];
+		end
 		if tAccomSpeed['tEffectNames'] then
 			for _,sEffectName in ipairs(tAccomSpeed['tEffectNames']) do
 				table.insert(tEffectNames, sEffectName);
@@ -264,6 +259,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	end
 
 	local nDoubled = 0;
+	local nTripled = 0;
 	local bDifficult = false;
 	local tRebase = {};
 	local nRecheck;
@@ -337,6 +333,11 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		if (sRmndrLower == "double" or sRmndrLower == "doubled") then
 			bRecognizedRmndr = true;
 			nDoubled = nDoubled + 1;
+			table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+		end
+		if (sRmndrLower == "triple" or sRmndrLower == "tripled") then
+			bRecognizedRmndr = true;
+			nTripled = nTripled + 1;
 			table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 		end
 		if not bProne and StringManager.startsWith(sRmndrLower, 'type') then
@@ -684,6 +685,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				local sTypeLower = string.lower(tSpdRcrd.type);
 				local nDoubledLocal = nDoubled
 				local nHalvedLocal = nHalved
+				local nTripledLocal = nTripled
 				if (not string.match(sTypeLower, 'fly')) and (not string.match(sTypeLower, 'hover')) then
 					if bDifficult then nHalvedLocal = nHalvedLocal + 1 end
 				end
@@ -694,6 +696,10 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				while nHalvedLocal > 0 do
 					nSpeedFinal = nSpeedFinal / 2;
 					nHalvedLocal = nHalvedLocal - 1;
+				end
+				while nTripledLocal > 0 do
+					nSpeedFinal = nSpeedFinal * 3;
+					nTripledLocal = nTripledLocal - 1;
 				end
 				if nSpeedMax then
 					if nSpeedFinal > nSpeedMax then
@@ -1183,6 +1189,16 @@ function accommKnownExtsSpeed(nodeCT)
 				nSpeedMod = nSpeedMod - 10;
 				table.insert(tEffectNames, "Lightly Encumbered");
 			end
+		end
+	elseif Session.RulesetName == "PFRPG" then
+		if WtWCommon.hasEffectClause(nodeCT, "^Exhausted$", nil, false, true) then
+			tReturn['nHalved'] = 1;
+			bReturn = true;
+			table.insert(tEffectNames, "Exhausted");
+		elseif WtWCommon.hasEffectClause(nodeCT, "^Entangled$", nil, false, true) then
+			tReturn['nHalved'] = 1;
+			bReturn = true;
+			table.insert(tEffectNames, "Entangled");
 		end
 	end
 	tReturn['tEffectNames'] = tEffectNames;

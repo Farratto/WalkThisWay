@@ -5,7 +5,7 @@
 -- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 -- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
 -- luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly
--- luacheck: globals convNumToIdNodeName roundNumber
+-- luacheck: globals convNumToIdNodeName roundNumber getVisCtEntries
 -- luacheck: globals getPreference registerPreference handlePrefChange requestPref handlePrefRegistration
 -- luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor
 
@@ -321,7 +321,6 @@ end
 -- luacheck: pop
 
 -- luacheck: push ignore 561
---function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets, bReturnLabel)
 function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
 	-- when using pattern matching, make use of [^%] instead of %uppercase
 	if not rActor or not sClause then
@@ -780,6 +779,62 @@ function hasRoot(nodeCT)
 					end
 				end
 			end
+		elseif Session.RulesetName == 'PFRPG' then
+			if hasEffectClause(nodeCT, "^Unconscious$", nil, false, true) then
+				return true, false, 'Unconscious';
+			elseif hasEffectClause(nodeCT, "^Dead$", nil, false, true) then
+				return true, false, 'Dead';
+			elseif hasEffectClause(nodeCT, "^Paralyzed$", nil, false, true) then
+				return true, false, 'Paralyzed';
+			elseif hasEffectClause(nodeCT, "^Dying$", nil, false, true) then
+				return true, false, 'Dying';
+			elseif hasEffectClause(nodeCT, "^Cowering$", nil, false, true) then
+				return true, false, 'Cowering';
+			elseif hasEffectClause(nodeCT, "^Petrified$", nil, false, true) then
+				return true, false, 'Petrified';
+			elseif hasEffectClause(nodeCT, "^Dazed$", nil, false, true) then
+				return true, false, 'Dazed';
+			elseif hasEffectClause(nodeCT, "^Grappled$", nil, false, true) then
+				return true, false, 'Grappled';
+			elseif hasEffectClause(nodeCT, "^Stunned$", nil, false, true) then
+				return true, false, 'Stunned';
+			elseif hasEffectClause(nodeCT, "^Helpless$", nil, false, true) then
+				return true, false, 'Helpless';
+			elseif hasEffectClause(nodeCT, "^Pinned$", nil, false, true) then
+				return true, false, 'Pinned';
+			elseif hasEffectClause(nodeCT, "^Stable$", nil, false, true) then
+				return true, false, 'Stable';
+			else
+				local bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*max%s*%(%s*0%s*%)$"
+					, nil, false, true, true
+				);
+				if bHas then
+					return true, false, WtWCommon.getEffectName(false, sLabel);
+				else
+					bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*0%s*max$"
+						, nil, false, true, true
+					);
+					if bHas then
+						return true, false, WtWCommon.getEffectName(false, sLabel);
+					else
+						bHas, sLabel = hasEffectClause(nodeCT, "^Speed%s*:%s*0$"
+							, nil, false, true, true
+						);
+						if bHas then
+							return true, false, WtWCommon.getEffectName(false, sLabel);
+						else
+							bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*none$"
+								, nil, false, true, true
+							);
+							if bHas then
+								return true, false, getEffectName(false, sLabel);
+							else
+								return false;
+							end
+						end
+					end
+				end
+			end
 		else
 			if hasEffectClause(nodeCT, "^Unconscious$", nil, false, true) then
 				return true, false, 'Unconscious';
@@ -1137,7 +1192,7 @@ function convNumToIdNodeName(nId)
 	end
 end
 
-function roundNumber(nInput)
+function roundNumber(nInput, nPlaces)
 	--accommidation for negative numbers
 	local nMultiplier = 1;
 	if nInput < 0 then
@@ -1145,14 +1200,17 @@ function roundNumber(nInput)
 		nInput = nMultiplier * nInput;
 	end
 
+	if not nPlaces then nPlaces = 0 end
+	local nPlaceAdj = 10^nPlaces;
+	nInput = nInput * nPlaceAdj;
 	local nWhole = math.floor(nInput);
 	local nDec = nInput - nWhole;
 
 	if nDec >= 0.5 then
-		return nMultiplier * (nWhole + 1);
+		return (nMultiplier * (nWhole + 1)) / nPlaceAdj;
 	end
 
-	return nMultiplier * nWhole;
+	return (nMultiplier * nWhole) / nPlaceAdj;
 end
 
 function getConversionFactor(sCurrentUnits, sDesiredUnits)
@@ -1163,7 +1221,7 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 	if sCurrentUnits == sDesiredUnits then return 1 end
 	if sCurrentUnits == 'ft.' then
 		if sDesiredUnits == 'm' then
-			return 0.3;
+			return 0.3048;
 		elseif sDesiredUnits == 'tiles' then
 			--if Session.RulesetName == "5E" then
 				return 0.2;
@@ -1176,7 +1234,7 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 		end
 	elseif sCurrentUnits == 'm' then
 		if sDesiredUnits == 'ft.' then
-			return 5 / 1.5;
+			return 1 / 0.3048;
 		elseif sDesiredUnits == 'tiles' then
 			--if Session.RulesetName == "5E" then
 				return 1 / 1.5;
@@ -1286,4 +1344,19 @@ function getPreference(sOwner)
 		end
 	end
 	return nil;
+end
+
+function getVisCtEntries()
+	local winCT = Interface.findWindow('combattracker_host', 'combattracker');
+	if not winCT then
+		winCT = Interface.openWindow('combattracker_host', 'combattracker');
+		winCT.close();
+	end
+
+	local tNodes = {}
+	for _,win in ipairs(winCT.list.getWindows(true)) do
+		local nodeWin = win.getDatabaseNode();
+		table.insert(tNodes, nodeWin);
+	end
+	return tNodes;
 end
