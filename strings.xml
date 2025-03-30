@@ -28,6 +28,7 @@
 	<string name="option_label_AOSW">Auto-open speed details window on turn start</string>
 	<string name="option_label_ACSW">Auto-close speed details window on turn end</string>
 	<string name="option_label_ADEC">Automatically kill character that reaches 6 stacks of exhaustion</string>
+	<string name="option_label_check_item_str">Check that characters meet strength requirements of items</string>
 
 	<!-- Common -->
 	<string name="option_label_DDLU">Units for displaying Speed</string>

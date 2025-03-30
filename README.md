@@ -8,7 +8,7 @@ This extension provides a small popup window at the start of a person's turn tha
 
 Install from the [Fantasy Grounds Forge](https://forge.fantasygrounds.com/shop/items/1940/view). \
 You can find the source code at Farratto's [GitHub](https://github.com/Farratto/WalkThisWay). \
-You can ask questions at the [Fantasy Grounds Forum](https://www.fantasygrounds.com/forums/showthread.php?82914-Walk-this-Way-for-5e). \
+You can ask questions at the [Fantasy Grounds Forum](https://www.fantasygrounds.com/forums/showthread.php?82914). \
 Video explaining how to use at [YouTube](https://youtu.be/FmA9JoUoXps).
 
 ### Details
@@ -24,8 +24,8 @@ The speed effects that are recognized:
 | Effect | Description |
 | :--- | :--- |
 | SPEED: none | rooted
-| SPEED: -10 or SPEED: 10 dec | decreases all speeds by 10 |
-| SPEED: 10 inc | increases all speeds by 10 |
+| SPEED: -10 or SPEED: 10 dec or SPEED: dec(10) | decreases all speeds by 10 |
+| SPEED: 10 inc or SPEED: inc(10) | increases all speeds by 10 |
 | SPEED: 60 | increases all speeds to 60 (speeds already above 60 will be unchanged) |
 | SPEED: type(climb) | adds a new speed 'climb' and sets it to be the same as walking speed |
 | SPEED: 60 type(fly) | adds a new speed 'Fly' and sets only the new speed to 60 |
@@ -36,15 +36,15 @@ The speed effects that are recognized:
 | SPEED: halved | halves all speeds (after inc/dec); stackable |
 | SPEED: doubled | doubles all speeds (after inc/dec); stackable |
 | SPEED: tripled | triples all speeds (after inc/dec); stackable |
+| SPEED: free | ignores effects that reduce speed except roots, prone, exhausted, & encumbered (see 5E's  Freedom of Movement) |
 
-Supports RAW encumbered (both standard and variant), exhaustion, Dash, and 2024 Athlete Feat rules. \
-Coming soon: reduces speed when wearing armor the character is not strong enough to wear.
+Supports 5e RAW encumbered (both standard and variant), exhaustion, dash, and 2024 athlete feat rules.  Reduces speed when character is wearing armor the character is not strong enough to wear.  Checks for 2014 dwarfs first.
 
 The extension updates all the speeds on the speed field in the combat tracker.  Character sheets still show base speed.  There is an optional window that shows all the speeds for a character and all the effects affecting their speed.You can have the window open automatically on your turn through an option setting.  Or you can open the window at any time by double-clicking the speed field on a character sheet or the combat tracker.
 
 Option setting (for GM and players) to change the units that speed is displayed in.  Current choices are feet, meters, and tiles.  Automatically rounds final speed down to nearest half tile.  Typing /distunits followed by either ft, m, or tiles will change the units that the effects are processed in.  This is advanced usage and I don't recommend unless all your effects are not in feet (unusual).
 
-Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted, Temporal Fixation, Step Counter
+Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted, Temporal Fixation, Step Counter, Map Parcels
 
 Note: Known limitation with Mad Nomad's Character Sheet Tweaks: Changed units will not display on player character sheets (but still works on CT, speed windows, and NPCs)
 
@@ -64,7 +64,7 @@ In addition to the above universal checks, when under the Pathfinder 2e ruleset,
 
 * Dead; Paralyzed; Dying; Immobilized; Petrified; Restrained; Grabbed; Stunned
 
-### Pathfinder 1e
+### Pathfinder 1e and DnD 3.5e
 
 In addition to the above universal checks, when under the Pathfinder 1e ruleset, this extension will check for the following conditions:
 
@@ -85,6 +85,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.8.0: NEW tag: SPEED: free (see 5e Freedom of Movement and readme or forum). FEATURE: 5E support for heavy armor Str requirement. PRE-FIX: Speed box moved for FGU update 4.7
 * v2.7.0: Added support for some speed-related PFRPG conditions. New speed effect: SPEED: tripled.
 * v2.6.1: FIXED: nil error with speed effects on some non-5E rulesets
 * v2.6.0: Now supporting SPEED effects and movement limitation for all rulesets based on DnD or PF

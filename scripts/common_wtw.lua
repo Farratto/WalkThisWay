@@ -779,7 +779,7 @@ function hasRoot(nodeCT)
 					end
 				end
 			end
-		elseif Session.RulesetName == 'PFRPG' then
+		elseif Session.RulesetName == 'PFRPG' or Session.RulesetName == '3.5E' then
 			if hasEffectClause(nodeCT, "^Unconscious$", nil, false, true) then
 				return true, false, 'Unconscious';
 			elseif hasEffectClause(nodeCT, "^Dead$", nil, false, true) then
@@ -1353,7 +1353,7 @@ function getVisCtEntries()
 		winCT.close();
 	end
 
-	local tNodes = {}
+	local tNodes = {};
 	for _,win in ipairs(winCT.list.getWindows(true)) do
 		local nodeWin = win.getDatabaseNode();
 		table.insert(tNodes, nodeWin);

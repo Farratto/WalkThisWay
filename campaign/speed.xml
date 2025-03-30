@@ -191,7 +191,9 @@
 					function onInit()
 						if super and super.onInit then super.onInit() end
 
-						if not WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
+						if not WtWCommon.hasExtension('MNM Character Sheet Tweaks')
+							and not CharOriginManager
+						then
 							setVisible(false);
 						end
 					end
@@ -204,7 +206,9 @@
 					function onInit()
 						if super and super.onInit then super.onInit() end
 
-						if WtWCommon.hasExtension('MNM Character Sheet Tweaks') then
+						if WtWCommon.hasExtension('MNM Character Sheet Tweaks')
+							and not CharOriginManager
+						then
 							setVisible(false);
 							setEnabled(false);
 						end
@@ -230,6 +234,7 @@
 						local nodeW, nodePath, bOnCT;
 						nodeW = window.getDatabaseNode();
 						nodePath = DB.getPath(nodeW);
+						--won't detect pet CT entries.  Haven't found a way to make that work
 						bOnCT = string.match(nodePath, 'combattracker');
 						if not bOnCT then setVisible(false) end
 						if bOnCT and super and super.onInit then
@@ -244,6 +249,7 @@
 					function onInit()
 						nodeW = window.getDatabaseNode();
 						nodePath = DB.getPath(nodeW);
+						--won't detect pet CT entries.  Haven't found a way to make that work
 						bOnCT = string.match(nodePath, 'combattracker');
 						if not bOnCT then setTooltipText("") end
 					end
@@ -268,6 +274,7 @@
 						local nodeW, nodePath, bOnCT;
 						nodeW = window.getDatabaseNode();
 						nodePath = DB.getPath(nodeW);
+						--won't detect pet CT entries.  Haven't found a way to make that work
 						bOnCT = string.match(nodePath, 'combattracker');
 						if not bOnCT then setVisible(false) end
 						if bOnCT and super and super.onInit then super.onInit() end
@@ -280,6 +287,7 @@
 					function onInit()
 						nodeW = window.getDatabaseNode();
 						nodePath = DB.getPath(nodeW);
+						--won't detect pet CT entries.  Haven't found a way to make that work
 						bOnCT = string.match(nodePath, 'combattracker');
 						if not bOnCT then setTooltipText("") end
 					end
@@ -304,6 +312,7 @@
 						local nodeW, nodePath, bOnCT;
 						nodeW = window.getDatabaseNode();
 						nodePath = DB.getPath(nodeW);
+						--won't detect pet CT entries.  Haven't found a way to make that work
 						bOnCT = string.match(nodePath, 'combattracker');
 						if not bOnCT then setVisible(false) end
 						if bOnCT and super and super.onInit then super.onInit() end
@@ -316,6 +325,7 @@
 					function onInit()
 						nodeW = window.getDatabaseNode();
 						nodePath = DB.getPath(nodeW);
+						--won't detect pet CT entries.  Haven't found a way to make that work
 						bOnCT = string.match(nodePath, 'combattracker');
 						if not bOnCT then setTooltipText("") end
 					end
@@ -388,7 +398,7 @@
 			<source name="speed.base" merge="delete" />
 			<source name="speed.armor" merge="delete" />
 			<source name="speed.misc" merge="delete" />
-			<anchored to="initiative" position="righthigh" offset="20,0" width="40" height="30" />
+			<anchored to="initiative" position="righthigh" offset="35,0" width="40" height="30" />
 			<script>
 				local nodeW;
 				function onInit()
