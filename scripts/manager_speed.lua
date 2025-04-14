@@ -3,12 +3,12 @@
 
 --luacheck: globals speedCalculator handleExhaustion setAllCharSheetSpeeds setCharSheetSpeed onLoginWtW
 --luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow
---luacheck: globals parseBaseSpeed onRecordTypeEventWtW reparseBaseSpeed reparseAllBaseSpeeds handleSlash
 --luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
---luacheck: globals parseSpeedType onTabletopInit recalcAllSpeeds tidyUnits
+--luacheck: globals parseSpeedType onTabletopInit recalcAllSpeeds tidyUnits onRecordTypeEventWtW handleSlash
 --luacheck: globals handleCloseSpeedWindow closeSpeedWindow roundNearestHalfTile removeEffectTooHeavy
 --luacheck: globals turnStartChecks roundMph onTurnEndWtW toggleCheckItemStr clearAllItemStrengthHandlers
 --luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
+--luacheck: globals parseBaseSpeed reparseBaseSpeed reparseAllBaseSpeeds reparseBaseSpeedSpecial
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
@@ -36,6 +36,7 @@ function onInit()
 		DB.addHandler('combattracker.list.*.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
 		DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
 		DB.addHandler('charsheet.*.speed.total','onUpdate', setCharSheetSpeed);
+		DB.addHandler('charsheet.*.speed.special','onUpdate', reparseBaseSpeedSpecial);
 		if Session.RulesetName ~= "5E" then
 			DB.addHandler('charsheet.*.speed.final','onUpdate', setCharSheetSpeed);
 		end
@@ -988,6 +989,10 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 			end
 		end
 		local nodeChar = ActorManager.getCreatureNode(rActor);
+		if not nodeChar then
+			Debug.console("SpeedManager.updateDisplaySpeed - not nodeChar");
+			return;
+		end
 		local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
 		nBonusSpeed = nCurrentSpeed - nBaseSpeed
 		DB.setValue(nodeCharWtW, 'bonus', 'number', nBonusSpeed);
@@ -1009,6 +1014,12 @@ function reparseAllBaseSpeeds()
 	end
 end
 
+function reparseBaseSpeedSpecial(nodeupdated)
+	local nodeChar = DB.getChild(nodeupdated, '...');
+	local nodeCT = CombatManager.getCTFromNode(nodeChar);
+
+	reparseBaseSpeed(DB.getChild(nodeCT, 'speed'), nodeCT)
+end
 function reparseBaseSpeed(nodeSpeed, nodeCT)
 	if not Session.IsHost then
 		Debug.console("SpeedManager.reparseBaseSpeed - not host");
@@ -1038,7 +1049,6 @@ end
 
 function parseBaseSpeed(nodeCT, bCalc)
 	if not nodeCT or not Session.IsHost then
-		--Debug.printstack();
 		Debug.console("SpeedManager.parseBaseSpeed - not nodeCT or not host");
 		return;
 	end

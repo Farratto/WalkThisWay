@@ -5,13 +5,13 @@
 -- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 -- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
 -- luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly
--- luacheck: globals convNumToIdNodeName roundNumber getVisCtEntries
+-- luacheck: globals convNumToIdNodeName roundNumber getVisCtEntries handlePullMoveData
 -- luacheck: globals getPreference registerPreference handlePrefChange requestPref handlePrefRegistration
--- luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor
+-- luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor getAllImageWindows
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 OOB_MSGTYPE_REGPREF = 'regpreference';
-OOB_MSGTYPE_REQPREF = 'request_preference'
+OOB_MSGTYPE_REQPREF = 'request_preference';
 local _sBetterGoldPurity = '';
 local tExtensions = {};
 local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
@@ -1278,14 +1278,19 @@ function onIdentityActivationWtW(identityname, username, activated)
 	if fonIdentityActivation then fonIdentityActivation(identityname, username, activated) end
 
 	if activated then requestPref(username) end
+
+	if MovementManager then
+		MovementManager.recordStepData();
+	--	Comm.deliverOOBMessage({ type = OOB_MSGTYPE_CMD_PULL_MOVE_DATA }, username);
+	end
 end
 function sendPrefRegistration(msgOOB, sPref) --luacheck: ignore 312
 	local sOwner = Session.UserName;
 	msgOOB = {};
-	msgOOB.type = OOB_MSGTYPE_REGPREF;
+	msgOOB['type'] = OOB_MSGTYPE_REGPREF;
 	if not sPref then sPref = OptionsManager.getOption('DDLU') end
-	msgOOB.sPref = sPref;
-	msgOOB.sOwner = sOwner;
+	msgOOB['sPref'] = sPref;
+	msgOOB['sOwner'] = sOwner;
 	Comm.deliverOOBMessage(msgOOB);
 end
 function handlePrefRegistration(msgOOB)
@@ -1307,18 +1312,6 @@ function handlePrefChange(sOptionKey)
 	end
 end
 function registerPreference(sOwner, sPref)
-	--if not Session.IsHost then
-	--	Debug.console("WtWCommon.registerPreference - not isHost");
-	--	return;
-	--end
-	--if not sOwner then
-	--	Debug.console("WtWCommon.registerPreference - not sOwner");
-	--	return;
-	--end
-	--if not sPref then
-	--	Debug.console("WtWCommon.registerPreference - not sPref");
-	--	return;
-	--end
 	for k,_ in pairs(tClientPrefs) do
 		if k == sOwner then
 			tClientPrefs[k] = sPref;
@@ -1328,14 +1321,6 @@ function registerPreference(sOwner, sPref)
 	tClientPrefs[sOwner] = sPref;
 end
 function getPreference(sOwner)
-	--if not Session.IsHost then
-	--	Debug.console("WtWCommon.getPreference - not isHost");
-	--	return;
-	--end
-	--if not sOwner then
-	--	Debug.console("WtWCommon.getPreference - not sOwner");
-	--	return;
-	--end
 	if not sOwner then return OptionsManager.getOption('DDLU') end
 
 	for k,v in pairs(tClientPrefs) do
@@ -1359,4 +1344,21 @@ function getVisCtEntries()
 		table.insert(tNodes, nodeWin);
 	end
 	return tNodes;
+end
+
+function getAllImageWindows()
+	local tReturn = {};
+	for _,win in ipairs(Interface.getWindows()) do
+		if ImageManager.isImageWindow(win) then
+			local winImage;
+			if win.getImage then
+				winImage = win;
+			elseif win.sub.subwindow then
+				winImage = win.sub.subwindow;
+			end
+			if winImage then table.insert(tReturn, winImage) end
+		end
+	end
+
+	return tReturn;
 end
