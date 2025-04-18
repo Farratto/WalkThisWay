@@ -85,6 +85,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.8.2: IXED: toggling option to enable or disable speed effects was not affecting immediately
 * v2.8.1: FIXED: special speeds on charSheet requiring reload to update; rare console error.
 * v2.8.0: NEW tag: SPEED: free (see 5e Freedom of Movement and readme or forum). FEATURE: 5E support for heavy armor Str requirement. PRE-FIX: Speed box moved for FGU update 4.7
 * v2.7.0: Added support for some speed-related PFRPG conditions. New speed effect: SPEED: tripled.

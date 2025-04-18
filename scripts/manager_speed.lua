@@ -144,7 +144,7 @@ end
 
 function recalcAllSpeeds(sOwner)
 	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
-		if sOwner then
+		if sOwner and sOwner ~= 'WESC' then
 			if sOwner == WtWCommon.getControllingClient(nodeCT) then
 				speedCalculator(nodeCT);
 				if MovementManager then MovementManager.setConvFactor(nodeCT) end
@@ -202,24 +202,6 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		sPref = OptionsManager.getOption('DDLU');
 	end
 
-	local nHover = DB.getValue(nodeCTWtW, 'hover')
-	local bHasRoot, bHasHover, sRootEffectName = WtWCommon.hasRoot(nodeCT);
-	local tEffectNames = {};
-	if sRootEffectName then table.insert(tEffectNames, sRootEffectName) end
-	if bHasRoot then
-		local tRoot = {};
-		local tSpdRcrd = {};
-		tSpdRcrd['velocity'] = '0';
-		if nHover == 1 or bHasHover then
-			tSpdRcrd['type'] = 'Walk (hover)';
-		else
-			tSpdRcrd['type'] = 'Walk';
-		end
-		table.insert(tRoot, tSpdRcrd);
-		local bReturn = updateDisplaySpeed(nodeCT,tRoot,nBaseSpeed,false,sPref,tEffectNames,0,bNoBase);
-		return bReturn;
-	end
-
 	local rActor = ActorManager.resolveActor(nodeCT);
 	if not rActor then
 		Debug.console("SpeedManager.speedCalculator - not rActor");
@@ -229,7 +211,25 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	local nHalved = 0;
 	local tAccomSpeed = {};
 	local bProne = false;
+	local nHover = DB.getValue(nodeCTWtW, 'hover')
+	local tEffectNames = {};
 	if not OptionsManager.isOption('WESC', 'off') then
+
+		local bHasRoot, bHasHover, sRootEffectName = WtWCommon.hasRoot(nodeCT);
+		if sRootEffectName then table.insert(tEffectNames, sRootEffectName) end
+		if bHasRoot then
+			local tRoot = {};
+			local tSpdRcrd = {};
+			tSpdRcrd['velocity'] = '0';
+			if nHover == 1 or bHasHover then
+				tSpdRcrd['type'] = 'Walk (hover)';
+			else
+				tSpdRcrd['type'] = 'Walk';
+			end
+			table.insert(tRoot, tSpdRcrd);
+			return updateDisplaySpeed(nodeCT,tRoot,nBaseSpeed,false,sPref,tEffectNames,0,bNoBase);
+		end
+
 		tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
 		tAccomSpeed = accommKnownExtsSpeed(nodeCT);
 		bProne = WtWCommon.hasEffectClause(rActor, "^Prone$", nil, false, true)
@@ -805,10 +805,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		if nVel and nVel > nHighest then nHighest = nVel end
 	end
 
-	local bReturn = updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames
-		, nHighest, bNoBase
-	);
-	return bReturn;
+	return updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest, bNoBase);
 end
 -- luacheck: pop
 

@@ -1192,8 +1192,8 @@ function convNumToIdNodeName(nId)
 	end
 end
 
-function roundNumber(nInput, nPlaces)
-	--accommidation for negative numbers
+function roundNumber(nInput, nPlaces, sUpDown)
+	--accommodation for negative numbers
 	local nMultiplier = 1;
 	if nInput < 0 then
 		nMultiplier = -1;
@@ -1203,10 +1203,20 @@ function roundNumber(nInput, nPlaces)
 	if not nPlaces then nPlaces = 0 end
 	local nPlaceAdj = 10^nPlaces;
 	nInput = nInput * nPlaceAdj;
-	local nWhole = math.floor(nInput);
-	local nDec = nInput - nWhole;
 
-	if nDec >= 0.5 then
+	local nWhole, nDec;
+	if sUpDown then
+		if sUpDown == 'up' then
+			nWhole = math.ceil(nInput);
+		elseif sUpDown == 'down' then
+			nWhole = math.floor(nInput);
+		end
+	else
+		nWhole = math.floor(nInput);
+		nDec = nInput - nWhole;
+	end
+
+	if nDec and nDec >= 0.5 then
 		return (nMultiplier * (nWhole + 1)) / nPlaceAdj;
 	end
 
