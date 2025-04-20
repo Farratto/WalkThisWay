@@ -44,7 +44,7 @@
 
 			<header_content_framed_headersimple>
 				<center />
-				<static textres="speed_title" />
+				<static textres="speed_current_title" />
 			</header_content_framed_headersimple>
 			<string_content_noframe_static_top name="currentSpeed">
 				<center />

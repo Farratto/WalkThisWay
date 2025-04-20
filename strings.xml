@@ -12,6 +12,7 @@
 	<string name="query_msg_nocost">Would you like to stand up?</string>
 	<string name="query_msg_athlete">Would you like expend 5 feet of movement to hop up?</string>
 	<string name="speed_title">Speed</string>
+	<string name="speed_current_title">Current Speed</string>
 	<string name="speed_effects_title">Effects Affecting Your Speed</string>
 	<string name="tooltip_dclick_swindow">Double click to open speed window</string>
 

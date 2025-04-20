@@ -227,7 +227,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				tSpdRcrd['type'] = 'Walk';
 			end
 			table.insert(tRoot, tSpdRcrd);
-			return updateDisplaySpeed(nodeCT,tRoot,nBaseSpeed,false,sPref,tEffectNames,0,bNoBase);
+			return updateDisplaySpeed(nodeCT,tRoot,nBaseSpeed,false,sPref,tEffectNames,0,bNoBase,'Walk');
 		end
 
 		tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
@@ -725,6 +725,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	end
 
 	local nHighest = 0;
+	local sHighestType;
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
 		local nFGSpeed = tSpdRcrd['velocity'];
 		local nFGSpeedNew = nFGSpeed;
@@ -802,10 +803,19 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			end
 		end
 		local nVel = tonumber(tFGSpeedNew[k]['velocity']);
-		if nVel and nVel > nHighest then nHighest = nVel end
+		if nVel and nVel > nHighest then
+			nHighest = nVel;
+			sHighestType = tFGSpeedNew[k]['type'];
+		elseif nVel == nHighest and sHighestType and sHighestType ~= 'Walk' then
+			if tFGSpeedNew[k]['type'] == 'Walk' then
+				sHighestType = tFGSpeedNew[k]['type'];
+			elseif string.match(tFGSpeedNew[k]['type'], 'Fly') then
+				sHighestType = tFGSpeedNew[k]['type'];
+			end
+		end
 	end
 
-	return updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest, bNoBase);
+	return updateDisplaySpeed(nodeCT,tFGSpeedNew,nBaseSpeed,bProne,sPref,tEffectNames,nHighest,bNoBase,sHighestType);
 end
 -- luacheck: pop
 
@@ -868,7 +878,7 @@ function parseSpeedType(sType, tFGSpeedNew, bMatch)
 	return nFound, bExactMatch, sQualifier, sTypeFly, sTypeHover, sTypeSpider, bMatchSpider;
 end
 
-function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest, bNoBase)
+function updateDisplaySpeed(nodeCT,tFGSpeedNew,nBaseSpeed,bProne,sPref,tEffectNames,nHighest,bNoBase,sHighestType)
 	if not Session.IsHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed then
 		Debug.console("SpeedManager.updateDisplaySpeed - not isHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed");
 		return;
@@ -964,6 +974,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		end
 	end
 	DB.setValue(nodeCTWtW, 'highest', 'number', nHighest * nConvFactor);
+	DB.setValue(nodeCTWtW, 'highest_type', 'string', sHighestType);
 	sReturn = sReturn .. sMarker;
 	sReturn = StringManager.strip(sReturn);
 	if sReturn and sReturn ~= '' then
