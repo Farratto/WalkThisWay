@@ -17,7 +17,6 @@ local tExtensions = {};
 local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
 local aExceptionDescriptors = {'steal', 'stealtemp'};
 local tClientPrefs = {};
-local fonIdentityActivation;
 --local BceEffectManager;
 
 local aEffectVarMap = {
@@ -52,7 +51,6 @@ function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REQPREF, sendPrefRegistration);
 	if Session.IsHost then
-		fonIdentityActivation = User.onIdentityActivation;
 		User.onIdentityActivation = onIdentityActivationWtW;
 		--if BCEManager then BceEffectManager = BCEManager.getRulesetEffectManager() end
 	end
@@ -1284,9 +1282,7 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 		return 1;
 	end
 end
-function onIdentityActivationWtW(identityname, username, activated)
-	if fonIdentityActivation then fonIdentityActivation(identityname, username, activated) end
-
+function onIdentityActivationWtW(_, username, activated)
 	if activated then requestPref(username) end
 
 	if MovementManager then

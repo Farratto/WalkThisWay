@@ -85,7 +85,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
-* v2.8.3: Minor changes to support new Step Counter features.
+* v2.8.4: FIXED: redundant calls
 * v2.8.3: Minor changes to support new Step Counter features.
 * v2.8.2: FIXED: toggling option to enable or disable speed effects was not affecting immediately
 * v2.8.1: FIXED: special speeds on charSheet requiring reload to update; rare console error.

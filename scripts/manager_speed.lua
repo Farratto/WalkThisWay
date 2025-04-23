@@ -14,7 +14,6 @@ OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
 
 local fonRecordTypeEvent;
-local fonLogin;
 local bLoopProt;
 local nodeUbiquinated;
 
@@ -42,7 +41,6 @@ function onInit()
 		end
 		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
 		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
-		fonLogin = User.onLogin;
 		User.onLogin = onLoginWtW;
 		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(onTurnEndWtW);
@@ -90,9 +88,7 @@ function setOptions()
 	OptionsManager.registerOptionData({	sKey = 'ACSW', sGroupRes = 'option_header_WtW', bLocal = true });
 end
 
-function onLoginWtW(username, activated)
-	if fonLogin then fonLogin(username, activated) end
-
+function onLoginWtW(_, activated)
 	if not activated then recalcAllSpeeds() end
 end
 

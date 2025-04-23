@@ -95,7 +95,6 @@
 				<script>
 					function onInit()
 						if Session.RulesetName == '5E' then
-							--local nodeCT = CombatManager.getActiveCT();
 							local nodeCT = window.getDatabaseNode();
 							if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
 								setValue(Interface.getString('query_msg_athlete'));
@@ -135,7 +134,6 @@
 			<script>
 				function onInit()
 					if Session.RulesetName == "5E" then
-						--local nodeCT = CombatManager.getActiveCT();
 						local nodeCT = window.getDatabaseNode();
 						if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
 							setText('Hop Up', 'Hop Up');
