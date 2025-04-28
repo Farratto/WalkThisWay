@@ -4,7 +4,7 @@
 	attribution and copyright information.
 -->
 <root release="3.0" version="3">
-	<announcement text="Walk this Way ~v2.8.4-dev~ by Farratto." icon="WtW_icon" font="emotefont" />
+	<announcement text="Walk this Way ~v2.8.5-dev~ by Farratto." icon="WtW_icon" font="emotefont" />
 	<properties>
 		<name>Feature: Walk This Way</name>
 		<version>~v-dev~</version>

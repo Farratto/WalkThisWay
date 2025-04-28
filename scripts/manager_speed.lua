@@ -969,8 +969,16 @@ function updateDisplaySpeed(nodeCT,tFGSpeedNew,nBaseSpeed,bProne,sPref,tEffectNa
 			end
 		end
 	end
-	DB.setValue(nodeCTWtW, 'highest', 'number', nHighest * nConvFactor);
-	DB.setValue(nodeCTWtW, 'highest_type', 'string', sHighestType);
+	if bProne and not string.match(sReturn, 'Crawl') then
+		sReturn = 'Crawl '..tostring(nHighest * nConvFactor)..' '..sUnitsPrefer
+	end
+	if string.match(sReturn, 'Crawl') then
+		DB.setValue(nodeCTWtW, 'highest', 'number', nHighest * nConvFactor);
+		DB.setValue(nodeCTWtW, 'highest_type', 'string', 'Crawl');
+	else
+		DB.setValue(nodeCTWtW, 'highest', 'number', nHighest * nConvFactor);
+		DB.setValue(nodeCTWtW, 'highest_type', 'string', sHighestType);
+	end
 	sReturn = sReturn .. sMarker;
 	sReturn = StringManager.strip(sReturn);
 	if sReturn and sReturn ~= '' then
