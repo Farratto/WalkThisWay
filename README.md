@@ -85,6 +85,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.8.6: FIXED: rare rounding error
 * v2.8.5: minor changes to support new Step Counter features
 * v2.8.4: FIXED: redundant calls
 * v2.8.3: Minor changes to support new Step Counter features.

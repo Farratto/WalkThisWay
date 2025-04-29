@@ -1205,7 +1205,8 @@ function roundNumber(nInput, nPlaces, sUpDown)
 	local nWhole, nDec;
 	if sUpDown then
 		if sUpDown == 'up' then
-			nWhole = math.ceil(nInput);
+			nWhole = math.floor(nInput);
+			if (nInput - nWhole) > 0.00000001 then nWhole = nWhole + 1 end
 		elseif sUpDown == 'down' then
 			nWhole = math.floor(nInput);
 		end
