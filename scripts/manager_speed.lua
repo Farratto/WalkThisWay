@@ -210,7 +210,6 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	local nHover = DB.getValue(nodeCTWtW, 'hover')
 	local tEffectNames = {};
 	if not OptionsManager.isOption('WESC', 'off') then
-
 		local bHasRoot, bHasHover, sRootEffectName = WtWCommon.hasRoot(nodeCT);
 		if sRootEffectName then table.insert(tEffectNames, sRootEffectName) end
 		if bHasRoot then
@@ -270,10 +269,11 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	local sRecheckLabel;
 	local tBannedTypes = {};
 	local tModdedTypes = {};
-	local bFree;
+	local bFree, bSwimming;
 	local nDecs = 0;
 	local tDecMods = {};
 	local tFreeNames = {};
+	local nExtra = 0;
 	for _,v in ipairs(tSpeedEffects) do
 		local sRemainder;
 		local bRecognizedRmndr = false;
@@ -362,20 +362,36 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			nTripled = nTripled + 1;
 			table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 		end
+		if sRmndrLower == 'extra' then
+			bRecognizedRmndr = true;
+			if not nMod then
+				Debug.console("SpeedManager.speedCalculator - Syntax error. Try SPEED: 4 extra");
+			else
+				nExtra = nExtra + nMod;
+				table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+				table.insert(tFreeNames, WtWCommon.getEffectName(_,v.label));
+			end
+		end
+		if sRmndrLower == 'swimming' then
+			bRecognizedRmndr = true;
+			bSwimming = true;
+			table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+		end
 		if not bProne and StringManager.startsWith(sRmndrLower, 'type') then
 			bRecognizedRmndr = true;
+			local sStrip = string.match(sRemainder, '^%s*[Tt][Yy][Pp][Ee]%s*%(%s*');
 			if not string.match(sRmndrLower, '%)$') then
 				Debug.console("SpeedManager.speedCalculator - Syntax error. Try SPEED: type(fly)");
-			else
-				local sStrip = string.match(sRemainder, '^%s*[Tt][Yy][Pp][Ee]%s*%(%s*')
+			elseif sStrip then
 				sStrip = string.gsub(sStrip, '%(', '%%(');
 				local sRmndrRemainder = sRemainder:gsub(sStrip, '');
 				local sType = sRmndrRemainder:gsub('%s*%)$', '');
 				local bRemoveType;
 				if string.match(sType, '^%-') then
 					bRemoveType = true;
-					sType = string.sub(sType, 2)
+					sType = string.sub(sType, 2);
 				end
+				sType = StringManager.capitalizeAll(sType);
 				local sTypeLower = string.lower(sType);
 				local nFound, bExactMatch, sQualifier, sTypeFly, sTypeHover, sTypeSpider, bMatchSpider =
 					parseSpeedType(sType, tFGSpeedNew, true);
@@ -655,7 +671,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				" is not a recognized command.	Use inc, dec, max, doubled, halved, difficult, or type.	 See the README or forum for more specifics about syntax."
 			);
 		else
-			if nMod then
+			if nMod and sRmndrLower == '' then
 				local sNMod = tostring(nMod)
 				if string.match(sNMod, '^%-') then
 					nSpeedMod = nSpeedMod + nMod;
@@ -686,6 +702,8 @@ function speedCalculator(nodeCT, bCalledFromParse)
 	end
 
 	if bFree then
+		if bDifficult then bDifficult = false end
+		nExtra = 0;
 		nHalved = nHalvedStone;
 		nSpeedMod = nSpeedMod + nDecs;
 		if tDecMods[1] then
@@ -762,13 +780,17 @@ function speedCalculator(nodeCT, bCalledFromParse)
 					tFGSpeedNew[k]['type'] = '(hover)'
 				end
 			else
-				local sTypeLower = string.lower(tSpdRcrd.type);
 				local nDoubledLocal = nDoubled
 				local nHalvedLocal = nHalved
 				local nTripledLocal = nTripled
+--[[
+				local sTypeLower = string.lower(tSpdRcrd.type);
 				if (not string.match(sTypeLower, 'fly')) and (not string.match(sTypeLower, 'hover')) then
-					if bDifficult and not bFree then nHalvedLocal = nHalvedLocal + 1 end
+					if bDifficult and not bFree then
+						nHalvedLocal = nHalvedLocal + 1;
+					end
 				end
+]]
 				while nDoubledLocal > 0 do
 					nSpeedFinal = nSpeedFinal * 2;
 					nDoubledLocal = nDoubledLocal - 1;
@@ -811,7 +833,9 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		end
 	end
 
-	return updateDisplaySpeed(nodeCT,tFGSpeedNew,nBaseSpeed,bProne,sPref,tEffectNames,nHighest,bNoBase,sHighestType);
+	return updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest, bNoBase
+		, sHighestType, bDifficult, nExtra, bSwimming
+	);
 end
 -- luacheck: pop
 
@@ -874,7 +898,9 @@ function parseSpeedType(sType, tFGSpeedNew, bMatch)
 	return nFound, bExactMatch, sQualifier, sTypeFly, sTypeHover, sTypeSpider, bMatchSpider;
 end
 
-function updateDisplaySpeed(nodeCT,tFGSpeedNew,nBaseSpeed,bProne,sPref,tEffectNames,nHighest,bNoBase,sHighestType)
+function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest, bNoBase
+	, sHighestType, bDifficult, nExtra, bSwimming
+)
 	if not Session.IsHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed then
 		Debug.console("SpeedManager.updateDisplaySpeed - not isHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed");
 		return;
@@ -905,8 +931,17 @@ function updateDisplaySpeed(nodeCT,tFGSpeedNew,nBaseSpeed,bProne,sPref,tEffectNa
 	local nBonusSpeed;
 	local nCurrentSpeed = nBaseSpeed;
 	local bCurrentFound;
-	local sMarker = '';
-	if tEffectNames[1] then sMarker = '*' end
+
+	local sMarker = "";
+	if bSwimming then sMarker = "; swimming" end
+	if bDifficult then sMarker = sMarker.."; difficult" end
+	if nExtra and nExtra ~= 0 then sMarker = sMarker.."; Extra: "..tostring(nExtra) end
+	if sMarker ~= "" then
+		sMarker = sMarker.."*";
+	elseif tEffectNames[1] then
+		sMarker = "*";
+	end
+
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
 		tSpdRcrd.velocity = tSpdRcrd.velocity * nConvFactor
 		if sUnitsPrefer == 'ft.' then

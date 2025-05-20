@@ -32,10 +32,12 @@ The speed effects that are recognized:
 | SPEED: -30 type(fly) | decreases fly speed by 30 |
 | SPEED: type(-fly) | removes fly speed |
 | SPEED: 5 max or SPEED: max(5) | none of the speeds can exceed 5
-| SPEED: difficult | difficult terrain handling (halves all speeds except fly) |
+| SPEED: difficult | difficult terrain handling |
+| SPEED: swimming | body of water terrain handling |
 | SPEED: halved | halves all speeds (after inc/dec); stackable |
 | SPEED: doubled | doubles all speeds (after inc/dec); stackable |
 | SPEED: tripled | triples all speeds (after inc/dec); stackable |
+| SPEED: 4 extra | moving 1 unit costs 4 additional units (see 5E's Plant Growth); stackable |
 | SPEED: free | ignores effects that reduce speed except roots, prone, exhausted, & encumbered (see 5E's  Freedom of Movement) |
 
 Supports 5e RAW encumbered (both standard and variant), exhaustion, dash, and 2024 athlete feat rules.  Reduces speed when character is wearing armor the character is not strong enough to wear.  Checks for 2014 dwarfs first.
@@ -85,6 +87,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.9.0: FIXED: rare bug. Cleaned up look of new speed types. FEATURES: support for Step Counter movement tracking under different speed conditions; new tag SPEED: n extra for spells like Plant Growth in 5e.
 * v2.8.6: FIXED: rare rounding error
 * v2.8.5: minor changes to support new Step Counter features
 * v2.8.4: FIXED: redundant calls
