@@ -87,6 +87,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.9.1: FIXED: was duplicated type changes in some situations; rare error. FEATURE: token right-click options added. Support for upcoming major Step Counter update.
 * v2.9.0: FIXED: rare bug. Cleaned up look of new speed types. FEATURES: support for Step Counter movement tracking under different speed conditions; new tag SPEED: n extra for spells like Plant Growth in 5e.
 * v2.8.6: FIXED: rare rounding error
 * v2.8.5: minor changes to support new Step Counter features

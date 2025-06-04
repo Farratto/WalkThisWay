@@ -65,6 +65,7 @@ function onClose()
 	if Session.IsHost and Session.RulesetName == "5E" then
 		for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 			DB.deleteNode(DB.getChild(DB.createChild(nodeCT, 'WalkThisWay'), 'handler_list'));
+			DB.deleteNode(DB.getChild(DB.createChild(nodeCT, 'WalkThisWay'), 'difficult_button'));
 		end
 	end
 end
@@ -153,7 +154,7 @@ function recalcAllSpeeds(sOwner)
 end
 
 -- luacheck: push ignore 561
-function speedCalculator(nodeCT, bCalledFromParse)
+function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
 	if not nodeFGSpeed then
@@ -263,7 +264,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 
 	local nDoubled = 0;
 	local nTripled = 0;
-	local bDifficult = false;
+	local bDifficultEffect;
 	local tRebase = {};
 	local nRecheck;
 	local sRecheckLabel;
@@ -337,7 +338,7 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		end
 		if sRmndrLower == "difficult" then
 			bRecognizedRmndr = true;
-			bDifficult = true;
+			bDifficultEffect = true;
 			table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 			table.insert(tFreeNames, WtWCommon.getEffectName(_,v.label));
 		end
@@ -479,18 +480,18 @@ function speedCalculator(nodeCT, bCalledFromParse)
 								if sQualifier then
 									if bFaster then
 										table.remove(tFGSpeedNew, nFound);
-										table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+										--table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 									end
 									nFound = false;
 								else
 									if sTypeFly then
 										if (nHover == 1) or sTypeHover then
 											tFGSpeedNew[nFound]['type'] = 'Fly (hover)'
-											table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+											--table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 										end
 									elseif sTypeSpider and not bMatchSpider then
 										tFGSpeedNew[nFound]['type'] = 'Spider Climb'
-										table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+										--table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 									else
 										nFound = false;
 									end
@@ -701,8 +702,9 @@ function speedCalculator(nodeCT, bCalledFromParse)
 		if sRecheckLabel then table.insert(tEffectNames, sRecheckLabel) end
 	end
 
+	local bDifficult;
 	if bFree then
-		if bDifficult then bDifficult = false end
+		bDifficult = false;
 		nExtra = 0;
 		nHalved = nHalvedStone;
 		nSpeedMod = nSpeedMod + nDecs;
@@ -783,14 +785,6 @@ function speedCalculator(nodeCT, bCalledFromParse)
 				local nDoubledLocal = nDoubled
 				local nHalvedLocal = nHalved
 				local nTripledLocal = nTripled
---[[
-				local sTypeLower = string.lower(tSpdRcrd.type);
-				if (not string.match(sTypeLower, 'fly')) and (not string.match(sTypeLower, 'hover')) then
-					if bDifficult and not bFree then
-						nHalvedLocal = nHalvedLocal + 1;
-					end
-				end
-]]
 				while nDoubledLocal > 0 do
 					nSpeedFinal = nSpeedFinal * 2;
 					nDoubledLocal = nDoubledLocal - 1;
@@ -830,6 +824,42 @@ function speedCalculator(nodeCT, bCalledFromParse)
 			elseif string.match(tFGSpeedNew[k]['type'], 'Fly') then
 				sHighestType = tFGSpeedNew[k]['type'];
 			end
+		end
+	end
+
+	if bDifficult == nil then
+		if bDifficultButton ~= nil then
+			bDifficult = bDifficultButton;
+			if bDifficultButton then
+				DB.setValue(nodeCTWtW, 'difficult', 'number', 1);
+				DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'button');
+			else
+				DB.setValue(nodeCTWtW, 'difficult', 'number', 0);
+				DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'button');
+			end
+		else
+			if bDifficultEffect then
+				DB.setValue(nodeCTWtW, 'difficult', 'number', 1);
+				DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'effect');
+				bDifficult = true;
+			else
+				local sDifficultSource = DB.getValue(nodeCTWtW, 'difficult_button', '');
+				if sDifficultSource ~= 'button' then
+					DB.setValue(nodeCTWtW, 'difficult', 'number', 0);
+					DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'effect');
+					bDifficult = bDifficultEffect;
+				else
+					bDifficult = true;
+				end
+			end
+		end
+	else
+		if bDifficult == false then
+			DB.setValue(nodeCTWtW, 'difficult', 'number', 0);
+			DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'effect');
+		else
+			DB.setValue(nodeCTWtW, 'difficult', 'number', 1);
+			DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'effect');
 		end
 	end
 
@@ -915,7 +945,6 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 	local sLngthUnits = DB.getValue(nodeCTWtW, 'units');
 	if not sLngthUnits or sLngthUnits == '' then
 		Debug.console("SpeedManager.updateDisplaySpeed - units not in DB");
-		--sLngthUnits = OptionsManager.getOption('DDCU');
 		local nodeWTW = DB.createNode('WalkThisWay');
 		DB.setPublic(nodeWTW, true);
 		sLngthUnits = DB.getValue(nodeWTW, 'effectUnits');
@@ -927,7 +956,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		end
 	end
 	nBaseSpeed = nBaseSpeed * nConvFactor;
-	local sReturn = '';
+	local sReturn = "";
 	local nBonusSpeed;
 	local nCurrentSpeed = nBaseSpeed;
 	local bCurrentFound;
@@ -1014,9 +1043,12 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		DB.setValue(nodeCTWtW, 'highest', 'number', nHighest * nConvFactor);
 		DB.setValue(nodeCTWtW, 'highest_type', 'string', sHighestType);
 	end
+	if sReturn == "" then sReturn = "0 "..sUnitsPrefer end
 	sReturn = sReturn .. sMarker;
 	sReturn = StringManager.strip(sReturn);
 	if sReturn and sReturn ~= '' then
+		local sPrevSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
+		if sPrevSpeed and sPrevSpeed == sReturn then return false end
 		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', sReturn);
 		local rActor = ActorManager.resolveActor(nodeCT);
 		if not rActor then
@@ -1105,8 +1137,8 @@ function parseBaseSpeed(nodeCT, bCalc)
 	local sUnitsGave = DB.getValue(nodeWTW, 'effectUnits');
 
 	--dont forget some creatures dont have a speed, like objects
-	local sFGSpeed = DB.getValue(nodeCT, 'speed', '0')
-	if sFGSpeed == '' then sFGSpeed = '0' end
+	local sFGSpeed = DB.getValue(nodeCT, 'speed', '0');
+	sFGSpeed = tostring(sFGSpeed);
 
 	if ActorManager.isPC(nodeCT) then
 		local nodeChar = ActorManager.getCreatureNode(nodeCT);
@@ -1117,10 +1149,8 @@ function parseBaseSpeed(nodeCT, bCalc)
 			--if nCharWtWSpeedBase == 0 then setCharSheetSpeed(nil, nodeChar, nodeSpeed) end
 			setCharSheetSpeed(nil, nodeChar, nodeSpeed);
 		end
-		local nodeFGSpeedSpecial = DB.getValue(nodeSpeed, 'special');
-		if nodeFGSpeedSpecial and nodeFGSpeedSpecial ~= '' then
-			sFGSpeed = sFGSpeed .. '; ' .. nodeFGSpeedSpecial;
-		end
+		local nodeFGSpeedSpecial = DB.getValue(nodeSpeed, 'special', '');
+		if nodeFGSpeedSpecial ~= '' then sFGSpeed = sFGSpeed .. '; ' .. nodeFGSpeedSpecial end
 	end
 
 	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
@@ -1136,7 +1166,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
 	if not nodeFGSpeed then
 		nodeFGSpeed = DB.createChild(nodeCTWtW, 'FGSpeed');
-		local aSpdTypeSplit = StringManager.split(sFGSpeed, ',;', true)
+		local aSpdTypeSplit = StringManager.splitByPattern(sFGSpeed, '[,;]', true)
 		local sFinalUnits = '';
 		local sLngthUnits = '';
 		local sStripPattern = '';
@@ -1166,7 +1196,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 			local bConverted = false;
 			local nConvFactor = 1;
 			if sLngthUnits == '' then
-				local aUnitsSplit = StringManager.split(sSpdTypeSplit, '%s+', true)
+				local aUnitsSplit = StringManager.splitByPattern(sSpdTypeSplit, '%s+', true)
 				local bFound = false;
 				for _,word in ipairs(aUnitsSplit) do
 					if not bFound then

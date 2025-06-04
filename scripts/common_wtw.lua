@@ -1,23 +1,43 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
--- luacheck: globals checkBetterGoldPurity hasEffectFindString removeEffectClause handleApplyHostCommands
--- luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
--- luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
--- luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly
--- luacheck: globals convNumToIdNodeName roundNumber getVisCtEntries handlePullMoveData
--- luacheck: globals getPreference registerPreference handlePrefChange requestPref handlePrefRegistration
--- luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor getAllImageWindows
+--luacheck: globals checkBetterGoldPurity hasEffectFindString removeEffectClause handleApplyHostCommands
+--luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
+--luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
+--luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly
+--luacheck: globals convNumToIdNodeName roundNumber getVisCtEntries handlePullMoveData
+--luacheck: globals getPreference registerPreference handlePrefChange requestPref handlePrefRegistration
+--luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor getAllImageWindows
+--luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken
+--luacheck: globals notifyResetRightClick handleResetRightClick processNewCTOwner onTokenRefUpdated
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 OOB_MSGTYPE_REGPREF = 'regpreference';
 OOB_MSGTYPE_REQPREF = 'request_preference';
+OOB_MSGTYPE_RESET_RIGHTCLICK = 'reset_right_click';
 local _sBetterGoldPurity = '';
 local tExtensions = {};
 local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
 local aExceptionDescriptors = {'steal', 'stealtemp'};
 local tClientPrefs = {};
---local BceEffectManager;
+RIGHT_CLICK_TOKEN_SC = 2;
+RIGHT_CLICK_TOKEN_SPEED_TYPE = 4;
+local RIGHT_CLICK_TOKEN_PRIORITY = 1;
+local RIGHT_CLICK_TOKEN_STEPPAGE = 7;
+local RIGHT_CLICK_DASH = 6;
+local RIGHT_CLICK_TOKEN_STEP = 8;
+local RIGHT_CLICK_TOKEN_UNDO = 7;
+local RIGHT_CLICK_TOKEN_TELE_GO = 5;
+local RIGHT_CLICK_TOKEN_RESTART = 2;
+local RIGHT_CLICK_TOKEN_GM = 1;
+local RIGHT_CLICK_TOKEN_TELE_ON = 6;
+local RIGHT_CLICK_TOKEN_TELE_OFF = 5;
+local RIGHT_CLICK_TOKEN_WIN = 8;
+local RIGHT_CLICK_TOKEN_DIFF = 3;
+local RIGHT_CLICK_TOKEN_DIFF_ON = 8;
+local RIGHT_CLICK_TOKEN_DIFF_OFF = 7;
+local RIGHT_CLICK_TOKEN_NO_LIMIT = 8;
+local RIGHT_CLICK_TOKEN_LIMIT = 7;
 
 local aEffectVarMap = {
 	["sName"] = { sDBType = "string", sDBField = "label" },
@@ -50,9 +70,11 @@ function onInit()
 	OptionsManager.registerCallback('DDLU', handlePrefChange);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REQPREF, sendPrefRegistration);
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_RESET_RIGHTCLICK, handleResetRightClick);
+	DB.addHandler('combattracker.list.*.tokenrefid', 'onUpdate', onTokenRefUpdated);
 	if Session.IsHost then
 		User.onIdentityActivation = onIdentityActivationWtW;
-		--if BCEManager then BceEffectManager = BCEManager.getRulesetEffectManager() end
+		DB.addHandler('combattracker.list.*.NPCowner','onUpdate', processNewCTOwner);
 	end
 end
 
@@ -506,10 +528,6 @@ end
 
 --Returns nil for inactive identities and those owned by the GM
 function getControllingClient(nodeCT)
-	--if not nodeCT then
-	--	Debug.console("WtWCommon.getControllingClient - not nodeCT");
-	--	return;
-	--end
 	local sPCNode;
 	local rActor = ActorManager.resolveActor(nodeCT);
 	local sNPCowner;
@@ -520,8 +538,6 @@ function getControllingClient(nodeCT)
 		if sNPCowner == '' then
 			if Pets and Pets.isCohort(rActor) then
 				sPCNode = getRootCommander(rActor);
-			--elseif FriendZone and FriendZone.isCohort(rActor) then
-			--	sPCNode = getRootCommander(rActor);
 			end
 		end
 	end
@@ -1207,6 +1223,9 @@ function roundNumber(nInput, nPlaces, sUpDown)
 		if sUpDown == 'up' then
 			nWhole = math.floor(nInput);
 			if (nInput - nWhole) > 0.00000001 then nWhole = nWhole + 1 end
+		elseif sUpDown == 'grid' then
+			nWhole = math.floor(nInput);
+			if (nInput - nWhole) >= 0.25 then nWhole = nWhole + 1 end
 		elseif sUpDown == 'down' then
 			nWhole = math.floor(nInput);
 		end
@@ -1368,4 +1387,234 @@ function getAllImageWindows()
 	end
 
 	return tReturn;
+end
+
+function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
+	if not tokenCT and not nodeCT then return end
+	if not tokenCT then tokenCT = CombatManager.getTokenFromCT(nodeCT) end
+	if not nodeCT then nodeCT = CombatManager.getCTFromToken(tokenCT) end
+	if not tokenCT or not nodeCT then return end
+
+	tokenCT.resetMenuItems();
+	tokenCT.registerMenuItem('Step Counter', 'tool_shoe_false', RIGHT_CLICK_TOKEN_SC);
+	if SpeedManager then
+		tokenCT.registerMenuItem('Open Speed Window', 'restorewindow', RIGHT_CLICK_TOKEN_SC
+			, RIGHT_CLICK_TOKEN_WIN
+		);
+		tokenCT.registerMenuItem('Dash', 'tokenacceptmove', RIGHT_CLICK_TOKEN_SC
+			, RIGHT_CLICK_DASH
+		);
+	end
+	if MovementManager then
+		local nTeleAllowed = DB.getValue(DB.getChild(nodeCT, 'WalkThisWay'), 'teleport_allowed', 2);
+		tokenCT.registerMenuItem('Steppage', 'tool_shoe_false', RIGHT_CLICK_TOKEN_SC
+			, RIGHT_CLICK_TOKEN_STEPPAGE
+		);
+		tokenCT.registerMenuItem('Create Step', 'radial_plus', RIGHT_CLICK_TOKEN_SC
+			, RIGHT_CLICK_TOKEN_STEPPAGE , RIGHT_CLICK_TOKEN_STEP
+		);
+		tokenCT.registerMenuItem('Undo Last Step', 'return', RIGHT_CLICK_TOKEN_SC
+			, RIGHT_CLICK_TOKEN_STEPPAGE , RIGHT_CLICK_TOKEN_UNDO
+		);
+		if Session.IsHost
+			or (Session.UserName == WtWCommon.getControllingClient(nodeCT)
+				and ((OptionsManager.isOption('allow_tele', 'on') and nTeleAllowed ~= 0) or nTeleAllowed == 1)
+			)
+		then
+			tokenCT.registerMenuItem('Flag as Teleporting Now', 'tool_shoe_false', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_TOKEN_TELE_GO
+			);
+		end
+		tokenCT.registerMenuItem('Return to Start', 'chatclear', RIGHT_CLICK_TOKEN_SC
+			, RIGHT_CLICK_TOKEN_RESTART
+		);
+		if Session.IsHost then
+			tokenCT.registerMenuItem('GM Tools', 'tool_shoe_false', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_TOKEN_GM
+			);
+			tokenCT.registerMenuItem('Allow Teleport', 'unlock', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_TOKEN_GM, RIGHT_CLICK_TOKEN_TELE_ON
+			);
+			tokenCT.registerMenuItem('Forbid Teleport', 'lock', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_TOKEN_GM, RIGHT_CLICK_TOKEN_TELE_OFF
+			);
+		end
+		if SpeedManager then
+			tokenCT.registerMenuItem('Open Speed Window', 'restorewindow', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_TOKEN_WIN
+			);
+			tokenCT.registerMenuItem('Speed Type', 'tool_shoe_false', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_TOKEN_SPEED_TYPE
+			);
+			tokenCT.registerMenuItem('Difficult Terrain', 'imageviewmenu', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_TOKEN_DIFF
+			);
+			tokenCT.registerMenuItem('On', 'imageviewmenu', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_TOKEN_DIFF, RIGHT_CLICK_TOKEN_DIFF_ON
+			);
+			tokenCT.registerMenuItem('Off', 'tool_shoe_false', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_TOKEN_DIFF, RIGHT_CLICK_TOKEN_DIFF_OFF
+			);
+			if Session.IsHost then
+				tokenCT.registerMenuItem('Allow to Exceed Movement Limit', 'unlock', RIGHT_CLICK_TOKEN_SC
+					, RIGHT_CLICK_TOKEN_GM, RIGHT_CLICK_TOKEN_NO_LIMIT
+				);
+				tokenCT.registerMenuItem('Enforce Movement Limit', 'lock', RIGHT_CLICK_TOKEN_SC
+					, RIGHT_CLICK_TOKEN_GM, RIGHT_CLICK_TOKEN_LIMIT
+				);
+			end
+			local sLabels, _, sEmptyLabel = MovementManager.getSpeedTypes(nodeCT);
+			MovementManager.populateRightClickSpeedTypes(tokenCT, nodeCT, sLabels, sEmptyLabel);
+		end
+	end
+
+	if WtWCommon.hasExtension('B9_SpellTokens') then
+		tokenCT.registerMenuItem(Interface.getString('tokentogglepriority'), 'tokentogglepriority'
+			, RIGHT_CLICK_TOKEN_PRIORITY
+		);
+	end
+
+	if not bNoMenu then tokenCT.onMenuSelection = WtWCommon.onMenuSelectionToken end
+end
+function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
+	local nodeCT = CombatManager.getCTFromToken(token);
+	if not nodeCT then
+		token.resetMenuItems();
+		return;
+	end
+
+	if nSub == RIGHT_CLICK_TOKEN_WIN then
+		SpeedManager.openSpeedWindow(nodeCT);
+	elseif nSub == RIGHT_CLICK_TOKEN_STEPPAGE then
+		if nSubSub == RIGHT_CLICK_TOKEN_STEP then
+			MovementManager.processTravelDist(nodeCT, true, token);
+		elseif nSubSub == RIGHT_CLICK_TOKEN_UNDO then
+			MovementManager.undoLastStep(nodeCT, false, token);
+		end
+	elseif nSub == RIGHT_CLICK_DASH then
+		if Session.IsHost then
+			EffectManager.addEffect('', '', nodeCT, { sName = 'Dash', nDuration = 1, sChangeState = 'rts' }, '');
+		else
+			WtWCommon.notifyApplyHostCommands(nodeCT, 0, { sName = 'Dash', nDuration = 1, sChangeState = 'rts' });
+		end
+	elseif nSub == RIGHT_CLICK_TOKEN_TELE_GO then
+		local nodeCTWtW = DB.getChild(nodeCT, 'WalkThisWay');
+		local nTeleAllowed = DB.getValue(nodeCTWtW, 'teleport_allowed', 2);
+		if (OptionsManager.isOption('allow_tele', 'on') and nTeleAllowed ~= 0)
+			or Session.IsHost
+			or nTeleAllowed == 1
+		then
+			MovementManager.processTravelDist(nodeCT, true, token);
+			MovementManager.propagateTextWidget(token, "Tele Start", 'moved', false, false, 'dist_label_large'
+				, -13
+			);
+			DB.setValue(nodeCTWtW, 'teleport', 'number', 1);
+		else
+			Comm.addChatMessage({ text = "That creature is not permitted to teleport." });
+		end
+	elseif nSub == RIGHT_CLICK_TOKEN_RESTART then
+		MovementManager.returnToStart(nodeCT, token);
+	elseif nSub == RIGHT_CLICK_TOKEN_DIFF then
+		if Session.IsHost then
+			MovementManager.processManualDifficult(nodeCT, nSubSub == RIGHT_CLICK_TOKEN_DIFF_ON);
+		else
+			local msgOOB = {};
+			msgOOB.type = MovementManager.OOB_MSGTYPE_NOTIFY_MANUAL_DIFFICULT;
+			msgOOB.sCTNodeID = DB.getPath(nodeCT);
+			if nSub == RIGHT_CLICK_TOKEN_DIFF_ON then
+				msgOOB.sDifficult = '1';
+			else
+				msgOOB.sDifficult = '0';
+			end
+			Comm.deliverOOBMessage(msgOOB, '');
+		end
+	elseif nSub == RIGHT_CLICK_TOKEN_SPEED_TYPE then
+		local nodeCTWtW = DB.getChild(nodeCT, 'WalkThisWay');
+		local sSpeedType = DB.getValue(nodeCTWtW, 'speed_type');
+		local sDefaultSpeedType = DB.getValue(nodeCTWtW, 'speed_type_default');
+		local sValues = DB.getValue(nodeCTWtW, 'speed_type_values');
+		for nK, sLabel in pairs(MovementManager.tTypesToNumbers) do
+			local sLabelLower = string.lower(sLabel);
+			if nSubSub == nK then
+				local bDefault;
+				local sValue = string.match(sDefaultSpeedType, '^'..sLabelLower);
+				if sValue then
+					if not sSpeedType then return end
+					bDefault = true;
+					DB.deleteChild(nodeCTWtW, 'speed_type');
+					local wSpeed = Interface.findWindow('speed_window', nodeCTWtW);
+					if wSpeed then
+						wSpeed.close();
+						Interface.openWindow('speed_window', nodeCTWtW);
+					end
+				end
+				if not sValue then sValue = string.match(sValues, '^'..sLabelLower) end
+				if not sValue then
+					sValue = string.match(sValues, '|'..sLabelLower);
+					if not sValue then
+						registerTokenRightClick(token, nodeCT, true);
+						Debug.console("SpeedManager.onMenuSelectionToken - not sValue");
+						return;
+					end
+					sValue = string.gsub(sValue, '^|', '');
+					sValue = string.gsub(sValue, '|.*$', '');
+				end
+				if sSpeedType and sSpeedType == sValue then return end
+				local bGoLabel = MovementManager.determineGoSpeedChange(nodeCT);
+				if not bDefault then DB.setValue(nodeCTWtW, 'speed_type', 'string', sValue) end
+				if bGoLabel then MovementManager.processTravelDist(nodeCT, false, token) end
+				return;
+			end
+		end
+	elseif nSub == RIGHT_CLICK_TOKEN_GM then
+		local nodeCTWtW = DB.getChild(nodeCT, 'WalkThisWay');
+		if nSubSub == RIGHT_CLICK_TOKEN_NO_LIMIT then
+			DB.setValue(nodeCTWtW, 'limit_movement', 'number', 0);
+		elseif nSubSub == RIGHT_CLICK_TOKEN_LIMIT then
+			DB.setValue(nodeCTWtW, 'limit_movement', 'number', 1);
+		elseif nSubSub == RIGHT_CLICK_TOKEN_TELE_ON then
+			DB.setValue(nodeCTWtW, 'teleport_allowed', 'number', 1);
+			notifyResetRightClick(nodeCT);
+		elseif nSubSub == RIGHT_CLICK_TOKEN_TELE_OFF then
+			DB.setValue(nodeCTWtW, 'teleport_allowed', 'number', 0);
+			notifyResetRightClick(nodeCT);
+		end
+	end
+
+	if nSelection == RIGHT_CLICK_TOKEN_PRIORITY then
+		local cImage = ImageManager.getImageControl(token);
+		if cImage then cImage.togglePriority(token) end
+	end
+end
+
+function notifyResetRightClick(nodeCT, sOwner)
+	if not sOwner then sOwner = WtWCommon.getControllingClient(nodeCT) end
+	if sOwner then
+		local msgOOB = {};
+		msgOOB.type = OOB_MSGTYPE_RESET_RIGHTCLICK;
+		msgOOB.sCTNodeID = DB.getPath(nodeCT);
+		Comm.deliverOOBMessage(msgOOB, sOwner);
+	end
+end
+function handleResetRightClick(msgOOB)
+	registerTokenRightClick(nil, DB.findNode(msgOOB.sCTNodeID), true);
+end
+
+function processNewCTOwner(nodeUpdated)
+	notifyResetRightClick(DB.getParent(nodeUpdated));
+end
+
+function onTokenRefUpdated(nodeUpdated)
+	local nodeCT = DB.getParent(nodeUpdated);
+	if Session.IsHost then
+		if MovementManager.nBootToken <= 0 then
+			registerTokenRightClick(nil, nodeCT);
+		end
+	else
+		local sOwner = WtWCommon.getControllingClient(nodeCT);
+		if sOwner and sOwner == Session.UserName then registerTokenRightClick(nil, nodeCT) end
+		return;
+	end
+
+	if MovementManager then MovementManager.onTokenRefUpdated(nodeUpdated, nodeCT) end
 end

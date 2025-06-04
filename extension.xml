@@ -4,7 +4,7 @@
 	attribution and copyright information.
 -->
 <root release="3.0" version="3">
-	<announcement text="Walk this Way ~v2.9.0-dev~ by Farratto." icon="WtW_icon" font="emotefont" />
+	<announcement text="Walk this Way ~v2.9.1-dev~ by Farratto." icon="WtW_icon" font="emotefont" />
 	<properties>
 		<name>Feature: Walk This Way</name>
 		<version>~v-dev~</version>
@@ -18,6 +18,8 @@
 		<includefile source="campaign/speed.xml">
 			<ruleset>2E|3.5E|4E|5E|PFRPG|PFRPG2|PFRPG2-Legacy|SFRPG2|SFRPG</ruleset>
 		</includefile>
+		<includefile source="campaign/record_char_sc.xml" />
+		<includefile source="campaign/image.xml" />
 		<script name="WtWCommon" file="scripts/common_wtw.lua" />
 		<script name="ProneManager" file="scripts/manager_prone.lua" />
 		<script name="SpeedManager" file="scripts/manager_speed.lua">
@@ -26,6 +28,7 @@
 		<icon name="WtW_icon" file="graphics/shoe.webp" />
 		<icon name="minimized_WtW" file="graphics/minimized_WtW.webp" />
 		<icon name="prone_arrow" file="graphics/prone_arrow.webp" />
+		<icon name="tool_shoe_false" file="graphics/icon_toolbar_shoe_false.webp" />
 		<framedef name="leathergreen">
 			<bitmap file="graphics/headerpoweratwill.webp" />
 				<!-- L/T/R/B -->

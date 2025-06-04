@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+	Please see the LICENSE.txt file included with this distribution for
+	attribution and copyright information.
+-->
+<root>
+	<windowclass name="char_generic_actions" merge="join">
+		<sheetdata>
+			<stringcontrol name="dash_button" merge="join">
+				<script>
+					function onDoubleClick(x,y)
+						local nodeCT = ActorManager.getCTNode(window.getDatabaseNode())
+						if Session.IsHost then
+							EffectManager.addEffect("", "", nodeCT, { sName = 'Dash', nDuration = 1
+								, sChangeState = "rts" }, ""
+							);
+						else
+							WtWCommon.notifyApplyHostCommands(nodeCT, 0, { sName = 'Dash', nDuration = 1
+								, sChangeState = "rts"
+							});
+						end
+
+						if super and super.onDoubleClick then
+							return super.onDoubleClick(x,y);
+						else
+							return true;
+						end
+					end
+				</script>
+			</stringcontrol>
+		</sheetdata>
+	</windowclass>
+</root>
