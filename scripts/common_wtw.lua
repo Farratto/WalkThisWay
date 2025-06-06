@@ -20,6 +20,7 @@ local tExtensions = {};
 local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
 local aExceptionDescriptors = {'steal', 'stealtemp'};
 local tClientPrefs = {};
+local nBootToken = 0;
 RIGHT_CLICK_TOKEN_SC = 2;
 RIGHT_CLICK_TOKEN_SPEED_TYPE = 4;
 local RIGHT_CLICK_TOKEN_PRIORITY = 1;
@@ -81,6 +82,11 @@ end
 function onTabletopInit()
 	if CharacterListManagerBCE then
 		_sBetterGoldPurity = checkBetterGoldPurity();
+	end
+	if Session.IsHost then
+		for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
+			if CombatManager.getTokenFromCT(nodeCT) then nBootToken = nBootToken + 1 end
+		end
 	end
 end
 
@@ -1184,7 +1190,7 @@ function convNumToIdNodeName(nId)
 	if not string.match(tostring(nId), '^id%-%d%d%d%d%d$') then
 		nId = tonumber(nId);
 		if not nId then
-			Debug.console("MovementManager.convNumToIdNodeName - not nId")
+			Debug.console("WtWCommon.convNumToIdNodeName - not nId")
 			return;
 		end
 		nId = tostring(nId);
@@ -1305,10 +1311,7 @@ end
 function onIdentityActivationWtW(_, username, activated)
 	if activated then requestPref(username) end
 
-	if MovementManager then
-		MovementManager.recordStepData();
-	--	Comm.deliverOOBMessage({ type = OOB_MSGTYPE_CMD_PULL_MOVE_DATA }, username);
-	end
+	if MovementManager then MovementManager.recordStepData() end
 end
 function sendPrefRegistration(msgOOB, sPref) --luacheck: ignore 312
 	local sOwner = Session.UserName;
@@ -1553,7 +1556,7 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 					sValue = string.match(sValues, '|'..sLabelLower);
 					if not sValue then
 						registerTokenRightClick(token, nodeCT, true);
-						Debug.console("SpeedManager.onMenuSelectionToken - not sValue");
+						Debug.console("WtWCommon.onMenuSelectionToken - not sValue");
 						return;
 					end
 					sValue = string.gsub(sValue, '^|', '');
@@ -1605,11 +1608,13 @@ function processNewCTOwner(nodeUpdated)
 end
 
 function onTokenRefUpdated(nodeUpdated)
+	if nBootToken > 0 then
+		nBootToken = nBootToken - 1;
+		return;
+	end
 	local nodeCT = DB.getParent(nodeUpdated);
 	if Session.IsHost then
-		if MovementManager.nBootToken <= 0 then
-			registerTokenRightClick(nil, nodeCT);
-		end
+		registerTokenRightClick(nil, nodeCT);
 	else
 		local sOwner = WtWCommon.getControllingClient(nodeCT);
 		if sOwner and sOwner == Session.UserName then registerTokenRightClick(nil, nodeCT) end
