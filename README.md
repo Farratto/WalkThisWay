@@ -87,6 +87,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.9.3: FIXED: nil error when not running dev version of Step Counter; Speed window had real name of creature when not identified on clients
 * v2.9.2: FIXED: nil error introduced with v2.9.1
 * v2.9.1: FIXED: was duplicated type changes in some situations; rare error. FEATURE: token right-click options added. Support for upcoming major Step Counter update.
 * v2.9.0: FIXED: rare bug. Cleaned up look of new speed types. FEATURES: support for Step Counter movement tracking under different speed conditions; new tag SPEED: n extra for spells like Plant Growth in 5e.

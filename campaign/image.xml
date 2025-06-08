@@ -14,11 +14,15 @@
 					if not nodeCT then return end
 
 					if Session.IsHost then
-						WtWCommon.registerTokenRightClick(token, nodeCT);
-					else
-						local sOwner = WtWCommon.getControllingClient(nodeCT);
-						if sOwner and sOwner == Session.UserName then
+						if WtWCommon.registerTokenRightClick then
 							WtWCommon.registerTokenRightClick(token, nodeCT);
+						end
+					else
+						if WtWCommon.registerTokenRightClick then
+							local sOwner = WtWCommon.getControllingClient(nodeCT);
+							if sOwner and sOwner == Session.UserName then
+								WtWCommon.registerTokenRightClick(token, nodeCT);
+							end
 						end
 					end
 				end

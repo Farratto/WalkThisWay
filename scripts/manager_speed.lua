@@ -1664,8 +1664,16 @@ function clearAllItemStrengthHandlers()
 end
 
 function openSpeedWindow(nodeCT)
-	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'name', ''));
+	local nodeCTWtW = DB.getChild(nodeCT, 'WalkThisWay');
+	if Session.IsHost then
+		DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'name', ''));
+	else
+		if DB.getValue(nodeCT, 'isidentified', 0) == 1 then
+			DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'name', ''));
+		else
+			DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'nonid_name', ''));
+		end
+	end
 	local sCurrentSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
 	if not sCurrentSpeed then
 		local nFGSpeed = DB.getValue(nodeCT, 'speed', '');
