@@ -1668,8 +1668,8 @@ function openSpeedWindow(nodeCT)
 	if Session.IsHost then
 		DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'name', ''));
 	else
-		if DB.getValue(nodeCT, 'isidentified', 0) == 1 then
-			DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'name', ''));
+		if ActorManager.isPC(nodeCT) or DB.getValue(nodeCT, 'isidentified', 0) == 1 then
+			DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'name', '')..".");
 		else
 			DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'nonid_name', ''));
 		end

@@ -48,7 +48,11 @@ Option setting (for GM and players) to change the units that speed is displayed 
 
 Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted, Temporal Fixation, Step Counter, Map Parcels
 
-Note: Known limitation with Mad Nomad's Character Sheet Tweaks: Changed units will not display on player character sheets (but still works on CT, speed windows, and NPCs)
+### Known Limitations
+
+Known limitation with Mad Nomad's Character Sheet Tweaks: Changed units will not display on player character sheets (but still works on CT, speed windows, and NPCs).
+
+Right-click menu: When changing an image window from window size to panel (background) size (increase size button), the right-click buttons stop working.  To fix, you can increase size again.  I haven't been able to figure out why this is happening or a work-around.  For now, it's a known limitation.
 
 ### Other Rulesets
 
@@ -87,6 +91,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v2.9.4: FIXED: PCs speed window not showing name on client
 * v2.9.3: FIXED: nil error when not running dev version of Step Counter; Speed window had real name of creature when not identified on clients
 * v2.9.2: FIXED: nil error introduced with v2.9.1
 * v2.9.1: FIXED: was duplicated type changes in some situations; rare error. FEATURE: token right-click options added. Support for upcoming major Step Counter update.

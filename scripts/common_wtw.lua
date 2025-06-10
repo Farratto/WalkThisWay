@@ -519,10 +519,6 @@ end
 
 ---For a given cohort actor, determine the root character node that owns it
 function getRootCommander(rActor)
-	--if not rActor then
-	--	Debug.console("WtWCommon.getRootCommander - rActor doesn't exist");
-	--	return;
-	--end
 	local sRecord = ActorManager.getCreatureNodeName(rActor);
 	local sRecordSansModule = StringManager.split(sRecord, "@")[1];
 	local aRecordPathSansModule = StringManager.split(sRecordSansModule, ".");
@@ -531,7 +527,6 @@ function getRootCommander(rActor)
 	end
 	return nil;
 end
-
 --Returns nil for inactive identities and those owned by the GM
 function getControllingClient(nodeCT)
 	local sPCNode;
