@@ -13,14 +13,12 @@
 					local nodeCT = CombatManager.getCTFromToken(token);
 					if not nodeCT then return end
 
-					if WtWCommon.registerTokenRightClick then
-						if Session.IsHost then
+					if Session.IsHost then
+						WtWCommon.registerTokenRightClick(token, nodeCT);
+					else
+						local sOwner = WtWCommon.getControllingClient(nodeCT);
+						if not sOwner or sOwner == Session.UserName then
 							WtWCommon.registerTokenRightClick(token, nodeCT);
-						else
-							local sOwner = WtWCommon.getControllingClient(nodeCT);
-							if sOwner and sOwner == Session.UserName then
-								WtWCommon.registerTokenRightClick(token, nodeCT);
-							end
 						end
 					end
 				end

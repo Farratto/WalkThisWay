@@ -191,11 +191,11 @@ function checkHideousLaughter(rActor)
 end
 
 function delWTWdataChild(sChildNode)
-	local nodeWTW = DB.findNode('WalkThisWay');
-	if not nodeWTW then
+	local nodeWtW = DB.findNode('WalkThisWay');
+	if not nodeWtW then
 		return true;
 	end
-	local nodePQ = DB.getChild(nodeWTW, sChildNode);
+	local nodePQ = DB.getChild(nodeWtW, sChildNode);
 	if not nodePQ then
 		return true;
 	end

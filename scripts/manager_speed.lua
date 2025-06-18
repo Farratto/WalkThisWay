@@ -8,21 +8,18 @@
 --luacheck: globals handleCloseSpeedWindow closeSpeedWindow roundNearestHalfTile removeEffectTooHeavy
 --luacheck: globals turnStartChecks roundMph onTurnEndWtW toggleCheckItemStr clearAllItemStrengthHandlers
 --luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
---luacheck: globals parseBaseSpeed reparseBaseSpeed reparseAllBaseSpeeds reparseBaseSpeedSpecial
+--luacheck: globals parseBaseSpeed reparseBaseSpeed reparseAllBaseSpeeds reparseBaseSpeedSpecial setConstants
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
 
-local fonRecordTypeEvent;
-local bLoopProt;
-local nodeUbiquinated;
+local fonRecordTypeEvent, bLoopProt, nodeUbiquinated, nodeWtW, nodeWtWList;
 
 function onInit()
 	if Session.IsHost then
-		local nodeWTW = DB.createNode('WalkThisWay');
-		DB.setPublic(nodeWTW, true);
-		if not DB.getValue(nodeWTW, 'effectUnits') then
-			DB.setValue(nodeWTW, 'effectUnits', 'string', 'ft.');
+		setConstants();
+		if not DB.getValue(nodeWtW, 'effectUnits') then
+			DB.setValue(nodeWtW, 'effectUnits', 'string', 'ft.');
 		end
 		Comm.registerSlashHandler('distunits', handleSlash, '[ft|m|tiles]')
 		EffectManager.registerEffectCompType('SPEED', { bIgnoreTarget = true, bNoDUSE = true,
@@ -33,7 +30,7 @@ function onInit()
 		DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
 		DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
 		DB.addHandler('combattracker.list.*.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
-		DB.addHandler('combattracker.list.*.effects','onChildDeleted', callSpeedCalcEffectDeleted);
+		DB.addHandler('combattracker.list.*.effects', 'onChildDeleted', callSpeedCalcEffectDeleted);
 		DB.addHandler('charsheet.*.speed.total','onUpdate', setCharSheetSpeed);
 		DB.addHandler('charsheet.*.speed.special','onUpdate', reparseBaseSpeedSpecial);
 		if Session.RulesetName ~= "5E" then
@@ -44,6 +41,8 @@ function onInit()
 		User.onLogin = onLoginWtW;
 		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(onTurnEndWtW);
+	else
+		DB.addEventHandler('onDataLoaded', setConstants);
 	end
 
 	setOptions();
@@ -61,11 +60,39 @@ function onTabletopInit()
 	end
 end
 
+function setConstants()
+	if Session.IsHost then
+		nodeWtW = DB.createNode('WalkThisWay');
+		if not nodeWtW then
+			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to create nodeWtW");
+			return;
+		end
+		DB.setPublic(nodeWtW, true);
+		nodeWtWList = DB.createChild(nodeWtW, 'ct_list');
+		if not nodeWtWList then
+			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to create nodeWtWList");
+			return;
+		end
+	else
+		nodeWtW = DB.findNode('WalkThisWay');
+		if not nodeWtW then
+			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to find nodeWtW");
+			return;
+		end
+		nodeWtWList = DB.getChild(nodeWtW, 'ct_list');
+		if not nodeWtWList then
+			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to create nodeWtWList");
+			return;
+		end
+	end
+end
+
 function onClose()
 	if Session.IsHost and Session.RulesetName == "5E" then
 		for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
-			DB.deleteNode(DB.getChild(DB.createChild(nodeCT, 'WalkThisWay'), 'handler_list'));
-			DB.deleteNode(DB.getChild(DB.createChild(nodeCT, 'WalkThisWay'), 'difficult_button'));
+			local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+			DB.deleteNode(DB.getChild(nodeWtWCT, 'handler_list'));
+			DB.deleteNode(DB.getChild(nodeWtWCT, 'difficult_button'));
 		end
 	end
 end
@@ -96,18 +123,16 @@ end
 function onRecordTypeEventWtW(sRecordType, tCustom)
 	local bResult = fonRecordTypeEvent(sRecordType, tCustom);
 
-	--if Session.IsHost then --redundant, only called on host
-		parseBaseSpeed(tCustom.nodeCT, true);
+	parseBaseSpeed(tCustom.nodeCT, true);
 
-		if MovementManager then
-			if not tCustom.nodeRecord then
-				tCustom.nodeRecord = DB.findNode(tCustom.sRecord);
-			end
-			MovementManager.setWtwDbOwner(tCustom.nodeRecord, tCustom.nodeCT);
+	if MovementManager then
+		if not tCustom.nodeRecord then
+			tCustom.nodeRecord = DB.findNode(tCustom.sRecord);
 		end
+		MovementManager.setWtwDbOwner(tCustom.nodeRecord, tCustom.nodeCT);
+	end
 
-		if OptionsManager.isOption('check_item_str', 'on') then checkInvForHeavyItems(tCustom.nodeCT) end
-	--end
+	if OptionsManager.isOption('check_item_str', 'on') then checkInvForHeavyItems(tCustom.nodeCT) end
 
 	return bResult;
 end
@@ -143,20 +168,21 @@ function recalcAllSpeeds(sOwner)
 	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 		if sOwner and sOwner ~= 'WESC' then
 			if sOwner == WtWCommon.getControllingClient(nodeCT) then
-				speedCalculator(nodeCT);
 				if MovementManager then MovementManager.setConvFactor(nodeCT) end
+				speedCalculator(nodeCT);
 			end
 		else
-			speedCalculator(nodeCT);
 			if MovementManager then MovementManager.setConvFactor(nodeCT) end
+			speedCalculator(nodeCT);
 		end
 	end
 end
 
 -- luacheck: push ignore 561
 function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
-	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+	--local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	local nodeFGSpeed = DB.getChild(nodeWtWCT, 'FGSpeed');
 	if not nodeFGSpeed then
 		if bCalledFromParse then
 			Debug.console("SpeedManager.speedCalculator - bCalledFromParse");
@@ -164,7 +190,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 		else
 			parseBaseSpeed(nodeCT, false);
 		end
-		nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
+		nodeFGSpeed = DB.getChild(nodeWtWCT, 'FGSpeed');
 		if not nodeFGSpeed then
 			Debug.console("SpeedManager.speedCalculator - not nodeFGSpeed");
 			return;
@@ -174,7 +200,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 	local nBaseSpeed;
 	local tFGSpeedNew = {};
 	local bNoBase = true;
-	for _,v in pairs(DB.getChildren(nodeCTWtW, 'FGSpeed')) do
+	for _,v in pairs(DB.getChildren(nodeWtWCT, 'FGSpeed')) do
 		local tSpdRcrd = {};
 		tSpdRcrd['velocity'] = DB.getValue(v, 'velocity');
 		tSpdRcrd['type'] = DB.getValue(v, 'type');
@@ -202,13 +228,14 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 	local rActor = ActorManager.resolveActor(nodeCT);
 	if not rActor then
 		Debug.console("SpeedManager.speedCalculator - not rActor");
+		Debug.printstack();
 		return;
 	end
 	local tSpeedEffects = {};
 	local nHalved = 0;
 	local tAccomSpeed = {};
 	local bProne = false;
-	local nHover = DB.getValue(nodeCTWtW, 'hover')
+	local nHover = DB.getValue(nodeWtWCT, 'hover')
 	local tEffectNames = {};
 	if not OptionsManager.isOption('WESC', 'off') then
 		local bHasRoot, bHasHover, sRootEffectName = WtWCommon.hasRoot(nodeCT);
@@ -831,22 +858,22 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 		if bDifficultButton ~= nil then
 			bDifficult = bDifficultButton;
 			if bDifficultButton then
-				DB.setValue(nodeCTWtW, 'difficult', 'number', 1);
-				DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'button');
+				DB.setValue(nodeWtWCT, 'difficult', 'number', 1);
+				DB.setValue(nodeWtWCT, 'difficult_button', 'string', 'button');
 			else
-				DB.setValue(nodeCTWtW, 'difficult', 'number', 0);
-				DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'button');
+				DB.setValue(nodeWtWCT, 'difficult', 'number', 0);
+				DB.setValue(nodeWtWCT, 'difficult_button', 'string', 'button');
 			end
 		else
 			if bDifficultEffect then
-				DB.setValue(nodeCTWtW, 'difficult', 'number', 1);
-				DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'effect');
+				DB.setValue(nodeWtWCT, 'difficult', 'number', 1);
+				DB.setValue(nodeWtWCT, 'difficult_button', 'string', 'effect');
 				bDifficult = true;
 			else
-				local sDifficultSource = DB.getValue(nodeCTWtW, 'difficult_button', '');
+				local sDifficultSource = DB.getValue(nodeWtWCT, 'difficult_button', '');
 				if sDifficultSource ~= 'button' then
-					DB.setValue(nodeCTWtW, 'difficult', 'number', 0);
-					DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'effect');
+					DB.setValue(nodeWtWCT, 'difficult', 'number', 0);
+					DB.setValue(nodeWtWCT, 'difficult_button', 'string', 'effect');
 					bDifficult = bDifficultEffect;
 				else
 					bDifficult = true;
@@ -855,11 +882,11 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 		end
 	else
 		if bDifficult == false then
-			DB.setValue(nodeCTWtW, 'difficult', 'number', 0);
-			DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'effect');
+			DB.setValue(nodeWtWCT, 'difficult', 'number', 0);
+			DB.setValue(nodeWtWCT, 'difficult_button', 'string', 'effect');
 		else
-			DB.setValue(nodeCTWtW, 'difficult', 'number', 1);
-			DB.setValue(nodeCTWtW, 'difficult_button', 'string', 'effect');
+			DB.setValue(nodeWtWCT, 'difficult', 'number', 1);
+			DB.setValue(nodeWtWCT, 'difficult_button', 'string', 'effect');
 		end
 	end
 
@@ -936,18 +963,16 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		return;
 	end
 
-	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
 	if not sPref then
 		sPref = OptionsManager.getOption('DDLU');
 	end
 	local sUnitsPrefer = sPref;
 	local nConvFactor = 1;
-	local sLngthUnits = DB.getValue(nodeCTWtW, 'units');
+	local sLngthUnits = DB.getValue(nodeWtWCT, 'units');
 	if not sLngthUnits or sLngthUnits == '' then
 		Debug.console("SpeedManager.updateDisplaySpeed - units not in DB");
-		local nodeWTW = DB.createNode('WalkThisWay');
-		DB.setPublic(nodeWTW, true);
-		sLngthUnits = DB.getValue(nodeWTW, 'effectUnits');
+		sLngthUnits = DB.getValue(nodeWtW, 'effectUnits');
 	end
 	if sLngthUnits ~= sUnitsPrefer then
 		nConvFactor = WtWCommon.getConversionFactor(sLngthUnits, sUnitsPrefer);
@@ -1037,29 +1062,30 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		sReturn = 'Crawl '..tostring(nHighest * nConvFactor)..' '..sUnitsPrefer
 	end
 	if string.match(sReturn, 'Crawl') then
-		DB.setValue(nodeCTWtW, 'highest', 'number', nHighest * nConvFactor);
-		DB.setValue(nodeCTWtW, 'highest_type', 'string', 'Crawl');
+		DB.setValue(nodeWtWCT, 'highest', 'number', nHighest * nConvFactor);
+		DB.setValue(nodeWtWCT, 'highest_type', 'string', 'Crawl');
 	else
-		DB.setValue(nodeCTWtW, 'highest', 'number', nHighest * nConvFactor);
-		DB.setValue(nodeCTWtW, 'highest_type', 'string', sHighestType);
+		DB.setValue(nodeWtWCT, 'highest', 'number', nHighest * nConvFactor);
+		DB.setValue(nodeWtWCT, 'highest_type', 'string', sHighestType);
 	end
 	if sReturn == "" then sReturn = "0 "..sUnitsPrefer end
 	sReturn = sReturn .. sMarker;
 	sReturn = StringManager.strip(sReturn);
 	if sReturn and sReturn ~= '' then
-		local sPrevSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
+		local sPrevSpeed = DB.getValue(nodeCT, 'speed_wtw');
 		if sPrevSpeed and sPrevSpeed == sReturn then return false end
-		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', sReturn);
+		DB.setValue(nodeCT, 'speed_wtw', 'string', sReturn);
+		DB.setValue(nodeWtWCT, 'currentSpeed', 'string', sReturn);
 		local rActor = ActorManager.resolveActor(nodeCT);
 		if not rActor then
 			Debug.console("SpeedManager.updateDisplaySpeed - not rActor");
 			return;
 		end
-		local nodeEffectNames = DB.getChild(nodeCTWtW, 'effectNames');
+		local nodeEffectNames = DB.getChild(nodeWtWCT, 'effectNames');
 		if nodeEffectNames then
 			DB.deleteChildren(nodeEffectNames);
 		else
-			nodeEffectNames = DB.createChild(nodeCTWtW, 'effectNames');
+			nodeEffectNames = DB.createChild(nodeWtWCT, 'effectNames');
 		end
 		if tEffectNames then
 			for _,sEffectName in ipairs(tEffectNames) do
@@ -1118,10 +1144,10 @@ function reparseBaseSpeed(nodeSpeed, nodeCT)
 		return;
 	end
 
-	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	local nodeHover = DB.getChild(nodeCTWtW, 'hover');
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+	local nodeHover = DB.createChild(nodeWtWCT, 'hover');
 	if nodeHover then DB.deleteNode(nodeHover) end
-	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
+	local nodeFGSpeed = DB.getChild(nodeWtWCT, 'FGSpeed');
 	if nodeFGSpeed then DB.deleteNode(nodeFGSpeed) end
 	parseBaseSpeed(nodeCT, true);
 end
@@ -1132,9 +1158,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 		return;
 	end
 
-	local nodeWTW = DB.createNode('WalkThisWay');
-	DB.setPublic(nodeWTW, true);
-	local sUnitsGave = DB.getValue(nodeWTW, 'effectUnits');
+	local sUnitsGave = DB.getValue(nodeWtW, 'effectUnits');
 
 	--dont forget some creatures dont have a speed, like objects
 	local sFGSpeed = DB.getValue(nodeCT, 'speed', '0');
@@ -1153,19 +1177,19 @@ function parseBaseSpeed(nodeCT, bCalc)
 		if nodeFGSpeedSpecial ~= '' then sFGSpeed = sFGSpeed .. '; ' .. nodeFGSpeedSpecial end
 	end
 
-	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	if not DB.getValue(nodeCTWtW, 'hover') then
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+	if not DB.getValue(nodeWtWCT, 'hover') then
 		if string.match(string.lower(sFGSpeed), 'hover') then
-			DB.setValue(nodeCTWtW, 'hover', 'number', 1);
+			DB.setValue(nodeWtWCT, 'hover', 'number', 1);
 		else
-			DB.setValue(nodeCTWtW, 'hover', 'number', 0);
+			DB.setValue(nodeWtWCT, 'hover', 'number', 0);
 		end
 	end
 
 	--local bReturn;
-	local nodeFGSpeed = DB.getChild(nodeCTWtW, 'FGSpeed');
+	local nodeFGSpeed = DB.getChild(nodeWtWCT, 'FGSpeed');
 	if not nodeFGSpeed then
-		nodeFGSpeed = DB.createChild(nodeCTWtW, 'FGSpeed');
+		nodeFGSpeed = DB.createChild(nodeWtWCT, 'FGSpeed');
 		local aSpdTypeSplit = StringManager.splitByPattern(sFGSpeed, '[,;]', true)
 		local sFinalUnits = '';
 		local sLngthUnits = '';
@@ -1175,7 +1199,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 			local nodeSpeedRcrd = DB.createChild(nodeFGSpeed);
 			local sVelocity = string.match(sSpdTypeSplit, '%d+');
 			if not sVelocity then
-				for _,node in pairs(DB.getChildren(nodeCTWtW, 'FGSpeed')) do
+				for _,node in pairs(DB.getChildren(nodeWtWCT, 'FGSpeed')) do
 					if DB.getValue(node, 'type') == 'Walk' then
 						sVelocity = DB.getValue(node, 'velocity');
 					end
@@ -1261,11 +1285,9 @@ function parseBaseSpeed(nodeCT, bCalc)
 			DB.setValue(nodeSpeedRcrd, 'velocity', 'number', sVelocity);
 			DB.setValue(nodeSpeedRcrd, 'type', 'string', sType);
 		end
-		DB.setValue(nodeCTWtW, 'units', 'string', sFinalUnits);
+		DB.setValue(nodeWtWCT, 'units', 'string', sFinalUnits);
 	end
-	if not DB.getValue(nodeCTWtW, 'currentSpeed') or bCalc then
-		speedCalculator(nodeCT, true);
-	end
+	if not DB.getValue(nodeCT, 'speed_wtw') or bCalc then speedCalculator(nodeCT, true) end
 end
 
 function setAllCharSheetSpeeds()
@@ -1316,9 +1338,7 @@ function setCharSheetSpeed(nodeUpdated, nodeChar, nodeSpeed)
 		end
 	end
 	if not sPref then sPref = OptionsManager.getOption('DDLU') end
-	local nodeWTW = DB.createNode('WalkThisWay');
-	DB.setPublic(nodeWTW, true);
-	local sUnitsGave = DB.getValue(nodeWTW, 'effectUnits');
+	local sUnitsGave = DB.getValue(nodeWtW, 'effectUnits');
 	local nConvFactor = WtWCommon.getConversionFactor(sUnitsGave, sPref);
 	local nRoundConv = WtWCommon.getConversionFactor(sUnitsGave, 'tiles') * 2;
 	local nRounded = nSpeedSet * nRoundConv;
@@ -1446,6 +1466,7 @@ function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
 	end
 
 	if sNewEffect then
+		local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, '^%s*exhausted%s*;%s*', true, false, false, true);
 		if tOldEffects and tOldEffects[1] then
 			local nFound;
 			for k,v in ipairs(tOldEffects) do
@@ -1533,8 +1554,9 @@ function checkFitness(nodeUpdated, bRecheck)
 	if not nStr then return end
 	local nStr = nStr + EffectManager5E.getEffectsBonus(nodeCT, 'STR', true);
 
-	local nodeCtWtW = DB.createChild(nodeCT, 'WalkThisWay');
-	local nodeHandlerList = DB.createChild(nodeCtWtW, 'handler_list');
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+	--local nodeCtWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	local nodeHandlerList = DB.createChild(nodeWtWCT, 'handler_list');
 	if nStr < nStrReq then
 		local nIdentified = DB.getValue(nodeItem, 'isidentified', 1);
 		local sItemName;
@@ -1580,9 +1602,10 @@ function checkFitness(nodeUpdated, bRecheck)
 end
 function recheckFitness(nodeUpdated, nodeCT)
 	if not nodeCT then nodeCT = DB.getChild(nodeUpdated, '....') end
-	local nodeCtWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+	--local nodeCtWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	local tFitnesslist = {}
-	for _,nodeItemPathId in pairs(DB.getChildren(nodeCtWtW, 'handler_list')) do
+	for _,nodeItemPathId in pairs(DB.getChildren(nodeWtWCT, 'handler_list')) do
 		local nodeItem = DB.findNode(DB.getValue(nodeItemPathId, 'node'));
 		table.insert(tFitnesslist, DB.getChild(nodeItem, 'carried'));
 	end
@@ -1621,8 +1644,8 @@ function removeEffectTooHeavy(nodeCT, sItemNodePath)
 end
 function undoItemTooHeavy(nodeCT, sItemNodePath, nodeHandlerList)
 	if not nodeHandlerList then
-		local nodeCtWtW = DB.createChild(nodeCT, 'WalkThisWay');
-		nodeHandlerList = DB.createChild(nodeCtWtW, 'handler_list');
+		local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+		nodeHandlerList = DB.createChild(nodeWtWCT, 'handler_list');
 	end
 	local tMarkedForDeletion = {};
 	for _,node in pairs(DB.getChildren(nodeHandlerList, '.')) do
@@ -1648,8 +1671,8 @@ function clearAllItemStrengthHandlers()
 	DB.removeHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
 	DB.removeHandler('combattracker.list.*.abilities.strength.score', 'onUpdate', recheckFitness);
 	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
-		local nodeCtWtW = DB.createChild(nodeCT, 'WalkThisWay');
-		local nodeHandlerList = DB.createChild(nodeCtWtW, 'handler_list');
+		local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+		local nodeHandlerList = DB.createChild(nodeWtWCT, 'handler_list');
 		DB.deleteNode(nodeHandlerList);
 
 		local tNodesMarkedForDeletion = {};
@@ -1664,33 +1687,28 @@ function clearAllItemStrengthHandlers()
 end
 
 function openSpeedWindow(nodeCT)
-	local nodeCTWtW = DB.getChild(nodeCT, 'WalkThisWay');
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
 	if Session.IsHost then
-		DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'name', ''));
+		DB.setValue(nodeWtWCT, 'name', 'string', DB.getValue(nodeCT, 'name', ''));
 	else
 		if ActorManager.isPC(nodeCT) or DB.getValue(nodeCT, 'isidentified', 0) == 1 then
-			DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'name', '')..".");
+			DB.setValue(nodeWtWCT, 'name', 'string', DB.getValue(nodeCT, 'name', ''));
 		else
-			DB.setValue(nodeCTWtW, 'name', 'string', DB.getValue(nodeCT, 'nonid_name', ''));
+			DB.setValue(nodeWtWCT, 'name', 'string', DB.getValue(nodeCT, 'nonid_name', ''));
 		end
 	end
-	local sCurrentSpeed = DB.getValue(nodeCTWtW, 'currentSpeed');
-	if not sCurrentSpeed then
-		local nFGSpeed = DB.getValue(nodeCT, 'speed', '');
-		DB.setValue(nodeCTWtW, 'currentSpeed', 'string', nFGSpeed);
-	end
 
-	local wSpeed = Interface.findWindow('speed_window', nodeCTWtW);
+	local wSpeed = Interface.findWindow('speed_window', nodeWtWCT);
 	if wSpeed then
 		wSpeed.bringToFront();
 	else
-		Interface.openWindow('speed_window', nodeCTWtW);
+		Interface.openWindow('speed_window', nodeWtWCT);
 	end
 end
 function closeSpeedWindow(nodeCT)
-	local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
 
-	local wSpeed = Interface.findWindow('speed_window', nodeCTWtW);
+	local wSpeed = Interface.findWindow('speed_window', nodeWtWCT);
 	if wSpeed then wSpeed.close() end
 end
 
@@ -1710,22 +1728,25 @@ function turnStartChecks(nodeCT)
 		if OptionsManager.isOption('AOSW', 'on') then openSpeedWindow(nodeCT) end
 	end
 end
-function onTurnEndWtW(nodeCT)
+function onTurnEndWtW(nodeCT, bForce)
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 	if sOwner then
 		local msgOOB = {};
 		msgOOB.type = OOB_MSGTYPE_CLOSESPEEDWINDOW;
 		msgOOB.sCTNodeID = DB.getPath(nodeCT);
+		if bForce then msgOOB.sForce = 'true' end
 		Comm.deliverOOBMessage(msgOOB, sOwner);
 	else
-		if OptionsManager.isOption('ACSW', 'on') then closeSpeedWindow(nodeCT) end
+		if not bForce and OptionsManager.isOption('ACSW', 'on') then closeSpeedWindow(nodeCT) end
 	end
 end
 function handleSpeedWindowClient(msgOOB)
 	if OptionsManager.isOption('AOSW', 'on') then openSpeedWindow(msgOOB.sCTNodeID) end
 end
 function handleCloseSpeedWindow(msgOOB)
-	if OptionsManager.isOption('ACSW', 'on') then closeSpeedWindow(msgOOB.sCTNodeID) end
+	if OptionsManager.isOption('ACSW', 'on') or msgOOB.sForce == 'true' then
+		closeSpeedWindow(msgOOB.sCTNodeID);
+	end
 end
 
 function roundMph(number, sUnitsPrefer)
@@ -1764,9 +1785,7 @@ function handleSlash(_, sParams)
 		return;
 	end
 
-	local nodeWTW = DB.createNode('WalkThisWay');
-	DB.setPublic(nodeWTW, true);
-	DB.setValue(nodeWTW, 'effectUnits', 'string', sUnitsClean);
+	DB.setValue(nodeWtW, 'effectUnits', 'string', sUnitsClean);
 	reparseAllBaseSpeeds();
 end
 
@@ -1789,11 +1808,7 @@ function tidyUnits(sUnitsGave)
 end
 
 function roundNearestHalfTile(nSpeed, bUp, sUnits)
-	if not sUnits then
-		local nodeWTW = DB.createNode('WalkThisWay');
-		if Session.IsHost then DB.setPublic(nodeWTW, true) end
-		sUnits = DB.getValue(nodeWTW, 'effectUnits');
-	end
+	if not sUnits then sUnits = DB.getValue(nodeWtW, 'effectUnits') end
 
 	local nRoundFactor = WtWCommon.getConversionFactor(sUnits, 'tiles') * 2;
 	local nSpeedRounded = nSpeed * nRoundFactor;

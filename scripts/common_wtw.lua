@@ -4,17 +4,18 @@
 --luacheck: globals checkBetterGoldPurity hasEffectFindString removeEffectClause handleApplyHostCommands
 --luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 --luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
---luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly
+--luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly setConstants
 --luacheck: globals convNumToIdNodeName roundNumber getVisCtEntries handlePullMoveData
 --luacheck: globals getPreference registerPreference handlePrefChange requestPref handlePrefRegistration
 --luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor getAllImageWindows
---luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken
---luacheck: globals notifyResetRightClick handleResetRightClick processNewCTOwner onTokenRefUpdated
+--luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken restoreOtherRightClicks
+--luacheck: globals notifyResetRightClick handleResetRightClick processNewCTOwner onTokenRefUpdated onCTDelete
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 OOB_MSGTYPE_REGPREF = 'regpreference';
 OOB_MSGTYPE_REQPREF = 'request_preference';
 OOB_MSGTYPE_RESET_RIGHTCLICK = 'reset_right_click';
+local nodeWtW, nodeWtWList;
 local _sBetterGoldPurity = '';
 local tExtensions = {};
 local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
@@ -31,14 +32,15 @@ local RIGHT_CLICK_TOKEN_UNDO = 7;
 local RIGHT_CLICK_TOKEN_TELE_GO = 5;
 local RIGHT_CLICK_TOKEN_RESTART = 2;
 local RIGHT_CLICK_TOKEN_GM = 1;
-local RIGHT_CLICK_TOKEN_TELE_ON = 6;
-local RIGHT_CLICK_TOKEN_TELE_OFF = 5;
+local RIGHT_CLICK_TOKEN_CLEAR = 8
+local RIGHT_CLICK_TOKEN_TELE_ON = 5;
+local RIGHT_CLICK_TOKEN_TELE_OFF = 4;
 local RIGHT_CLICK_TOKEN_WIN = 8;
 local RIGHT_CLICK_TOKEN_DIFF = 3;
 local RIGHT_CLICK_TOKEN_DIFF_ON = 8;
 local RIGHT_CLICK_TOKEN_DIFF_OFF = 7;
-local RIGHT_CLICK_TOKEN_NO_LIMIT = 8;
-local RIGHT_CLICK_TOKEN_LIMIT = 7;
+local RIGHT_CLICK_TOKEN_NO_LIMIT = 7;
+local RIGHT_CLICK_TOKEN_LIMIT = 6;
 
 local aEffectVarMap = {
 	["sName"] = { sDBType = "string", sDBField = "label" },
@@ -74,8 +76,12 @@ function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_RESET_RIGHTCLICK, handleResetRightClick);
 	DB.addHandler('combattracker.list.*.tokenrefid', 'onUpdate', onTokenRefUpdated);
 	if Session.IsHost then
+		setConstants();
 		User.onIdentityActivation = onIdentityActivationWtW;
 		DB.addHandler('combattracker.list.*.NPCowner','onUpdate', processNewCTOwner);
+		CombatManager.setCustomDeleteCombatantHandler(onCTDelete);
+	else
+		DB.addEventHandler('onDataLoaded', setConstants);
 	end
 end
 
@@ -86,6 +92,33 @@ function onTabletopInit()
 	if Session.IsHost then
 		for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 			if CombatManager.getTokenFromCT(nodeCT) then nBootToken = nBootToken + 1 end
+		end
+	end
+end
+
+function setConstants()
+	if Session.IsHost then
+		nodeWtW = DB.createNode('WalkThisWay');
+		if not nodeWtW then
+			Debug.console("WtWCommon.onInit - Unrecoverable error - unable to create nodeWtW");
+			return;
+		end
+		DB.setPublic(nodeWtW, true);
+		nodeWtWList = DB.createChild(nodeWtW, 'ct_list');
+		if not nodeWtWList then
+			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to create nodeWtWList");
+			return;
+		end
+	else
+		nodeWtW = DB.findNode('WalkThisWay');
+		if not nodeWtW then
+			Debug.console("WtWCommon.onInit - Unrecoverable error - unable to find nodeWtW");
+			return;
+		end
+		nodeWtWList = DB.getChild(nodeWtW, 'ct_list');
+		if not nodeWtWList then
+			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to create nodeWtWList");
+			return;
 		end
 	end
 end
@@ -532,7 +565,7 @@ function getControllingClient(nodeCT)
 	local sPCNode;
 	local rActor = ActorManager.resolveActor(nodeCT);
 	local sNPCowner;
-	if ActorManager.isPC(nodeCT) then
+	if ActorManager.isPC(rActor) then
 		sPCNode = ActorManager.getCreatureNodeName(rActor);
 	else
 		sNPCowner = DB.getValue(nodeCT, 'NPCowner', '');
@@ -544,7 +577,7 @@ function getControllingClient(nodeCT)
 	end
 
 	if sPCNode or sNPCowner then
-		for _, value in pairs(User.getAllActiveIdentities()) do
+		for _,value in pairs(User.getAllActiveIdentities()) do
 			if sPCNode then
 				if 'charsheet.' .. value == sPCNode then
 					return User.getIdentityOwner(value);
@@ -1309,6 +1342,7 @@ function onIdentityActivationWtW(_, username, activated)
 	if MovementManager then MovementManager.recordStepData() end
 end
 function sendPrefRegistration(msgOOB, sPref) --luacheck: ignore 312
+	if Session.IsHost then return end
 	local sOwner = Session.UserName;
 	msgOOB = {};
 	msgOOB['type'] = OOB_MSGTYPE_REGPREF;
@@ -1352,7 +1386,8 @@ function getPreference(sOwner)
 			return v;
 		end
 	end
-	return nil;
+	requestPref(sOwner);
+	return OptionsManager.getOption('DDLU');
 end
 
 function getVisCtEntries()
@@ -1404,7 +1439,8 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 		);
 	end
 	if MovementManager then
-		local nTeleAllowed = DB.getValue(DB.getChild(nodeCT, 'WalkThisWay'), 'teleport_allowed', 2);
+		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
+		local nTeleAllowed = DB.getValue(nodeWtWCT, 'teleport_allowed', 2);
 		tokenCT.registerMenuItem('Steppage', 'tool_shoe_false', RIGHT_CLICK_TOKEN_SC
 			, RIGHT_CLICK_TOKEN_STEPPAGE
 		);
@@ -1429,6 +1465,9 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 		if Session.IsHost then
 			tokenCT.registerMenuItem('GM Tools', 'tool_shoe_false', RIGHT_CLICK_TOKEN_SC
 				, RIGHT_CLICK_TOKEN_GM
+			);
+			tokenCT.registerMenuItem('Clear Movement Data', 'chatclear', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_TOKEN_GM, RIGHT_CLICK_TOKEN_CLEAR
 			);
 			tokenCT.registerMenuItem('Allow Teleport', 'unlock', RIGHT_CLICK_TOKEN_SC
 				, RIGHT_CLICK_TOKEN_GM, RIGHT_CLICK_TOKEN_TELE_ON
@@ -1466,19 +1505,37 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 		end
 	end
 
+	restoreOtherRightClicks(tokenCT, nodeCT);
+
+	if not bNoMenu then tokenCT.onMenuSelection = WtWCommon.onMenuSelectionToken end
+end
+function restoreOtherRightClicks(tokenCT, nodeCT)
+	if not tokenCT and not nodeCT then return end
+	if not tokenCT then tokenCT = CombatManager.getTokenFromCT(nodeCT) end
+	if not tokenCT then return end
+
 	if WtWCommon.hasExtension('B9_SpellTokens') then
 		tokenCT.registerMenuItem(Interface.getString('tokentogglepriority'), 'tokentogglepriority'
 			, RIGHT_CLICK_TOKEN_PRIORITY
 		);
 	end
-
-	if not bNoMenu then tokenCT.onMenuSelection = WtWCommon.onMenuSelectionToken end
 end
 function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 	local nodeCT = CombatManager.getCTFromToken(token);
 	if not nodeCT then
 		token.resetMenuItems();
+		restoreOtherRightClicks(token);
+		token.onMenuSelection = WtWCommon.onMenuSelectionToken;
 		return;
+	end
+	if not Session.IsHost then
+		local sOwner = WtWCommon.getControllingClient(nodeCT);
+		if not sOwner or sOwner ~= Session.UserName then
+			token.resetMenuItems();
+			restoreOtherRightClicks(token);
+			token.onMenuSelection = WtWCommon.onMenuSelectionToken;
+			return;
+		end
 	end
 
 	if nSub == RIGHT_CLICK_TOKEN_WIN then
@@ -1496,8 +1553,8 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			WtWCommon.notifyApplyHostCommands(nodeCT, 0, { sName = 'Dash', nDuration = 1, sChangeState = 'rts' });
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_TELE_GO then
-		local nodeCTWtW = DB.getChild(nodeCT, 'WalkThisWay');
-		local nTeleAllowed = DB.getValue(nodeCTWtW, 'teleport_allowed', 2);
+		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
+		local nTeleAllowed = DB.getValue(nodeWtWCT, 'teleport_allowed', 2);
 		if (OptionsManager.isOption('allow_tele', 'on') and nTeleAllowed ~= 0)
 			or Session.IsHost
 			or nTeleAllowed == 1
@@ -1506,7 +1563,7 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			MovementManager.propagateTextWidget(token, "Tele Start", 'moved', false, false, 'dist_label_large'
 				, -13
 			);
-			DB.setValue(nodeCTWtW, 'teleport', 'number', 1);
+			DB.setValue(nodeWtWCT, 'teleport', 'number', 1);
 		else
 			Comm.addChatMessage({ text = "That creature is not permitted to teleport." });
 		end
@@ -1527,10 +1584,10 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			Comm.deliverOOBMessage(msgOOB, '');
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_SPEED_TYPE then
-		local nodeCTWtW = DB.getChild(nodeCT, 'WalkThisWay');
-		local sSpeedType = DB.getValue(nodeCTWtW, 'speed_type');
-		local sDefaultSpeedType = DB.getValue(nodeCTWtW, 'speed_type_default');
-		local sValues = DB.getValue(nodeCTWtW, 'speed_type_values');
+		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
+		local sSpeedType = DB.getValue(nodeWtWCT, 'speed_type');
+		local sDefaultSpeedType = DB.getValue(nodeWtWCT, 'speed_type_default');
+		local sValues = DB.getValue(nodeWtWCT, 'speed_type_values');
 		for nK, sLabel in pairs(MovementManager.tTypesToNumbers) do
 			local sLabelLower = string.lower(sLabel);
 			if nSubSub == nK then
@@ -1539,11 +1596,11 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 				if sValue then
 					if not sSpeedType then return end
 					bDefault = true;
-					DB.deleteChild(nodeCTWtW, 'speed_type');
-					local wSpeed = Interface.findWindow('speed_window', nodeCTWtW);
+					DB.deleteChild(nodeWtWCT, 'speed_type');
+					local wSpeed = Interface.findWindow('speed_window', nodeWtWCT);
 					if wSpeed then
 						wSpeed.close();
-						Interface.openWindow('speed_window', nodeCTWtW);
+						Interface.openWindow('speed_window', nodeWtWCT);
 					end
 				end
 				if not sValue then sValue = string.match(sValues, '^'..sLabelLower) end
@@ -1559,22 +1616,26 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 				end
 				if sSpeedType and sSpeedType == sValue then return end
 				local bGoLabel = MovementManager.determineGoSpeedChange(nodeCT);
-				if not bDefault then DB.setValue(nodeCTWtW, 'speed_type', 'string', sValue) end
+				if not bDefault then DB.setValue(nodeWtWCT, 'speed_type', 'string', sValue) end
 				if bGoLabel then MovementManager.processTravelDist(nodeCT, false, token) end
 				return;
 			end
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_GM then
-		local nodeCTWtW = DB.getChild(nodeCT, 'WalkThisWay');
-		if nSubSub == RIGHT_CLICK_TOKEN_NO_LIMIT then
-			DB.setValue(nodeCTWtW, 'limit_movement', 'number', 0);
+		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
+		if nSubSub == RIGHT_CLICK_TOKEN_CLEAR then
+			for _,target in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
+				MovementManager.resetCreatureForOne(target['CT'], target['token']);
+			end
+		elseif nSubSub == RIGHT_CLICK_TOKEN_NO_LIMIT then
+			DB.setValue(nodeWtWCT, 'limit_movement', 'number', 0);
 		elseif nSubSub == RIGHT_CLICK_TOKEN_LIMIT then
-			DB.setValue(nodeCTWtW, 'limit_movement', 'number', 1);
+			DB.setValue(nodeWtWCT, 'limit_movement', 'number', 1);
 		elseif nSubSub == RIGHT_CLICK_TOKEN_TELE_ON then
-			DB.setValue(nodeCTWtW, 'teleport_allowed', 'number', 1);
+			DB.setValue(nodeWtWCT, 'teleport_allowed', 'number', 1);
 			notifyResetRightClick(nodeCT);
 		elseif nSubSub == RIGHT_CLICK_TOKEN_TELE_OFF then
-			DB.setValue(nodeCTWtW, 'teleport_allowed', 'number', 0);
+			DB.setValue(nodeWtWCT, 'teleport_allowed', 'number', 0);
 			notifyResetRightClick(nodeCT);
 		end
 	end
@@ -1599,7 +1660,17 @@ function handleResetRightClick(msgOOB)
 end
 
 function processNewCTOwner(nodeUpdated)
-	notifyResetRightClick(DB.getParent(nodeUpdated));
+	local nodeCT = DB.getParent(nodeUpdated);
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+
+	local sNPCowner = DB.getValue(nodeCT, 'NPCowner');
+	if sNPCowner then
+		DB.setOwner(nodeWtWCT, sNPCowner);
+	else
+		DB.removeAllHolders(nodeWtWCT);
+	end
+
+	notifyResetRightClick(nodeCT);
 end
 
 function onTokenRefUpdated(nodeUpdated)
@@ -1617,4 +1688,13 @@ function onTokenRefUpdated(nodeUpdated)
 	end
 
 	if MovementManager then MovementManager.onTokenRefUpdated(nodeUpdated, nodeCT) end
+end
+
+function onCTDelete(nodeCT)
+	if SpeedManager then
+		SpeedManager.closeSpeedWindow(nodeCT);
+		SpeedManager.onTurnEndWtW(nodeCT, true);
+	end
+
+	DB.deleteChild(nodeWtW, DB.getName(nodeCT));
 end
