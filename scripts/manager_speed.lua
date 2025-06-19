@@ -1706,7 +1706,10 @@ function openSpeedWindow(nodeCT)
 	end
 end
 function closeSpeedWindow(nodeCT)
-	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+	local sNodeName = DB.getName(nodeCT);
+	if not sNodeName then return end
+	local nodeWtWCT = DB.getChild(nodeWtWList, sNodeName);
+	if not nodeWtWCT then return end
 
 	local wSpeed = Interface.findWindow('speed_window', nodeWtWCT);
 	if wSpeed then wSpeed.close() end

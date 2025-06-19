@@ -91,6 +91,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v3.0.1: FIXED: nil error when deleting combatant that was logged in on client.
 * v3.0.0: FIXED: right-click menu not appearing on client if map window was saved. Improved performance.
 * v2.9.4: FIXED: PCs speed window not showing name on client
 * v2.9.3: FIXED: nil error when not running dev version of Step Counter; Speed window had real name of creature when not identified on clients

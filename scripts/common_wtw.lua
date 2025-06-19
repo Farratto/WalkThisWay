@@ -79,7 +79,7 @@ function onInit()
 		setConstants();
 		User.onIdentityActivation = onIdentityActivationWtW;
 		DB.addHandler('combattracker.list.*.NPCowner','onUpdate', processNewCTOwner);
-		CombatManager.setCustomDeleteCombatantHandler(onCTDelete);
+		CombatManager.setCustomPreDeleteCombatantHandler(onCTDelete);
 	else
 		DB.addEventHandler('onDataLoaded', setConstants);
 	end
@@ -1696,5 +1696,7 @@ function onCTDelete(nodeCT)
 		SpeedManager.onTurnEndWtW(nodeCT, true);
 	end
 
-	DB.deleteChild(nodeWtW, DB.getName(nodeCT));
+	local sNodeName = DB.getName(nodeCT);
+	if not sNodeName then return end
+	DB.deleteChild(nodeWtW, sNodeName);
 end
