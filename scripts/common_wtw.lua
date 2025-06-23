@@ -10,6 +10,7 @@
 --luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor getAllImageWindows
 --luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken restoreOtherRightClicks
 --luacheck: globals notifyResetRightClick handleResetRightClick processNewCTOwner onTokenRefUpdated onCTDelete
+--luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 OOB_MSGTYPE_REGPREF = 'regpreference';
@@ -80,6 +81,8 @@ function onInit()
 		User.onIdentityActivation = onIdentityActivationWtW;
 		DB.addHandler('combattracker.list.*.NPCowner','onUpdate', processNewCTOwner);
 		CombatManager.setCustomPreDeleteCombatantHandler(onCTDelete);
+		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
+		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
 	else
 		DB.addEventHandler('onDataLoaded', setConstants);
 	end
@@ -1568,7 +1571,11 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			Comm.addChatMessage({ text = "That creature is not permitted to teleport." });
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_RESTART then
-		MovementManager.returnToStart(nodeCT, token);
+		--for _,target in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
+		for nodeCTTmp,tokenTmp in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
+			--MovementManager.returnToStart(target['CT'], target['token']);
+			MovementManager.returnToStart(nodeCTTmp, tokenTmp);
+		end
 	elseif nSub == RIGHT_CLICK_TOKEN_DIFF then
 		if Session.IsHost then
 			MovementManager.processManualDifficult(nodeCT, nSubSub == RIGHT_CLICK_TOKEN_DIFF_ON);
@@ -1624,8 +1631,10 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 	elseif nSub == RIGHT_CLICK_TOKEN_GM then
 		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
 		if nSubSub == RIGHT_CLICK_TOKEN_CLEAR then
-			for _,target in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
-				MovementManager.resetCreatureForOne(target['CT'], target['token']);
+			--for _,target in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
+			--	MovementManager.resetCreatureForOne(target['CT'], target['token']);
+			for nodeCTTmp,tokenTmp in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
+				MovementManager.resetCreatureForOne(nodeCTTmp,tokenTmp);
 			end
 		elseif nSubSub == RIGHT_CLICK_TOKEN_NO_LIMIT then
 			DB.setValue(nodeWtWCT, 'limit_movement', 'number', 0);
@@ -1698,5 +1707,25 @@ function onCTDelete(nodeCT)
 
 	local sNodeName = DB.getName(nodeCT);
 	if not sNodeName then return end
-	DB.deleteChild(nodeWtW, sNodeName);
+	DB.deleteChild(nodeWtWList, sNodeName);
+end
+
+function onRecordTypeEventWtW(sRecordType, tCustom, ...)
+	local bResult = fonRecordTypeEvent(sRecordType, tCustom, ...);
+
+	DB.deleteChild(nodeWtWList, DB.getName(tCustom.nodeCT));
+	if SpeedManager then SpeedManager.parseBaseSpeed(tCustom.nodeCT, true) end
+
+	if MovementManager then
+		if not tCustom.nodeRecord then
+			tCustom.nodeRecord = DB.findNode(tCustom.sRecord);
+		end
+		MovementManager.setWtwDbOwner(tCustom.nodeRecord, tCustom.nodeCT);
+	end
+
+	if SpeedManager and OptionsManager.isOption('check_item_str', 'on') then
+		SpeedManager.checkInvForHeavyItems(tCustom.nodeCT);
+	end
+
+	return bResult;
 end

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+  Please see the LICENSE.txt file included with this distribution for
+  attribution and copyright information.
+-->
+<root>
+	<windowclass name="ct_effect" merge="join">
+		<sheetdata>
+			<string_ct_effect name="label" merge="join">
+				<delaykeyupdate />
+			</string_ct_effect>
+		</sheetdata>
+	</windowclass>
+</root>

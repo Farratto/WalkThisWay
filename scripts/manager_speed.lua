@@ -4,7 +4,7 @@
 --luacheck: globals speedCalculator handleExhaustion setAllCharSheetSpeeds setCharSheetSpeed onLoginWtW
 --luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow
 --luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
---luacheck: globals parseSpeedType onTabletopInit recalcAllSpeeds tidyUnits onRecordTypeEventWtW handleSlash
+--luacheck: globals parseSpeedType onTabletopInit recalcAllSpeeds tidyUnits handleSlash
 --luacheck: globals handleCloseSpeedWindow closeSpeedWindow roundNearestHalfTile removeEffectTooHeavy
 --luacheck: globals turnStartChecks roundMph onTurnEndWtW toggleCheckItemStr clearAllItemStrengthHandlers
 --luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
@@ -13,7 +13,7 @@
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
 
-local fonRecordTypeEvent, bLoopProt, nodeUbiquinated, nodeWtW, nodeWtWList;
+local bLoopProt, nodeUbiquinated, nodeWtW, nodeWtWList;
 
 function onInit()
 	if Session.IsHost then
@@ -36,8 +36,6 @@ function onInit()
 		if Session.RulesetName ~= "5E" then
 			DB.addHandler('charsheet.*.speed.final','onUpdate', setCharSheetSpeed);
 		end
-		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
-		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
 		User.onLogin = onLoginWtW;
 		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(onTurnEndWtW);
@@ -118,23 +116,6 @@ end
 
 function onLoginWtW(_, activated)
 	if not activated then recalcAllSpeeds() end
-end
-
-function onRecordTypeEventWtW(sRecordType, tCustom)
-	local bResult = fonRecordTypeEvent(sRecordType, tCustom);
-
-	parseBaseSpeed(tCustom.nodeCT, true);
-
-	if MovementManager then
-		if not tCustom.nodeRecord then
-			tCustom.nodeRecord = DB.findNode(tCustom.sRecord);
-		end
-		MovementManager.setWtwDbOwner(tCustom.nodeRecord, tCustom.nodeCT);
-	end
-
-	if OptionsManager.isOption('check_item_str', 'on') then checkInvForHeavyItems(tCustom.nodeCT) end
-
-	return bResult;
 end
 
 function callSpeedCalcEffectUpdated(nodeEffectChild)
@@ -1270,16 +1251,10 @@ function parseBaseSpeed(nodeCT, bCalc)
 			nVelocity = roundNearestHalfTile(nVelocity, false, sFinalUnits);
 
 			if bConverted and nVelocity then
-				--local nVelocity = tonumber(sVelocity);
-				--if not nVelocity then
-				--	Debug.console('SpeedManager.parseBaseSpeed - parsing failed: not nVelocity');
-				--	break;
-				--end
 				nVelocity = nVelocity * nConvFactor;
 				if sLngthUnits == 'mph' then
 					nVelocity = roundMph(nVelocity, sFinalUnits);
 				end
-				--sVelocity = tostring(nVelocity);
 			end
 			sVelocity = tostring(nVelocity);
 			DB.setValue(nodeSpeedRcrd, 'velocity', 'number', sVelocity);
@@ -1603,7 +1578,6 @@ end
 function recheckFitness(nodeUpdated, nodeCT)
 	if not nodeCT then nodeCT = DB.getChild(nodeUpdated, '....') end
 	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
-	--local nodeCtWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	local tFitnesslist = {}
 	for _,nodeItemPathId in pairs(DB.getChildren(nodeWtWCT, 'handler_list')) do
 		local nodeItem = DB.findNode(DB.getValue(nodeItemPathId, 'node'));
