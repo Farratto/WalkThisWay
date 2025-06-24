@@ -1713,18 +1713,27 @@ end
 function onRecordTypeEventWtW(sRecordType, tCustom, ...)
 	local bResult = fonRecordTypeEvent(sRecordType, tCustom, ...);
 
-	DB.deleteChild(nodeWtWList, DB.getName(tCustom.nodeCT));
-	if SpeedManager then SpeedManager.parseBaseSpeed(tCustom.nodeCT, true) end
+	local nodeCT;
+	if tCustom['nodeCT'] then
+		nodeCT = tCustom['nodeCT'];
+	else
+		if not tCustom['nodeRecord'] then
+			tCustom['nodeRecord'] = DB.findNode(tCustom['sRecord']);
+		end
+		nodeCT = ActorManager.getCTNode(tCustom['nodeRecord']);
+	end
+	DB.deleteChild(nodeWtWList, DB.getName(nodeCT));
+	if SpeedManager then SpeedManager.parseBaseSpeed(nodeCT, true) end
 
 	if MovementManager then
 		if not tCustom.nodeRecord then
 			tCustom.nodeRecord = DB.findNode(tCustom.sRecord);
 		end
-		MovementManager.setWtwDbOwner(tCustom.nodeRecord, tCustom.nodeCT);
+		MovementManager.setWtwDbOwner(tCustom.nodeRecord, nodeCT);
 	end
 
 	if SpeedManager and OptionsManager.isOption('check_item_str', 'on') then
-		SpeedManager.checkInvForHeavyItems(tCustom.nodeCT);
+		SpeedManager.checkInvForHeavyItems(nodeCT);
 	end
 
 	return bResult;
