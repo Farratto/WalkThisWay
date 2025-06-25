@@ -91,6 +91,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v3.0.4: FIXED: rare error when adding encounters to CT.
 * v3.0.3: FIXED: rare error when adding creatures to CT.
 * v3.0.2: FIXED: CT entry deletion causing WtW data corruption. Minor performance increase.
 * v3.0.1: FIXED: nil error when deleting combatant that was logged in on client.

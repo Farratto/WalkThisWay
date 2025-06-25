@@ -1716,13 +1716,27 @@ function onRecordTypeEventWtW(sRecordType, tCustom, ...)
 	local nodeCT;
 	if tCustom['nodeCT'] then
 		nodeCT = tCustom['nodeCT'];
+	elseif tCustom['nodeBattleEntry'] then
+		nodeCT = ActorManager.getCTNode(tCustom['nodeBattleEntry']);
+	elseif tCustom['nodeRecord'] then
+		nodeCT = ActorManager.getCTNode(tCustom['nodeRecord']);
 	else
-		if not tCustom['nodeRecord'] then
-			tCustom['nodeRecord'] = DB.findNode(tCustom['sRecord']);
-		end
+		tCustom['nodeRecord'] = DB.findNode(tCustom['sRecord']);
 		nodeCT = ActorManager.getCTNode(tCustom['nodeRecord']);
 	end
-	DB.deleteChild(nodeWtWList, DB.getName(nodeCT));
+	local sNodeCTName;
+	if nodeCT then
+		sNodeCTName = DB.getName(nodeCT);
+	else
+		return;
+	end
+	if sNodeCTName then
+		DB.deleteChild(nodeWtWList, sNodeCTName);
+	else
+		Debug.console("WtWCommon.onRecordTypeEventWtW - not sNodeCTName");
+		return;
+	end
+
 	if SpeedManager then SpeedManager.parseBaseSpeed(nodeCT, true) end
 
 	if MovementManager then
