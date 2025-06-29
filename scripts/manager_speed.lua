@@ -1053,8 +1053,11 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 	sReturn = sReturn .. sMarker;
 	sReturn = StringManager.strip(sReturn);
 	if sReturn and sReturn ~= '' then
-		local sPrevSpeed = DB.getValue(nodeCT, 'speed_wtw');
-		if sPrevSpeed and sPrevSpeed == sReturn then return false end
+		if DB.getValue(nodeWtWCT, 'currentSpeed', '') == sReturn
+			and DB.getValue(nodeCT, 'speed_wtw', '') == sReturn
+		then
+			return false;
+		end
 		DB.setValue(nodeCT, 'speed_wtw', 'string', sReturn);
 		DB.setValue(nodeWtWCT, 'currentSpeed', 'string', sReturn);
 		local rActor = ActorManager.resolveActor(nodeCT);
