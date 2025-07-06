@@ -11,11 +11,13 @@
 --luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken restoreOtherRightClicks
 --luacheck: globals notifyResetRightClick handleResetRightClick processNewCTOwner onTokenRefUpdated onCTDelete
 --luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW
+--luacheck: globals restartWindows restartWindow handleWindowRestart
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
 OOB_MSGTYPE_REGPREF = 'regpreference';
 OOB_MSGTYPE_REQPREF = 'request_preference';
 OOB_MSGTYPE_RESET_RIGHTCLICK = 'reset_right_click';
+OOB_MSGTYPE_RESTART_WINDOW = 'restart_window'
 local nodeWtW, nodeWtWList;
 local _sBetterGoldPurity = '';
 local tExtensions = {};
@@ -75,6 +77,7 @@ function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REQPREF, sendPrefRegistration);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_RESET_RIGHTCLICK, handleResetRightClick);
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_RESTART_WINDOW, handleWindowRestart);
 	DB.addHandler('combattracker.list.*.tokenrefid', 'onUpdate', onTokenRefUpdated);
 	if Session.IsHost then
 		setConstants();
@@ -1604,12 +1607,9 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 					if not sSpeedType then return end
 					bDefault = true;
 					DB.deleteChild(nodeWtWCT, 'speed_type');
-					local wSpeed = Interface.findWindow('speed_window', nodeWtWCT);
-					if wSpeed then
-						wSpeed.close();
-						Interface.openWindow('speed_window', nodeWtWCT);
-					end
+					restartWindows('speed_window', nodeWtWCT);
 				end
+				if not sValue then sValue = string.match(sValues, '^'..sLabelLower..'%s+%(.*%)') end
 				if not sValue then sValue = string.match(sValues, '^'..sLabelLower) end
 				if not sValue then
 					sValue = string.match(sValues, '|'..sLabelLower);
@@ -1622,9 +1622,10 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 					sValue = string.gsub(sValue, '|.*$', '');
 				end
 				if sSpeedType and sSpeedType == sValue then return end
-				local bGoLabel = MovementManager.determineGoSpeedChange(nodeCT);
+				--local bGoLabel = MovementManager.determineGoSpeedChange(nodeCT);
+				MovementManager.determineGoSpeedChange(nodeCT);
 				if not bDefault then DB.setValue(nodeWtWCT, 'speed_type', 'string', sValue) end
-				if bGoLabel then MovementManager.processTravelDist(nodeCT, false, token) end
+				--if bGoLabel then MovementManager.processTravelDist(nodeCT, false, token) end
 				return;
 			end
 		end
@@ -1751,4 +1752,22 @@ function onRecordTypeEventWtW(sRecordType, tCustom, ...)
 	end
 
 	return bResult;
+end
+
+function restartWindows(sWinClass, nodeSource)
+	local msgOOB = {};
+	msgOOB['type'] = OOB_MSGTYPE_RESTART_WINDOW;
+	msgOOB['sWinClass'] = sWinClass;
+	msgOOB['sNodePath'] = DB.getPath(nodeSource);
+	Comm.deliverOOBMessage(msgOOB);
+end
+function restartWindow(sWinClass, nodeSource)
+	local win = Interface.findWindow(sWinClass, nodeSource);
+	if win then
+		win.close();
+		Interface.openWindow(sWinClass, nodeSource);
+	end
+end
+function handleWindowRestart(msgOOB)
+	restartWindow(msgOOB['sWinClass'], DB.findNode(msgOOB['sNodePath']));
 end

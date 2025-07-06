@@ -162,7 +162,6 @@ end
 -- luacheck: push ignore 561
 function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
-	--local nodeCTWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	local nodeFGSpeed = DB.getChild(nodeWtWCT, 'FGSpeed');
 	if not nodeFGSpeed then
 		if bCalledFromParse then
@@ -1053,13 +1052,11 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 	sReturn = sReturn .. sMarker;
 	sReturn = StringManager.strip(sReturn);
 	if sReturn and sReturn ~= '' then
-		if DB.getValue(nodeWtWCT, 'currentSpeed', '') == sReturn
-			and DB.getValue(nodeCT, 'speed_wtw', '') == sReturn
-		then
-			return false;
-		end
-		DB.setValue(nodeCT, 'speed_wtw', 'string', sReturn);
-		DB.setValue(nodeWtWCT, 'currentSpeed', 'string', sReturn);
+		local sSpeedWtWPrev = DB.getValue(nodeCT, 'speed_wtw', '');
+		local sCurSpeedPrev = DB.getValue(nodeWtWCT, 'currentSpeed', '');
+		if sSpeedWtWPrev ~= sReturn then DB.setValue(nodeCT, 'speed_wtw', 'string', sReturn) end
+		if sCurSpeedPrev ~= sReturn then DB.setValue(nodeWtWCT, 'currentSpeed', 'string', sReturn) end
+		if sSpeedWtWPrev == sReturn then return false end
 		local rActor = ActorManager.resolveActor(nodeCT);
 		if not rActor then
 			Debug.console("SpeedManager.updateDisplaySpeed - not rActor");
@@ -1146,7 +1143,6 @@ function parseBaseSpeed(nodeCT, bCalc)
 
 	--dont forget some creatures dont have a speed, like objects
 	local sFGSpeed = DB.getValue(nodeCT, 'speed', '0');
-	sFGSpeed = tostring(sFGSpeed);
 
 	if ActorManager.isPC(nodeCT) then
 		local nodeChar = ActorManager.getCreatureNode(nodeCT);
@@ -1170,7 +1166,6 @@ function parseBaseSpeed(nodeCT, bCalc)
 		end
 	end
 
-	--local bReturn;
 	local nodeFGSpeed = DB.getChild(nodeWtWCT, 'FGSpeed');
 	if not nodeFGSpeed then
 		nodeFGSpeed = DB.createChild(nodeWtWCT, 'FGSpeed');
