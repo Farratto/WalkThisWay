@@ -49,7 +49,12 @@
 	<windowclass name="windowmenubar_basic" copy="windowmenubar">
 		<script>
 			function onInit()
-				local wTop = UtilityManager.getTopWindow(self);
+				local wTop;
+				if (Session.VersionMinor > 7 and Session.VersionMajor == 4) or Session.VersionMajor > 4 then
+					wTop = WindowManager.getTopWindow(self);
+				else
+					wTop = UtilityManager.getTopWindow(self);
+				end
 
 				-- LEFT MENU BUTTONS
 				local tLeftButtons = {};
