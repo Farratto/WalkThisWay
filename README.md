@@ -91,6 +91,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v3.0.8: FIXED: max effects were being listed twice in speed window
 * v3.0.7: FIXED: script error in v4.8.0
 * v3.0.6: Slight performance increase
 * v3.0.5: FIXED: sometimes not displaying current speed in speed window

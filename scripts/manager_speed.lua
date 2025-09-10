@@ -318,7 +318,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 				local nRmndrRemainder = tonumber(sRmndrRemainder);
 				if nRmndrRemainder then
 					nMaxMod = nRmndrRemainder
-					table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+					--table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 				else
 					Debug.console("SpeedManager.speedCalculator - Syntax Error. Try SPEED: max(5)");
 				end
@@ -329,7 +329,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 			else
 				nMaxMod = nMod
 				nMod = nil
-				table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
+				--table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 			end
 			if nSpeedMax then
 				if nMaxMod < nSpeedMax then

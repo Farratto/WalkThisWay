@@ -32,6 +32,8 @@ local RIGHT_CLICK_TOKEN_STEPPAGE = 7;
 local RIGHT_CLICK_DASH = 6;
 local RIGHT_CLICK_TOKEN_STEP = 8;
 local RIGHT_CLICK_TOKEN_UNDO = 7;
+local RIGHT_CLICK_TOKEN_ADD_ONE = 6;
+local RIGHT_CLICK_TOKEN_REMOVE_ONE = 5;
 local RIGHT_CLICK_TOKEN_TELE_GO = 5;
 local RIGHT_CLICK_TOKEN_RESTART = 2;
 local RIGHT_CLICK_TOKEN_GM = 1;
@@ -1456,6 +1458,12 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 		tokenCT.registerMenuItem('Undo Last Step', 'return', RIGHT_CLICK_TOKEN_SC
 			, RIGHT_CLICK_TOKEN_STEPPAGE , RIGHT_CLICK_TOKEN_UNDO
 		);
+		tokenCT.registerMenuItem('Add 1 Tile to Movement', 'num1', RIGHT_CLICK_TOKEN_SC
+			, RIGHT_CLICK_TOKEN_STEPPAGE , RIGHT_CLICK_TOKEN_ADD_ONE
+		);
+		tokenCT.registerMenuItem('Remove 1 Tile from Movement', 'num1', RIGHT_CLICK_TOKEN_SC
+			, RIGHT_CLICK_TOKEN_STEPPAGE , RIGHT_CLICK_TOKEN_REMOVE_ONE
+		);
 		if Session.IsHost
 			or (Session.UserName == WtWCommon.getControllingClient(nodeCT)
 				and ((OptionsManager.isOption('allow_tele', 'on') and nTeleAllowed ~= 0) or nTeleAllowed == 1)
@@ -1547,7 +1555,11 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 	if nSub == RIGHT_CLICK_TOKEN_WIN then
 		SpeedManager.openSpeedWindow(nodeCT);
 	elseif nSub == RIGHT_CLICK_TOKEN_STEPPAGE then
-		if nSubSub == RIGHT_CLICK_TOKEN_STEP then
+		if nSubSub == RIGHT_CLICK_TOKEN_ADD_ONE then
+			MovementManager.addOneTile(nodeCT, token, 1);
+		elseif nSubSub == RIGHT_CLICK_TOKEN_REMOVE_ONE then
+			MovementManager.addOneTile(nodeCT, token, -1);
+		elseif nSubSub == RIGHT_CLICK_TOKEN_STEP then
 			MovementManager.processTravelDist(nodeCT, true, token);
 		elseif nSubSub == RIGHT_CLICK_TOKEN_UNDO then
 			MovementManager.undoLastStep(nodeCT, false, token);
@@ -1574,9 +1586,7 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			Comm.addChatMessage({ text = "That creature is not permitted to teleport." });
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_RESTART then
-		--for _,target in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
 		for nodeCTTmp,tokenTmp in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
-			--MovementManager.returnToStart(target['CT'], target['token']);
 			MovementManager.returnToStart(nodeCTTmp, tokenTmp);
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_DIFF then
@@ -1622,18 +1632,14 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 					sValue = string.gsub(sValue, '|.*$', '');
 				end
 				if sSpeedType and sSpeedType == sValue then return end
-				--local bGoLabel = MovementManager.determineGoSpeedChange(nodeCT);
 				MovementManager.determineGoSpeedChange(nodeCT);
 				if not bDefault then DB.setValue(nodeWtWCT, 'speed_type', 'string', sValue) end
-				--if bGoLabel then MovementManager.processTravelDist(nodeCT, false, token) end
 				return;
 			end
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_GM then
 		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
 		if nSubSub == RIGHT_CLICK_TOKEN_CLEAR then
-			--for _,target in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
-			--	MovementManager.resetCreatureForOne(target['CT'], target['token']);
 			for nodeCTTmp,tokenTmp in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
 				MovementManager.resetCreatureForOne(nodeCTTmp,tokenTmp);
 			end
