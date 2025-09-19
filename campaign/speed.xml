@@ -73,7 +73,6 @@
 	<!-- Combat Tracker Mods -->
 	<windowclass name="ct_section_active" merge="join">
 		<sheetdata>
-<!--			<string_ct name="speed" merge="delete" /> -->
 			<string_ct name="speed" merge="join">
 				<invisible/>
 			</string_ct>
@@ -95,7 +94,6 @@
 	</windowclass>
 	<windowclass name="ct_section_active_charsheet" merge="join">
 		<sheetdata>
-<!--			<string_ct name="speed" merge="delete" /> -->
 			<string_ct name="speed" merge="join">
 				<invisible/>
 			</string_ct>
@@ -117,7 +115,6 @@
 	</windowclass>
 	<windowclass name="ct_section_active_npc" merge="join">
 		<sheetdata>
-<!--			<string_ct name="speed" merge="delete" /> -->
 			<string_ct name="speed" merge="join">
 				<invisible/>
 			</string_ct>
@@ -139,7 +136,6 @@
 	</windowclass>
 	<windowclass name="ct_section_inactive_npc" merge="join">
 		<sheetdata>
-<!--			<string_ct name="speed" merge="delete" /> -->
 			<string_ct name="speed" merge="join">
 				<invisible/>
 			</string_ct>
@@ -161,7 +157,6 @@
 	</windowclass>
 	<windowclass name="ct_section_active_vehicle" merge="join">
 		<sheetdata>
-<!--			<string_ct name="speed" merge="delete" /> -->
 			<string_ct name="speed" merge="join">
 				<invisible/>
 			</string_ct>
@@ -422,16 +417,10 @@
 				end
 				function onDoubleClick()
 					local nodeCT = ActorManager.getCTNode(nodeW);
-					if nodeCT then
-						local wSpeed = SpeedManager.openSpeedWindow(nodeCT);
-					end
+					if nodeCT then local wSpeed = SpeedManager.openSpeedWindow(nodeCT) end
 					return true;
 				end
 			</script>
-<!--
-			<font>reference-b-large</font>
-			<description textres="char_tooltip_speed" />
--->
 		</number_charspeed>
 <!--		</number_chartotal> -->
 	</template>

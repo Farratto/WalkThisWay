@@ -97,12 +97,11 @@ function checkProne(nodeCT)
 		end
 	end
 end
-
 function checkHideousLaughter(rActor)
-	if not rActor then
+	--[[if not rActor then
 		Debug.console("ProneManager.checkHideousLaughter - not rActor");
 		return;
-	end
+	end]]
 	local bClauseExceptFound = false;
 	local nMatch = 0;
 	local sClause = "Tasha's Hideous Laughter";
@@ -313,9 +312,6 @@ function standUp(nodeCT)
 end
 
 function queryClient(nodeCT, sOwner)
-	--if OptionsManager.isOption('WTWON', 'off') then
-	--	return;
-	--end
 	if not sOwner then sOwner = WtWCommon.getControllingClient(nodeCT) end
 
 	if sOwner then
@@ -345,9 +341,6 @@ function sendCloseWindowCmd(nodeCT, sOwner)
 end
 
 function handleProneQueryClient(msgOOB)
-	--if OptionsManager.isOption('WTWON', 'off') then
-	--	return;
-	--end
 	local nodeCT = DB.findNode(msgOOB.sCTNodeID);
 	openProneWindow(nodeCT);
 end

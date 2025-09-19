@@ -80,11 +80,11 @@ function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REQPREF, sendPrefRegistration);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_RESET_RIGHTCLICK, handleResetRightClick);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_RESTART_WINDOW, handleWindowRestart);
-	DB.addHandler('combattracker.list.*.tokenrefid', 'onUpdate', onTokenRefUpdated);
+	DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.tokenrefid', 'onUpdate', onTokenRefUpdated);
 	if Session.IsHost then
 		setConstants();
 		User.onIdentityActivation = onIdentityActivationWtW;
-		DB.addHandler('combattracker.list.*.NPCowner','onUpdate', processNewCTOwner);
+		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.NPCowner','onUpdate', processNewCTOwner);
 		CombatManager.setCustomPreDeleteCombatantHandler(onCTDelete);
 		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
 		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
@@ -108,24 +108,24 @@ function setConstants()
 	if Session.IsHost then
 		nodeWtW = DB.createNode('WalkThisWay');
 		if not nodeWtW then
-			Debug.console("WtWCommon.onInit - Unrecoverable error - unable to create nodeWtW");
+			Debug.console("WtWCommon.setConstants - Unrecoverable error - unable to create nodeWtW");
 			return;
 		end
 		DB.setPublic(nodeWtW, true);
 		nodeWtWList = DB.createChild(nodeWtW, 'ct_list');
 		if not nodeWtWList then
-			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to create nodeWtWList");
+			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtWList");
 			return;
 		end
 	else
 		nodeWtW = DB.findNode('WalkThisWay');
 		if not nodeWtW then
-			Debug.console("WtWCommon.onInit - Unrecoverable error - unable to find nodeWtW");
+			Debug.console("WtWCommon.setConstants - Unrecoverable error - unable to find nodeWtW");
 			return;
 		end
 		nodeWtWList = DB.getChild(nodeWtW, 'ct_list');
 		if not nodeWtWList then
-			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to create nodeWtWList");
+			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtWList");
 			return;
 		end
 	end
@@ -390,10 +390,10 @@ end
 -- luacheck: push ignore 561
 function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
 	-- when using pattern matching, make use of [^%] instead of %uppercase
-	if not rActor or not sClause then
+	--[[if not rActor or not sClause then
 		Debug.console("WtWCommon.hasEffectClause - not rActor or not sClause");
 		return;
-	end
+	end]]
 
 	local sLowerClause = sClause:lower();
 	local tEffectCompParams;
@@ -528,7 +528,6 @@ function handleApplyHostCommands(msgOOB)
 	elseif iAction == 1 then
 		-- remove an effect
 		EffectManager.removeEffect(rNodeCT, msgOOB.sEffect);
-		--removeEffectCaseInsensitive(rNodeCT, msgOOB.sEffect);
 	else
 		ChatManager.SystemMessage("[ERROR] manager_combat_wtw:handleApplyHostCommands; Unsupported iAction("
 			.. tostring(iAction) .. ")"
@@ -558,16 +557,6 @@ function notifyApplyHostCommands(nodeCT, iAction, rValues)
 	Comm.deliverOOBMessage(msgOOB, "");
 end
 
----For a given cohort actor, determine the root character node that owns it
-function getRootCommander(rActor)
-	local sRecord = ActorManager.getCreatureNodeName(rActor);
-	local sRecordSansModule = StringManager.split(sRecord, "@")[1];
-	local aRecordPathSansModule = StringManager.split(sRecordSansModule, ".");
-	if aRecordPathSansModule[1] and aRecordPathSansModule[2] then
-		return aRecordPathSansModule[1] .. "." .. aRecordPathSansModule[2];
-	end
-	return nil;
-end
 --Returns nil for inactive identities and those owned by the GM
 function getControllingClient(nodeCT)
 	local sPCNode;
@@ -601,13 +590,15 @@ function getControllingClient(nodeCT)
 	end
 	return nil;
 end
-
-function cleanString(s)
-	if not s then return end
-	local sReturn = StringManager.strip(s);
-	sReturn = string.gsub(sReturn, '^%s+', '');
-	sReturn = string.gsub(sReturn, '%s+$', '');
-	return sReturn;
+---For a given cohort actor, determine the root character node that owns it
+function getRootCommander(rActor)
+	local sRecord = ActorManager.getCreatureNodeName(rActor);
+	local sRecordSansModule = StringManager.split(sRecord, "@")[1];
+	local aRecordPathSansModule = StringManager.split(sRecordSansModule, ".");
+	if aRecordPathSansModule[1] and aRecordPathSansModule[2] then
+		return aRecordPathSansModule[1] .. "." .. aRecordPathSansModule[2];
+	end
+	return nil;
 end
 
 function getEffectName(nodeEffect, sLabel)
@@ -616,6 +607,13 @@ function getEffectName(nodeEffect, sLabel)
 	if not sLabel or sLabel == '' then return end
 	local aClauses = StringManager.split(sLabel, ';');
 	return cleanString(aClauses[1]);
+end
+function cleanString(s)
+	if not s then return end
+	local sReturn = StringManager.strip(s);
+	sReturn = string.gsub(sReturn, '^%s+', '');
+	sReturn = string.gsub(sReturn, '%s+$', '');
+	return sReturn;
 end
 
 function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly, bCaseSensitive)
@@ -1219,16 +1217,16 @@ end
 -- luacheck: pop
 
 function convNumToIdNodeName(nId)
-	if not nId then
+	--[[if not nId then
 		Debug.console("WtWCommon.convNumToIdNodeName - not nId");
 		return;
-	end
+	end]]
 	if not string.match(tostring(nId), '^id%-%d%d%d%d%d$') then
-		nId = tonumber(nId);
+		--[[nId = tonumber(nId);
 		if not nId then
 			Debug.console("WtWCommon.convNumToIdNodeName - not nId")
 			return;
-		end
+		end]]
 		nId = tostring(nId);
 		local nZeros = 5 - #nId;
 		local sId = 'id-'
@@ -1284,10 +1282,10 @@ function roundNumber(nInput, nPlaces, sUpDown)
 end
 
 function getConversionFactor(sCurrentUnits, sDesiredUnits)
-	if not sCurrentUnits or not sDesiredUnits then
+	--[[if not sCurrentUnits or not sDesiredUnits then
 		Debug.console('WtWCommon.getConversionFactor - not sCurrentUnits or not sDesiredUnits');
 		return 1;
-	end
+	end]]
 	if sCurrentUnits == sDesiredUnits then return 1 end
 	if sCurrentUnits == 'ft.' then
 		if sDesiredUnits == 'm' then
@@ -1346,54 +1344,47 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 end
 function onIdentityActivationWtW(_, username, activated)
 	if activated then requestPref(username) end
-
-	if MovementManager then MovementManager.recordStepData() end
 end
-function sendPrefRegistration(msgOOB, sPref) --luacheck: ignore 312
-	if Session.IsHost then return end
-	local sOwner = Session.UserName;
+function requestPref(sUser)
+	Comm.deliverOOBMessage({ type = OOB_MSGTYPE_REQPREF }, sUser); --sendPrefRegistration
+end
+function sendPrefRegistration(msgOOB) --luacheck: ignore 312
 	msgOOB = {};
-	msgOOB['type'] = OOB_MSGTYPE_REGPREF;
-	if not sPref then sPref = OptionsManager.getOption('DDLU') end
-	msgOOB['sPref'] = sPref;
-	msgOOB['sOwner'] = sOwner;
+	msgOOB['type'] = OOB_MSGTYPE_REGPREF; --handlePrefRegistration
+	msgOOB['sPref'] = OptionsManager.getOption('DDLU');
+	msgOOB['sOwner'] = Session.UserName;
 	Comm.deliverOOBMessage(msgOOB);
 end
 function handlePrefRegistration(msgOOB)
 	if not Session.IsHost then return end
 
-	registerPreference(msgOOB.sOwner, msgOOB.sPref);
+	registerPreference(msgOOB['sOwner'], msgOOB['sPref']);
+
 	if SpeedManager then SpeedManager.recalcAllSpeeds(msgOOB.sOwner) end
 end
-function requestPref(sUser)
-	local msgOOB = {};
-	msgOOB.type = OOB_MSGTYPE_REQPREF;
-	Comm.deliverOOBMessage(msgOOB, sUser);
-end
-function handlePrefChange(sOptionKey)
-	if Session.IsHost then
-		if SpeedManager then SpeedManager.recalcAllSpeeds() end
-	else
-		sendPrefRegistration(nil, OptionsManager.getOption(sOptionKey));
-	end
-end
 function registerPreference(sOwner, sPref)
-	for k,_ in pairs(tClientPrefs) do
-		if k == sOwner then
-			tClientPrefs[k] = sPref;
+	for sOwnerKey in pairs(tClientPrefs) do
+		if sOwnerKey == sOwner then
+			tClientPrefs[sOwnerKey] = sPref;
 			return;
 		end
 	end
 	tClientPrefs[sOwner] = sPref;
 end
-function getPreference(sOwner)
-	if not sOwner then return OptionsManager.getOption('DDLU') end
-
-	for k,v in pairs(tClientPrefs) do
-		if k == sOwner then
-			return v;
-		end
+function handlePrefChange(sOptionKey) --luacheck: ignore 212
+	if Session.IsHost then
+		if SpeedManager then SpeedManager.recalcAllSpeeds() end
+	else
+		sendPrefRegistration();
 	end
+end
+function getPreference(sOwner)
+	if not Session.IsHost or not sOwner then return OptionsManager.getOption('DDLU') end
+
+	for sOwnerKey,sPref in pairs(tClientPrefs) do
+		if sOwnerKey == sOwner then return sPref end
+	end
+
 	requestPref(sOwner);
 	return OptionsManager.getOption('DDLU');
 end
@@ -1617,7 +1608,7 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 					if not sSpeedType then return end
 					bDefault = true;
 					DB.deleteChild(nodeWtWCT, 'speed_type');
-					restartWindows('speed_window', nodeWtWCT);
+					restartWindows('speed_window', nodeWtWCT, nodeCT, Session.UserName);
 				end
 				if not sValue then sValue = string.match(sValues, '^'..sLabelLower..'%s+%(.*%)') end
 				if not sValue then sValue = string.match(sValues, '^'..sLabelLower) end
@@ -1760,12 +1751,26 @@ function onRecordTypeEventWtW(sRecordType, tCustom, ...)
 	return bResult;
 end
 
-function restartWindows(sWinClass, nodeSource)
+function restartWindows(sWinClass, nodeSource, nodeCT, sOwner)
+	if not Session.IsHost then
+		restartWindow(sWinClass, nodeSource);
+		return;
+	end
+
+	if not sOwner then
+		if not nodeCT then nodeCT = DB.findNode(CombatManager.CT_LIST..'.'..DB.getName(nodeSource)) end
+		sOwner = WtWCommon.getControllingClient(nodeCT);
+		if not sOwner then
+			restartWindow(sWinClass, nodeSource);
+			return;
+		end
+	end
+
 	local msgOOB = {};
 	msgOOB['type'] = OOB_MSGTYPE_RESTART_WINDOW;
 	msgOOB['sWinClass'] = sWinClass;
 	msgOOB['sNodePath'] = DB.getPath(nodeSource);
-	Comm.deliverOOBMessage(msgOOB);
+	Comm.deliverOOBMessage(msgOOB, sOwner);
 end
 function restartWindow(sWinClass, nodeSource)
 	local win = Interface.findWindow(sWinClass, nodeSource);

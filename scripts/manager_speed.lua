@@ -27,10 +27,10 @@ function onInit()
 		});
 			--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE
 			--continued: bSpell bOneShot bIgnoreExpire bIgnoreTarget
-		DB.addHandler('combattracker.list.*.speed', 'onUpdate', reparseBaseSpeed);
-		DB.addHandler('combattracker.list.*.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
-		DB.addHandler('combattracker.list.*.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
-		DB.addHandler('combattracker.list.*.effects', 'onChildDeleted', callSpeedCalcEffectDeleted);
+		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.speed', 'onUpdate', reparseBaseSpeed);
+		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
+		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
+		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.effects', 'onChildDeleted', callSpeedCalcEffectDeleted);
 		DB.addHandler('charsheet.*.speed.total','onUpdate', setCharSheetSpeed);
 		DB.addHandler('charsheet.*.speed.special','onUpdate', reparseBaseSpeedSpecial);
 		if Session.RulesetName ~= "5E" then
@@ -62,24 +62,24 @@ function setConstants()
 	if Session.IsHost then
 		nodeWtW = DB.createNode('WalkThisWay');
 		if not nodeWtW then
-			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to create nodeWtW");
+			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtW");
 			return;
 		end
 		DB.setPublic(nodeWtW, true);
 		nodeWtWList = DB.createChild(nodeWtW, 'ct_list');
 		if not nodeWtWList then
-			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to create nodeWtWList");
+			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtWList");
 			return;
 		end
 	else
 		nodeWtW = DB.findNode('WalkThisWay');
 		if not nodeWtW then
-			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to find nodeWtW");
+			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to find nodeWtW");
 			return;
 		end
 		nodeWtWList = DB.getChild(nodeWtW, 'ct_list');
 		if not nodeWtWList then
-			Debug.console("SpeedManager.onInit - Unrecoverable error - unable to create nodeWtWList");
+			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtWList");
 			return;
 		end
 	end
@@ -193,7 +193,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 	end
 	nBaseSpeed = tonumber(nBaseSpeed);
 	if not nBaseSpeed then
-		Debug.console("SpeedManager.speedCalculator - not nBaseSpeed");
+		Debug.console("SpeedManager.speedCalculator - not nBaseSpeed for "..DB.getValue(nodeCT, 'name', ''));
 		nBaseSpeed = 30;
 	end
 
@@ -207,7 +207,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 
 	local rActor = ActorManager.resolveActor(nodeCT);
 	if not rActor then
-		Debug.console("SpeedManager.speedCalculator - not rActor");
+		Debug.console("SpeedManager.speedCalculator - not rActor for "..DB.getValue(nodeCT, 'name', ''));
 		Debug.printstack();
 		return;
 	end
@@ -951,7 +951,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 	local nConvFactor = 1;
 	local sLngthUnits = DB.getValue(nodeWtWCT, 'units');
 	if not sLngthUnits or sLngthUnits == '' then
-		Debug.console("SpeedManager.updateDisplaySpeed - units not in DB");
+		Debug.console("SpeedManager.updateDisplaySpeed - units not in DB for "..DB.getValue(nodeCT, 'name', ''));
 		sLngthUnits = DB.getValue(nodeWtW, 'effectUnits');
 	end
 	if sLngthUnits ~= sUnitsPrefer then
@@ -1142,17 +1142,13 @@ function parseBaseSpeed(nodeCT, bCalc)
 	local sUnitsGave = DB.getValue(nodeWtW, 'effectUnits');
 
 	--dont forget some creatures dont have a speed, like objects
-	local sFGSpeed = DB.getValue(nodeCT, 'speed', '0');
+	local sFGSpeed = DB.getValue(nodeCT, 'speed');
+	if not sFGSpeed or sFGSpeed == '' then sFGSpeed = '0' end
 
 	if ActorManager.isPC(nodeCT) then
 		local nodeChar = ActorManager.getCreatureNode(nodeCT);
 		local nodeSpeed = DB.getChild(nodeChar, 'speed');
-		if sFGSpeed == '0' then
-			--local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
-			--local nCharWtWSpeedBase = DB.getValue(nodeCharWtW, 'base', 0);
-			--if nCharWtWSpeedBase == 0 then setCharSheetSpeed(nil, nodeChar, nodeSpeed) end
-			setCharSheetSpeed(nil, nodeChar, nodeSpeed);
-		end
+		if sFGSpeed == '0' then setCharSheetSpeed(nil, nodeChar, nodeSpeed) end
 		local nodeFGSpeedSpecial = DB.getValue(nodeSpeed, 'special', '');
 		if nodeFGSpeedSpecial ~= '' then sFGSpeed = sFGSpeed .. '; ' .. nodeFGSpeedSpecial end
 	end
@@ -1528,7 +1524,6 @@ function checkFitness(nodeUpdated, bRecheck)
 	local nStr = nStr + EffectManager5E.getEffectsBonus(nodeCT, 'STR', true);
 
 	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
-	--local nodeCtWtW = DB.createChild(nodeCT, 'WalkThisWay');
 	local nodeHandlerList = DB.createChild(nodeWtWCT, 'handler_list');
 	if nStr < nStrReq then
 		local nIdentified = DB.getValue(nodeItem, 'isidentified', 1);
@@ -1598,8 +1593,8 @@ function checkAllForHeavyItems()
 		checkInvForHeavyItems(nodeCT);
 	end
 	DB.addHandler('charsheet.*.inventorylist.*.carried', 'onUpdate', checkFitness);
-	DB.addHandler('combattracker.list.*.inventorylist.*.carried', 'onUpdate', checkFitness);
-	DB.addHandler('combattracker.list.*.abilities.strength.score', 'onUpdate', recheckFitness);
+	DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.inventorylist.*.carried', 'onUpdate', checkFitness);
+	DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.abilities.strength.score', 'onUpdate', recheckFitness);
 end
 function removeEffectTooHeavy(nodeCT, sItemNodePath)
 	local nodeMarkedForDeletion;
@@ -1639,9 +1634,9 @@ function toggleCheckItemStr()
 	end
 end
 function clearAllItemStrengthHandlers()
-	DB.removeHandler("charsheet.*.inventorylist.*.carried", "onUpdate", checkFitness);
-	DB.removeHandler("combattracker.list.*.inventorylist.*.carried", "onUpdate", checkFitness);
-	DB.removeHandler('combattracker.list.*.abilities.strength.score', 'onUpdate', recheckFitness);
+	DB.removeHandler('charsheet.*.inventorylist.*.carried', 'onUpdate', checkFitness);
+	DB.removeHandler(CombatManager.CT_COMBATANT_PATH..'.inventorylist.*.carried', 'onUpdate', checkFitness);
+	DB.removeHandler(CombatManager.CT_COMBATANT_PATH..'.abilities.strength.score', 'onUpdate', recheckFitness);
 	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 		local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
 		local nodeHandlerList = DB.createChild(nodeWtWCT, 'handler_list');
