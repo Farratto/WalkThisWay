@@ -9,11 +9,13 @@
 --luacheck: globals turnStartChecks roundMph onTurnEndWtW toggleCheckItemStr clearAllItemStrengthHandlers
 --luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
 --luacheck: globals parseBaseSpeed reparseBaseSpeed reparseAllBaseSpeeds reparseBaseSpeedSpecial setConstants
+--luacheck: globals frest restWtW faddEffect addEffectWtW
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
 
-local bLoopProt, nodeUbiquinated, nodeWtW, nodeWtWList;
+local bLoopProt, nodeWtW, nodeWtWList, bProtExhaust;
+--local tUbiquinatedNodes = {};
 
 function onInit()
 	if Session.IsHost then
@@ -36,7 +38,11 @@ function onInit()
 		if Session.RulesetName ~= "5E" then
 			DB.addHandler('charsheet.*.speed.final','onUpdate', setCharSheetSpeed);
 		end
+		frest = CombatManager2.rest;
+		CombatManager2.rest = restWtW;
 		User.onLogin = onLoginWtW;
+		faddEffect = EffectManager.addEffect;
+		EffectManager.addEffect = addEffectWtW;
 		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(onTurnEndWtW);
 	else
@@ -129,8 +135,9 @@ function callSpeedCalcEffectUpdated(nodeEffectChild)
 	if nodeEffectLabel then sNodeEffectLabel = DB.getValue(nodeEffect, 'label', '') end
 	local nodeEffects = DB.getParent(nodeEffect);
 	local nodeCT = DB.getParent(nodeEffects);
-	if TurboManager then TurboManager.registerEffect(nodeEffect, nodeEffectLabel) end
-	handleExhaustion(nodeCT, sNodeEffectLabel, nodeEffect);
+	--if TurboManager then TurboManager.registerEffect(nodeEffect, nodeEffectLabel) end
+	--handleExhaustion(nodeCT, sNodeEffectLabel, nodeEffect);
+	handleExhaustion(nodeCT, sNodeEffectLabel);
 	speedCalculator(nodeCT);
 	bLoopProt = false;
 end
@@ -1376,20 +1383,27 @@ function accommKnownExtsSpeed(nodeCT)
 	end
 end
 
-function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
-	if Session.RulesetName ~= "5E" then return end
+--function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
+function handleExhaustion(nodeCT, nodeEffectLabel)
+	if bProtExhaust or Session.RulesetName ~= "5E" then return end
 	if not nodeCT then
 		Debug.console("SpeedManager.handleExhaustion - not nodeCT");
 		return;
 	end
+
 	if nodeEffectLabel then
-		local sMatch = string.match(string.lower(nodeEffectLabel), '^%s*exhausted%s*;%s*');
+		--[[remove SW exhausted effects from CombatManager2.onTurnStart()
+		--local sMatch = string.match(string.lower(nodeEffectLabel), '^%s*exhausted%s*;%s*');
+		local sMatch = string.match(nodeEffectLabel, "^Exhausted; ");
 		if sMatch then
-			if string.match(nodeEffectLabel, "^Exhausted; Speed ") or string.match(
-				nodeEffectLabel, "^Exhausted; DEATH$")
-			then nodeUbiquinated = nodeEffect end
+			if string.match(nodeEffectLabel, "^Exhausted; Speed ")
+				or string.match(nodeEffectLabel, "^Exhausted; DEATH$")
+			then
+				--nodeUbiquinated = nodeEffect;
+				table.insert(tUbiquinatedNodes, nodeEffect);
+			end
 			return;
-		end
+		end]]
 		if OptionsManager.isOption('check_item_str', 'on')
 			and string.match(string.lower(nodeEffectLabel), 'str:%s*%d')
 		then
@@ -1411,7 +1425,7 @@ function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
 	elseif nExhaustMod < 1 then
 		bExhausted = false;
 	elseif (EffectsManagerExhausted and EffectsManagerExhausted.is2024()) or (not EffectsManagerExhausted
-		and OptionsManager.isOption("GAVE", "2024"))
+		and OptionsManager.isOption('GAVE', '2024'))
 	then
 		nSpeedAdjust = nExhaustMod * 5;
 		sNewEffect = "Exhausted; SPEED: dec(" .. nSpeedAdjust .. ")";
@@ -1427,15 +1441,19 @@ function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
 		bExhausted = false;
 	end
 
-	local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, '^%s*exhausted%s*;%s*', true, false, false, true);
+	--local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, '^%s*exhausted%s*;%s*', true, false, false, true);
+	local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; ", false, false, false, true);
 	if bExhausted == false and tOldEffects and tOldEffects[1] then
 		for _,v in ipairs(tOldEffects) do
-			DB.deleteNode(v['node']);
+			--DB.deleteNode(v['node']);
+			EffectManager.expireEffect(nodeCT, v['node'], 0);
+			--if type(v['node']) == 'databasenode' then DB.deleteNode(v['node']) end
 		end
 	end
 
 	if sNewEffect then
-		local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, '^%s*exhausted%s*;%s*', true, false, false, true);
+		--local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, '^%s*exhausted%s*;%s*',true,false,false,true);
+		local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; ", false, false, false, true);
 		if tOldEffects and tOldEffects[1] then
 			local nFound;
 			for k,v in ipairs(tOldEffects) do
@@ -1443,12 +1461,18 @@ function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
 			end
 			if nFound then
 				for k,v in ipairs(tOldEffects) do
-					if k ~= nFound then DB.deleteNode(v['node']) end
+					if k ~= nFound then
+						--DB.deleteNode(v['node']);
+						EffectManager.expireEffect(nodeCT, v['node'], 0);
+						--if type(v['node']) == 'databasenode' then DB.deleteNode(v['node']) end
+					end
 				end
 			else
 				for k,v in ipairs(tOldEffects) do
 					if k > 1 then
-						DB.deleteNode(v['node']);
+						--DB.deleteNode(v['node']);
+						EffectManager.expireEffect(nodeCT, v['node'], 0);
+						--if type(v['node']) == 'databasenode' then DB.deleteNode(v['node']) end
 					else
 						DB.setValue(tOldEffects[1]['node'], 'label', 'string', sNewEffect);
 					end
@@ -1459,10 +1483,32 @@ function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
 		end
 	end
 end
+function restWtW(bLong, ...)
+	if bLong then bProtExhaust = true end
+	frest(bLong, ...);
+	bProtExhaust = false;
+	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
+		handleExhaustion(nodeCT);
+	end
+end
+function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg, ...)
+	if rNewEffect and rNewEffect['sName'] then
+		local sMatch = string.match(rNewEffect['sName'], "^Exhausted; ");
+		if sMatch then
+			if string.match(rNewEffect['sName'], "^Exhausted; Speed ")
+				or string.match(rNewEffect['sName'], "^Exhausted; DEATH$")
+			then
+				return nil;
+			end
+		end
+	end
 
---forPay extension currently does this by teamTwoey (author: MatteKure)
+	return faddEffect(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg, ...);
+end
+
+--[[forPay extension currently does this by teamTwoey (author: MatteKure)
 --https://forge.fantasygrounds.com/shop/items/1606/view
---function handleEncumbrance(nodeCT)
+function handleEncumbrance(nodeCT)
 	--charsheet.id-00000.encumbrance
 		--holder = "Farratto"
 		--load = current carried weight in a number
@@ -1475,7 +1521,7 @@ end
 	--standard encumbrance rules:
 		--excedes carrying capacity
 			--SPEED: <= 5 ft.
---end
+end]]
 
 function checkFitness(nodeUpdated, bRecheck)
 	local nodeCT;
@@ -1685,10 +1731,17 @@ end
 function turnStartChecks(nodeCT)
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 
-	if nodeUbiquinated then
-		DB.deleteNode(nodeUbiquinated);
-		nodeUbiquinated = nil;
+	--[[--if nodeUbiquinated then
+	for _,nodeUbiquinated in pairs(tUbiquinatedNodes) do
+		if type(nodeUbiquinated) == 'databasenode' then
+			--DB.deleteNode(nodeUbiquinated);
+			EffectManager.expireEffect(nodeCT, nodeUbiquinated, 0);
+			--if type(nodeUbiquinated) == 'databasenode' then DB.deleteNode(nodeUbiquinated) end
+		end
+		--nodeUbiquinated = nil;
 	end
+	tUbiquinatedNodes = {};]]
+
 	if sOwner then
 		local msgOOB = {};
 		msgOOB.type = OOB_MSGTYPE_SPEEDWINDOW;

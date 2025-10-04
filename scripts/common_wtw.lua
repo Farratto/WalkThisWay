@@ -10,7 +10,7 @@
 --luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor getAllImageWindows
 --luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken restoreOtherRightClicks
 --luacheck: globals notifyResetRightClick handleResetRightClick processNewCTOwner onTokenRefUpdated onCTDelete
---luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW
+--luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW cleanDatabase
 --luacheck: globals restartWindows restartWindow handleWindowRestart
 
 OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
@@ -101,6 +101,25 @@ function onTabletopInit()
 		for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 			if CombatManager.getTokenFromCT(nodeCT) then nBootToken = nBootToken + 1 end
 		end
+	end
+end
+
+function onClose()
+	cleanDatabase();
+end
+--not all extension writers use the functions they are supposed to to remove CT entries.
+--My onTokenRef catches those, but I still need to clean out the database of unused entries.
+function cleanDatabase()
+	if not Session.IsHost then return end
+
+	local tNodesToDelete = {};
+	for sNodeCtID, node in pairs(DB.getChildren(nodeWtWList)) do
+		local nodeCT = DB.findNode(CombatManager.CT_LIST..'.'..sNodeCtID);
+		if not nodeCT then table.insert(tNodesToDelete, node) end
+	end
+
+	for _,node in pairs(tNodesToDelete) do
+		DB.deleteChild(node, '.');
 	end
 end
 
