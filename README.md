@@ -91,6 +91,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v3.0.11: FIXED: Dash sometimes doubling on client side. Throwing error when opening speed window from client side for the first time and SC not loaded. Rare errors when not using speed syntax correctly.
 * v3.0.10: FIXED: exhaustion handling woudld sometimes throw an error.
 * v3.0.9: FIXED: was not handling speed on certain NPCs well.
 * v3.0.8: FIXED: max effects were being listed twice in speed window

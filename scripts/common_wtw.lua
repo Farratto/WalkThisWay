@@ -5,15 +5,15 @@
 --luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 --luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
 --luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly setConstants
---luacheck: globals convNumToIdNodeName roundNumber getVisCtEntries handlePullMoveData
+--luacheck: globals convNumToIdNodeName roundNumber getVisCtEntries handlePullMoveData aEffectVarMap
 --luacheck: globals getPreference registerPreference handlePrefChange requestPref handlePrefRegistration
 --luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor getAllImageWindows
 --luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken restoreOtherRightClicks
 --luacheck: globals notifyResetRightClick handleResetRightClick processNewCTOwner onTokenRefUpdated onCTDelete
---luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW cleanDatabase
---luacheck: globals restartWindows restartWindow handleWindowRestart
+--luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW cleanDatabase setWtwDbOwner updateWtwDbOwner
+--luacheck: globals restartWindows restartWindow handleWindowRestart isMovementPossible
 
-OOB_MSGTYPE_APPLYHCMDS = "applyhcmds";
+OOB_MSGTYPE_APPLYHCMDS = 'applyhcmds';
 OOB_MSGTYPE_REGPREF = 'regpreference';
 OOB_MSGTYPE_REQPREF = 'request_preference';
 OOB_MSGTYPE_RESET_RIGHTCLICK = 'reset_right_click';
@@ -47,17 +47,17 @@ local RIGHT_CLICK_TOKEN_DIFF_OFF = 7;
 local RIGHT_CLICK_TOKEN_NO_LIMIT = 7;
 local RIGHT_CLICK_TOKEN_LIMIT = 6;
 
-local aEffectVarMap = {
-	["sName"] = { sDBType = "string", sDBField = "label" },
-	["nGMOnly"] = { sDBType = "number", sDBField = "isgmonly" },
-	["sSource"] = { sDBType = "string", sDBField = "source_name", bClearOnUntargetedDrop = true },
-	["sTarget"] = { sDBType = "string", bClearOnUntargetedDrop = true },
-	["nDuration"] = { sDBType = "number", sDBField = "duration", vDBDefault = 1, sDisplay = "[D: %d]" },
-	["nInit"] = { sDBType = "number", sDBField = "init", sSourceChangeSet = "initresult"
+aEffectVarMap = {
+	['sName'] = { sDBType = 'string', sDBField = 'label' },
+	['nGMOnly'] = { sDBType = 'number', sDBField = 'isgmonly' },
+	['sSource'] = { sDBType = 'string', sDBField = 'source_name', bClearOnUntargetedDrop = true },
+	['sTarget'] = { sDBType = 'string', bClearOnUntargetedDrop = true },
+	['nDuration'] = { sDBType = 'number', sDBField = 'duration', vDBDefault = 1, sDisplay = '[D: %d]' },
+	['nInit'] = { sDBType = 'number', sDBField = 'init', sSourceChangeSet = 'initresult'
 		, bClearOnUntargetedDrop = true
 	},
-	["sApply"] = { sDBType = "string", sDBField = "apply", sDisplay = "[%s]"},
-	["sChangeState"] = { sDBType = "string", sDBField = "changestate" }
+	['sApply'] = { sDBType = 'string', sDBField = 'apply', sDisplay = '[%s]'},
+	['sChangeState'] = { sDBType = 'string', sDBField = 'changestate' }
 };
 
 function onInit()
@@ -85,6 +85,7 @@ function onInit()
 		setConstants();
 		User.onIdentityActivation = onIdentityActivationWtW;
 		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.NPCowner','onUpdate', processNewCTOwner);
+		DB.addHandler('charsheet.*', 'onObserverUpdate', updateWtwDbOwner);
 		CombatManager.setCustomPreDeleteCombatantHandler(onCTDelete);
 		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
 		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
@@ -99,6 +100,7 @@ function onTabletopInit()
 	end
 	if Session.IsHost then
 		for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
+			setWtwDbOwner(nil, nodeCT);
 			if CombatManager.getTokenFromCT(nodeCT) then nBootToken = nBootToken + 1 end
 		end
 	end
@@ -133,7 +135,7 @@ function setConstants()
 		DB.setPublic(nodeWtW, true);
 		nodeWtWList = DB.createChild(nodeWtW, 'ct_list');
 		if not nodeWtWList then
-			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtWList");
+			Debug.console("WtWCommon.setConstants - Unrecoverable error - unable to create nodeWtWList");
 			return;
 		end
 	else
@@ -144,7 +146,7 @@ function setConstants()
 		end
 		nodeWtWList = DB.getChild(nodeWtW, 'ct_list');
 		if not nodeWtWList then
-			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtWList");
+			Debug.console("WtWCommon.setConstants - Unrecoverable error - unable to create nodeWtWList");
 			return;
 		end
 	end
@@ -171,6 +173,65 @@ function checkBetterGoldPurity()
 	end
 
 	return sReturn;
+end
+
+function setWtwDbOwner(nodeCreature, nodeCT)
+	if not nodeCreature then nodeCreature = ActorManager.getCreatureNode(nodeCT) end
+
+	local bGo, sNPCowner;
+	if not ActorManager.isPC(nodeCreature) then
+		if Pets and Pets.isCohort(nodeCreature) then
+			bGo = true;
+		else
+			sNPCowner = DB.getValue(nodeCT, 'NPCowner');
+			if sNPCowner then bGo = true end
+		end
+	else
+		bGo = true;
+	end
+	if bGo then
+		local sOwner;
+		if sNPCowner then
+			sOwner = sNPCowner;
+		else
+			sOwner = DB.getOwner(nodeCreature);
+		end
+		if sOwner and sOwner ~= '' then
+			if not nodeCT then nodeCT = ActorManager.getCTNode(nodeCreature) end
+			local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+			DB.setOwner(nodeWtWCT, sOwner);
+		end
+	end
+end
+function updateWtwDbOwner(nodeChar)
+	local nodeCT = ActorManager.getCTNode(nodeChar);
+	if not nodeCT then return end
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+
+	local sOwner = DB.getOwner(nodeChar);
+	local bOwnerCleared;
+	if not sOwner or sOwner == '' then bOwnerCleared = true end
+	if not bOwnerCleared then
+		DB.setOwner(nodeWtWCT, sOwner);
+	else
+		DB.removeAllHolders(nodeWtWCT);
+	end
+
+	local bPets;
+	if Pets and DB.getChildCount(nodeChar, 'cohorts') > 0 then bPets = true end
+	for _,nodeCTLoop in ipairs(CombatManager.getAllCombatantNodes()) do
+		local nodeWtWCTLoop = DB.createChild(nodeWtW, DB.getName(nodeCTLoop));
+		if bPets and Pets.isCohort(nodeCTLoop) and Pets.getCommanderNode(nodeCTLoop) == nodeChar then
+			if bOwnerCleared then
+				DB.removeAllHolders(nodeWtWCTLoop);
+			else
+				DB.setOwner(nodeWtWCTLoop, sOwner);
+			end
+		elseif not bOwnerCleared then
+			local sNPCowner = DB.getValue(nodeCTLoop, 'NPCowner', '');
+			if sNPCowner == sOwner then DB.setOwner(nodeWtWCTLoop, sOwner) end
+		end
+	end
 end
 
 function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, bReturnNode, bFindAll)
@@ -524,56 +585,58 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 end
 -- luacheck: pop
 
-function handleApplyHostCommands(msgOOB)
-	local rNodeCT = DB.findNode(msgOOB.sNodeCT);
-	local iAction = tonumber(msgOOB.iAction);
-
-	-- Requesting the add effect action on host
-	if iAction == 0 then
-		-- add an effect (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
-		local rEffect = {};
-		for k,_ in pairs(msgOOB) do
-			if aEffectVarMap[k] then
-				if aEffectVarMap[k].sDBType == "number" then
-					rEffect[k] = tonumber(msgOOB[k]) or 0;
-				else
-					rEffect[k] = msgOOB[k];
-				end
-			end
-		end
-		EffectManager.addEffect("", "", rNodeCT, rEffect, true);
-
-	-- Requesting the remove effect action on host
-	elseif iAction == 1 then
-		-- remove an effect
-		EffectManager.removeEffect(rNodeCT, msgOOB.sEffect);
-	else
-		ChatManager.SystemMessage("[ERROR] manager_combat_wtw:handleApplyHostCommands; Unsupported iAction("
-			.. tostring(iAction) .. ")"
-		);
-	end
-end
-
 function notifyApplyHostCommands(nodeCT, iAction, rValues)
 	local msgOOB = {};
-	msgOOB.type = OOB_MSGTYPE_APPLYHCMDS;
-	msgOOB.iAction = iAction;
-	msgOOB.sNodeCT = DB.getPath(nodeCT);
+	msgOOB['type'] = OOB_MSGTYPE_APPLYHCMDS;
+	msgOOB['iAction'] = iAction;
+	msgOOB['sNodeCT'] = DB.getPath(nodeCT);
 
-	if msgOOB.iAction == 0 then
-		for k,_ in pairs(rValues) do
+	if Session.IsHost then
+		handleApplyHostCommands(msgOOB);
+		return;
+	end
+
+	if msgOOB['iAction'] == 0 then
+		for k in pairs(rValues) do
 			if aEffectVarMap[k] then
-				if aEffectVarMap[k].sDBType == "number" then
-					msgOOB[k] = rValues[k] or aEffectVarMap[k].vDBDefault or 0;
+				if aEffectVarMap[k]['sDBType'] == 'number' then
+					msgOOB[k] = rValues[k] or aEffectVarMap[k]['vDBDefault'] or 0;
 				else
-					msgOOB[k] = rValues[k] or aEffectVarMap[k].vDBDefault or "";
+					msgOOB[k] = rValues[k] or aEffectVarMap[k]['vDBDefault'] or '';
 				end
 			end
 		end
-	elseif msgOOB.iAction == 1 then
-		msgOOB.sEffect = rValues;
+	elseif msgOOB['iAction'] == 1 then
+		msgOOB['sEffect'] = rValues;
 	end
-	Comm.deliverOOBMessage(msgOOB, "");
+
+	Comm.deliverOOBMessage(msgOOB);
+end
+function handleApplyHostCommands(msgOOB)
+	if not Session.IsHost then return end
+
+	local nodeCT = DB.findNode(msgOOB['sNodeCT']);
+	local iAction = tonumber(msgOOB['iAction']);
+
+	if iAction == 0 then --add an effect (Did same logic for OOB encode/decode as found in CoreRPG\scripts\manager_effect.lua)
+		local rNewEffect = {};
+		for k in pairs(msgOOB) do
+			if aEffectVarMap[k] then
+				if aEffectVarMap[k]['sDBType'] == 'number' then
+					rNewEffect[k] = tonumber(msgOOB[k]) or 0;
+				else
+					rNewEffect[k] = msgOOB[k];
+				end
+			end
+		end
+		EffectManager.addEffect('', '', nodeCT, rNewEffect, true);
+	elseif iAction == 1 then --remove effect
+		EffectManager.removeEffect(nodeCT, msgOOB['sEffect']);
+	else --iAction not found
+		ChatManager.SystemMessage(
+			"WtWCommon.handleApplyHostCommands - Unsupported iAction("..tostring(iAction)..")"
+		);
+	end
 end
 
 --Returns nil for inactive identities and those owned by the GM
@@ -826,19 +889,19 @@ function hasRoot(nodeCT)
 					, nil, false, true, true
 				);
 				if bHas then
-					return true, false, WtWCommon.getEffectName(false, sLabel);
+					return true, false, getEffectName(false, sLabel);
 				else
 					bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*0%s*max$"
 						, nil, false, true, true
 					);
 					if bHas then
-						return true, false, WtWCommon.getEffectName(false, sLabel);
+						return true, false, getEffectName(false, sLabel);
 					else
 						bHas, sLabel = hasEffectClause(nodeCT, "^Speed%s*:%s*0$"
 							, nil, false, true, true
 						);
 						if bHas then
-							return true, false, WtWCommon.getEffectName(false, sLabel);
+							return true, false, getEffectName(false, sLabel);
 						else
 							bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*none$"
 								, nil, false, true, true
@@ -882,19 +945,19 @@ function hasRoot(nodeCT)
 					, nil, false, true, true
 				);
 				if bHas then
-					return true, false, WtWCommon.getEffectName(false, sLabel);
+					return true, false, getEffectName(false, sLabel);
 				else
 					bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*0%s*max$"
 						, nil, false, true, true
 					);
 					if bHas then
-						return true, false, WtWCommon.getEffectName(false, sLabel);
+						return true, false, getEffectName(false, sLabel);
 					else
 						bHas, sLabel = hasEffectClause(nodeCT, "^Speed%s*:%s*0$"
 							, nil, false, true, true
 						);
 						if bHas then
-							return true, false, WtWCommon.getEffectName(false, sLabel);
+							return true, false, getEffectName(false, sLabel);
 						else
 							bHas, sLabel = hasEffectClause(nodeCT, "^SPEED%s*:%s*none$"
 								, nil, false, true, true
@@ -1302,7 +1365,7 @@ end
 
 function getConversionFactor(sCurrentUnits, sDesiredUnits)
 	--[[if not sCurrentUnits or not sDesiredUnits then
-		Debug.console('WtWCommon.getConversionFactor - not sCurrentUnits or not sDesiredUnits');
+		Debug.console("WtWCommon.getConversionFactor - not sCurrentUnits or not sDesiredUnits");
 		return 1;
 	end]]
 	if sCurrentUnits == sDesiredUnits then return 1 end
@@ -1316,7 +1379,7 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 		elseif sDesiredUnits == 'mi.' then
 			return 1 / 5280;
 		else
-			Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+			Debug.console("WtWCommon.getConversionFactor - Invalid units.");
 			return 1;
 		end
 	elseif sCurrentUnits == 'm' then
@@ -1329,7 +1392,7 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 		elseif sDesiredUnits == 'mi.' then
 			return 1 / 1609.344;
 		else
-			Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+			Debug.console("WtWCommon.getConversionFactor - Invalid units.");
 			return 1;
 		end
 	elseif sCurrentUnits == 'tiles' then
@@ -1339,7 +1402,7 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 			elseif sDesiredUnits == 'm' then
 				return 1.5;
 			else
-				Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+				Debug.console("WtWCommon.getConversionFactor - Invalid units.");
 				return 1;
 			end
 		--end
@@ -1353,11 +1416,11 @@ function getConversionFactor(sCurrentUnits, sDesiredUnits)
 				return 1.76;
 			--end
 		else
-			Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+			Debug.console("WtWCommon.getConversionFactor - Invalid units.");
 			return 1;
 		end
 	else
-		Debug.console('WtWCommon.getConversionFactor - Invalid units.');
+		Debug.console("WtWCommon.getConversionFactor - Invalid units.");
 		return 1;
 	end
 end
@@ -1475,7 +1538,7 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 			, RIGHT_CLICK_TOKEN_STEPPAGE , RIGHT_CLICK_TOKEN_REMOVE_ONE
 		);
 		if Session.IsHost
-			or (Session.UserName == WtWCommon.getControllingClient(nodeCT)
+			or (Session.UserName == getControllingClient(nodeCT)
 				and ((OptionsManager.isOption('allow_tele', 'on') and nTeleAllowed ~= 0) or nTeleAllowed == 1)
 			)
 		then
@@ -1531,14 +1594,14 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 
 	restoreOtherRightClicks(tokenCT, nodeCT);
 
-	if not bNoMenu then tokenCT.onMenuSelection = WtWCommon.onMenuSelectionToken end
+	if not bNoMenu then tokenCT.onMenuSelection = onMenuSelectionToken end
 end
 function restoreOtherRightClicks(tokenCT, nodeCT)
 	if not tokenCT and not nodeCT then return end
 	if not tokenCT then tokenCT = CombatManager.getTokenFromCT(nodeCT) end
 	if not tokenCT then return end
 
-	if WtWCommon.hasExtension('B9_SpellTokens') then
+	if hasExtension('B9_SpellTokens') then
 		tokenCT.registerMenuItem(Interface.getString('tokentogglepriority'), 'tokentogglepriority'
 			, RIGHT_CLICK_TOKEN_PRIORITY
 		);
@@ -1549,15 +1612,15 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 	if not nodeCT then
 		token.resetMenuItems();
 		restoreOtherRightClicks(token);
-		token.onMenuSelection = WtWCommon.onMenuSelectionToken;
+		token.onMenuSelection = onMenuSelectionToken;
 		return;
 	end
 	if not Session.IsHost then
-		local sOwner = WtWCommon.getControllingClient(nodeCT);
+		local sOwner = getControllingClient(nodeCT);
 		if not sOwner or sOwner ~= Session.UserName then
 			token.resetMenuItems();
 			restoreOtherRightClicks(token);
-			token.onMenuSelection = WtWCommon.onMenuSelectionToken;
+			token.onMenuSelection = onMenuSelectionToken;
 			return;
 		end
 	end
@@ -1575,10 +1638,11 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			MovementManager.undoLastStep(nodeCT, false, token);
 		end
 	elseif nSub == RIGHT_CLICK_DASH then
+		local rValues = { sName = 'Dash', nDuration = 1, sChangeState = 'rts' };
 		if Session.IsHost then
-			EffectManager.addEffect('', '', nodeCT, { sName = 'Dash', nDuration = 1, sChangeState = 'rts' }, '');
+			EffectManager.addEffect('', '', nodeCT, rValues, true);
 		else
-			WtWCommon.notifyApplyHostCommands(nodeCT, 0, { sName = 'Dash', nDuration = 1, sChangeState = 'rts' });
+			notifyApplyHostCommands(nodeCT, 0, rValues);
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_TELE_GO then
 		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
@@ -1673,7 +1737,7 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 end
 
 function notifyResetRightClick(nodeCT, sOwner)
-	if not sOwner then sOwner = WtWCommon.getControllingClient(nodeCT) end
+	if not sOwner then sOwner = getControllingClient(nodeCT) end
 	if sOwner then
 		local msgOOB = {};
 		msgOOB.type = OOB_MSGTYPE_RESET_RIGHTCLICK;
@@ -1708,7 +1772,7 @@ function onTokenRefUpdated(nodeUpdated)
 	if Session.IsHost then
 		registerTokenRightClick(nil, nodeCT);
 	else
-		local sOwner = WtWCommon.getControllingClient(nodeCT);
+		local sOwner = getControllingClient(nodeCT);
 		if sOwner and sOwner == Session.UserName then registerTokenRightClick(nil, nodeCT) end
 		return;
 	end
@@ -1760,7 +1824,7 @@ function onRecordTypeEventWtW(sRecordType, tCustom, ...)
 		if not tCustom.nodeRecord then
 			tCustom.nodeRecord = DB.findNode(tCustom.sRecord);
 		end
-		MovementManager.setWtwDbOwner(tCustom.nodeRecord, nodeCT);
+		setWtwDbOwner(tCustom.nodeRecord, nodeCT);
 	end
 
 	if SpeedManager and OptionsManager.isOption('check_item_str', 'on') then
@@ -1778,7 +1842,7 @@ function restartWindows(sWinClass, nodeSource, nodeCT, sOwner)
 
 	if not sOwner then
 		if not nodeCT then nodeCT = DB.findNode(CombatManager.CT_LIST..'.'..DB.getName(nodeSource)) end
-		sOwner = WtWCommon.getControllingClient(nodeCT);
+		sOwner = getControllingClient(nodeCT);
 		if not sOwner then
 			restartWindow(sWinClass, nodeSource);
 			return;
@@ -1800,4 +1864,16 @@ function restartWindow(sWinClass, nodeSource)
 end
 function handleWindowRestart(msgOOB)
 	restartWindow(msgOOB['sWinClass'], DB.findNode(msgOOB['sNodePath']));
+end
+
+function isMovementPossible()
+	if not nCurrMaxSpeed then nCurrMaxSpeed = getLimitingSpeed(nodeCT, nodeWtWCT) end
+
+	if not nodeWtWCT then nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT)) end
+	local nTraveled = DB.getValue(nodeWtWCT, 'traveled_raw', 0);
+
+	if nTraveled + nDistFriendly > nCurrMaxSpeed then
+		ChatManager.Message("Not enough movement remaining.", WtWCommon.getControllingClient(nodeCT), nodeCT);
+		return false;
+	end
 end

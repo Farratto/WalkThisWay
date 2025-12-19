@@ -1701,6 +1701,8 @@ end
 
 function openSpeedWindow(nodeCT)
 	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+	if not nodeWtWCT then return end
+
 	if Session.IsHost then
 		DB.setValue(nodeWtWCT, 'name', 'string', DB.getValue(nodeCT, 'name', ''));
 	else

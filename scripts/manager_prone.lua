@@ -40,6 +40,11 @@ end
 function processTurnStart(nodeCT)
 	if not checkProne(nodeCT) then return end
 
+	--if MovementManager then
+	--	local bCanStandUp;
+	--	bCanStandUp = MovementManager.consumeMovement(nodeCT, sQuanUnits, tokenCT, nQuantity, bIgnMax, nodeWtWCT);
+	--end
+
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 	if sOwner then
 		queryClient(nodeCT, sOwner)
@@ -278,8 +283,11 @@ end
 
 function standUp(nodeCT)
 	if not nodeCT then nodeCT = CombatManager.getActiveCT() end
-	local sStoodUp = 'Stood Up; SPEED: halved';
-	local sHoppedUp = 'Hopped up; SPEED: 5 dec';
+
+	--local sStoodUp = 'Stood Up; SPEED: halved';
+	--local sHoppedUp = 'Hopped up; SPEED: 5 dec';
+	local sStoodUp = 'Stood Up';
+	local sHoppedUp = 'Hopped up';
 
 	WtWCommon.removeEffectClause(nodeCT, "Prone");
 	if Session.IsHost then
