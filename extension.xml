@@ -4,10 +4,10 @@
 	attribution and copyright information.
 -->
 <root release="3.0" version="3">
-	<announcement text="Walk this Way ~v3.0.11-dev~ by Farratto." icon="WtW_icon" font="emotefont" />
+	<announcement text="Walk this Way v3.1.0 by Farratto." icon="WtW_icon" font="emotefont" />
 	<properties>
 		<name>Feature: Walk This Way</name>
-		<version>~v-dev~</version>
+		<version>v3.1.0</version>
 		<loadorder>400</loadorder>
 		<author>Farratto</author>
 		<description>Reminders for prone condition and movement.</description>
@@ -42,8 +42,8 @@
 		<script name="PowerUpWtW">
 			function onInit()
 				if PowerUp then
-					PowerUp.registerExtension("Walk this Way", "~v-dev~", {
-						['message'] = "~v-dev~: ~update_notes~"
+					PowerUp.registerExtension("Walk this Way", "v3.1.0", {
+						['message'] = "v3.1.0: "
 					});
 				end
 			end

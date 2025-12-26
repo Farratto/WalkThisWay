@@ -1,6 +1,6 @@
 ## Walk This Way
-**Current Version**: ~v-dev~ \
-**Updated**: ~date~
+**Current Version**: v3.1.0 \
+**Updated**: 2025-12-26
 
 This extension provides a small popup window at the start of a person's turn that asks if they want to stand up, if they are prone. Version 2 of this extension now also calculates total effective speed after effects in combat tracker.
 
@@ -91,7 +91,9 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
-* v3.0.11: FIXED: Dash sometimes doubling on client side. Throwing error when opening speed window from client side for the first time and SC not loaded. Rare errors when not using speed syntax correctly.
+* v	<announcement text="Walk this Way v3.1.0 by Farratto." icon="WtW_icon" font="emotefont" />: FIXED: Standing up was cutting max speed by half, when it should be consuming half of max speed; crawl speed was also cutting max speed by half when it should be consuming an additional foot per foot consumed. Reordered Right-click menu. Minor performance improvements.
+* v3.1.0:
+* v3.0.11: FIXED: Dash sometimes doubling on client side. Throwing error when opening speed window from client side for the first time and SC not loaded. Rare errors when using speed syntax incorrectly.
 * v3.0.10: FIXED: exhaustion handling woudld sometimes throw an error.
 * v3.0.9: FIXED: was not handling speed on certain NPCs well.
 * v3.0.8: FIXED: max effects were being listed twice in speed window

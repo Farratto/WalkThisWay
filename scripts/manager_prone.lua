@@ -1,21 +1,28 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
--- luacheck: globals checkProne checkHideousLaughter setOptions processTurnStart
--- luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild
--- luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery
+--luacheck: globals checkProne checkHideousLaughter setOptions processTurnStart
+--luacheck: globals closeAllProneWindows openProneWindow closeProneWindow standUp delWTWdataChild
+--luacheck: globals queryClient sendCloseWindowCmd handleProneQueryClient handleCloseProneQuery
+--luacheck: globals sStoodUp sHoppedUp queryMovePossible
 
-OOB_MSGTYPE_PRONEQUERY = "pronequery";
-OOB_MSGTYPE_CLOSEQUERY = "closequery";
+OOB_MSGTYPE_PRONEQUERY = 'pronequery';
+OOB_MSGTYPE_CLOSEQUERY = 'closequery';
+OOB_MSGTYPE_QUERYMOVEPOSS = 'query_move_poss';
+OOB_MSGTYPE_MOVEPOSSRESPONSE = 'query_move_response';
 
 local nMoved = 0;
+--sStoodUp = 'Stood Up; SPEED: halved';
+--sHoppedUp = 'Hopped up; SPEED: 5 dec';
+sStoodUp = "Stood Up";
+sHoppedUp = "Hopped up";
 
 function onInit()
 	setOptions();
-
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_PRONEQUERY, handleProneQueryClient);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_CLOSEQUERY, handleCloseProneQuery);
-
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_QUERYMOVEPOSS, handleQueryMovePossible);
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_MOVEPOSSRESPONSE, handleQueryMoveResponse);
 	if Session.IsHost then
 		CombatManager.setCustomTurnStart(processTurnStart);
 		CombatManager.setCustomTurnEnd(closeAllProneWindows);
@@ -39,11 +46,6 @@ end
 
 function processTurnStart(nodeCT)
 	if not checkProne(nodeCT) then return end
-
-	--if MovementManager then
-	--	local bCanStandUp;
-	--	bCanStandUp = MovementManager.consumeMovement(nodeCT, sQuanUnits, tokenCT, nQuantity, bIgnMax, nodeWtWCT);
-	--end
 
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 	if sOwner then
@@ -103,10 +105,6 @@ function checkProne(nodeCT)
 	end
 end
 function checkHideousLaughter(rActor)
-	--[[if not rActor then
-		Debug.console("ProneManager.checkHideousLaughter - not rActor");
-		return;
-	end]]
 	local bClauseExceptFound = false;
 	local nMatch = 0;
 	local sClause = "Tasha's Hideous Laughter";
@@ -184,9 +182,6 @@ end
 
 -- luacheck: push ignore 561
 function openProneWindow(nodeCT)
-	--if OptionsManager.isOption('WTWON', 'off') or OptionsManager.isOption('WTWONPLR', 'off') then
-	--	return;
-	--end
 	if Session.IsHost and OptionsManager.isOption('WTWONDM', 'off') then return end
 
 	local wProneQuery = Interface.openWindow('prone_query', DB.getPath(nodeCT));
@@ -281,42 +276,111 @@ function closeProneWindow(nodeCT)
 	nMoved = 0;
 end
 
-function standUp(nodeCT)
+function standUp(nodeCT, bHostAuth, bAthlete, nDist)
 	if not nodeCT then nodeCT = CombatManager.getActiveCT() end
 
-	--local sStoodUp = 'Stood Up; SPEED: halved';
-	--local sHoppedUp = 'Hopped up; SPEED: 5 dec';
-	local sStoodUp = 'Stood Up';
-	local sHoppedUp = 'Hopped up';
+	local bConsume;
+	if Session.RulesetName == '5E' then
+		if not bAthlete and ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then bAthlete = true end
+		if bAthlete then nDist = 5 end
+
+		if not bHostAuth and MovementManager then
+			if not Session.IsHost then
+				queryMovePossible(nodeCT, bAthlete);
+				return;
+			end
+			local bHasEnoughMovement;
+			if bAthlete then
+				bHasEnoughMovement = WtWCommon.isMovementPossible(nodeCT, nDist);
+			else
+				bHasEnoughMovement, nDist = WtWCommon.isMovementPossible(nodeCT, nil, 'half');
+			end
+
+			if bHasEnoughMovement == nil then return end
+			if bHasEnoughMovement == false then
+				local sOwner = WtWCommon.getControllingClient(nodeCT);
+				ChatManager.Message("Not enough movement remaining.", sOwner, nodeCT);
+				return;
+			end
+
+			bConsume = true;
+			SpeedManager.tStoodUp[nodeCT] = true; --luacheck: ignore 142
+		end
+	end
+
+	if bHostAuth then
+		bConsume = true;
+		SpeedManager.tStoodUp[nodeCT] = true; --luacheck: ignore 142
+	end
 
 	WtWCommon.removeEffectClause(nodeCT, "Prone");
 	if Session.IsHost then
 		if Session.RulesetName == "5E" then
-			if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
-				EffectManager.addEffect("", "", nodeCT, {
-					sName = sHoppedUp, nDuration = 1, sChangeState = "rts" }, "");
+			if bAthlete then
+				EffectManager.addEffect("","",nodeCT,{sName = sHoppedUp,nDuration = 1,sChangeState = "rts"},"");
 			else
-				EffectManager.addEffect("", "", nodeCT, {
-					sName = sStoodUp, nDuration = 1, sChangeState = "rts" }, "");
+				EffectManager.addEffect("","",nodeCT,{sName = sStoodUp,nDuration = 1,sChangeState = "rts" },"");
 			end
 		else
-			EffectManager.addEffect("", "", nodeCT, {
-				sName = 'Stood Up', nDuration = 1 }, "");
+			EffectManager.addEffect("","",nodeCT,{sName = sStoodUp,nDuration = 1},"");
 		end
 	else
 		if Session.RulesetName == "5E" then
-			if ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then
-				WtWCommon.notifyApplyHostCommands(nodeCT, 0, {
-					sName = sHoppedUp, nDuration = 1, sChangeState = "rts" });
+			if bAthlete then
+				WtWCommon.notifyApplyHostCommands(nodeCT,0,{sName = sHoppedUp,nDuration = 1,sChangeState = "rts"});
 			else
-				WtWCommon.notifyApplyHostCommands(nodeCT, 0, {
-					sName = sStoodUp, nDuration = 1, sChangeState = "rts" });
+				WtWCommon.notifyApplyHostCommands(nodeCT,0,{sName = sStoodUp,nDuration = 1,sChangeState = "rts"});
 			end
 		else
-			WtWCommon.notifyApplyHostCommands(nodeCT, 0, {
-				sName = 'Stood Up', nDuration = 1, sChangeState = "rts" });
+			WtWCommon.notifyApplyHostCommands(nodeCT,0,{sName = sStoodUp,nDuration = 1,sChangeState = "rts"});
 		end
 	end
+
+	if bConsume then
+		if bAthlete then
+			MovementManager.consumeMovement(nodeCT, 'dist', nil, 5);
+		else
+			MovementManager.consumeMovement(nodeCT, 'dist', nil, nDist);
+		end
+	end
+end
+function queryMovePossible(nodeCT, bAthlete)
+	local msgOOB = {};
+	msgOOB['type'] = OOB_MSGTYPE_QUERYMOVEPOSS;
+	msgOOB['sCTNodeID'] = DB.getPath(nodeCT);
+	msgOOB['sAthlete'] = tostring(bAthlete);
+	Comm.deliverOOBMessage(msgOOB);
+end
+function handleQueryMovePossible(msgOOB)
+	if not Session.IsHost then return end
+
+	local nodeCT = DB.findNode(msgOOB['sCTNodeID']);
+	local bHasEnoughMovement, nDist, bAthlete;
+	if msgOOB['sAthlete'] == 'true' then
+		bAthlete = true;
+		bHasEnoughMovement = WtWCommon.isMovementPossible(nodeCT, 5);
+	else
+		bHasEnoughMovement, nDist = WtWCommon.isMovementPossible(nodeCT, nil, 'half');
+	end
+
+	if bHasEnoughMovement == nil then return end
+	if bHasEnoughMovement == false then
+		local sOwner = WtWCommon.getControllingClient(nodeCT);
+		ChatManager.Message("Not enough movement remaining.", sOwner, nodeCT);
+		return;
+	end
+
+	msgOOB['type'] = OOB_MSGTYPE_MOVEPOSSRESPONSE;
+	msgOOB['sDist'] = tostring(nDist);
+	msgOOB['sAthlete'] = tostring(bAthlete);
+	Comm.deliverOOBMessage(msgOOB, WtWCommon.getControllingClient(nodeCT));
+end
+function handleQueryMoveResponse(msgOOB)
+	local bAthlete;
+	local nDist = tonumber(msgOOB['sDist']);
+	if msgOOB['sAthlete'] == 'true' then bAthlete = true end
+
+	standUp(DB.findNode(msgOOB['sCTNodeID']), true, bAthlete, nDist);
 end
 
 function queryClient(nodeCT, sOwner)
@@ -324,8 +388,8 @@ function queryClient(nodeCT, sOwner)
 
 	if sOwner then
 		local msgOOB = {};
-		msgOOB.type = OOB_MSGTYPE_PRONEQUERY;
-		msgOOB.sCTNodeID = DB.getPath(nodeCT);
+		msgOOB['type'] = OOB_MSGTYPE_PRONEQUERY;
+		msgOOB['sCTNodeID'] = DB.getPath(nodeCT);
 		Comm.deliverOOBMessage(msgOOB, sOwner);
 	else
 		ChatManager.SystemMessage(Interface.getString("msg_NotConnected"));

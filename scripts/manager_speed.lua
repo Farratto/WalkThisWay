@@ -2,7 +2,7 @@
 -- attribution and copyright information.
 
 --luacheck: globals speedCalculator handleExhaustion setAllCharSheetSpeeds setCharSheetSpeed onLoginWtW
---luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow
+--luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow handleStoodUp
 --luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
 --luacheck: globals parseSpeedType onTabletopInit recalcAllSpeeds tidyUnits handleSlash
 --luacheck: globals handleCloseSpeedWindow closeSpeedWindow roundNearestHalfTile removeEffectTooHeavy
@@ -10,12 +10,14 @@
 --luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
 --luacheck: globals parseBaseSpeed reparseBaseSpeed reparseAllBaseSpeeds reparseBaseSpeedSpecial setConstants
 --luacheck: globals frest restWtW faddEffect addEffectWtW
+--luacheck: globals tStoodUp
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
 
-local bLoopProt, nodeWtW, nodeWtWList, bProtExhaust;
+local bLoopProt, nodeWtW, nodeWtWList, bProtExhaust, nodeLastHandled, nActiveLast, sLabelLast;
 --local tUbiquinatedNodes = {};
+tStoodUp = {};
 
 function onInit()
 	if Session.IsHost then
@@ -128,18 +130,22 @@ function callSpeedCalcEffectUpdated(nodeEffectChild)
 	if bLoopProt then return end
 	if OptionsManager.isOption('WESC', 'off') then return end
 
-	bLoopProt = true;
 	local nodeEffect = DB.getParent(nodeEffectChild);
-	local nodeEffectLabel = DB.getChild(nodeEffect, 'label');
-	local sNodeEffectLabel;
-	if nodeEffectLabel then sNodeEffectLabel = DB.getValue(nodeEffect, 'label', '') end
-	local nodeEffects = DB.getParent(nodeEffect);
-	local nodeCT = DB.getParent(nodeEffects);
-	--if TurboManager then TurboManager.registerEffect(nodeEffect, nodeEffectLabel) end
-	--handleExhaustion(nodeCT, sNodeEffectLabel, nodeEffect);
+	local nIsActive = DB.getValue(nodeEffect, 'isactive');
+	local sNodeEffectLabel = DB.getValue(nodeEffect, 'label');
+	if nodeEffect == nodeLastHandled and nIsActive == nActiveLast and sNodeEffectLabel == sLabelLast then return end
+
+	local nodeCT = DB.getChild(nodeEffect, '...');
+
+	bLoopProt = true;
 	handleExhaustion(nodeCT, sNodeEffectLabel);
+	if MovementManager then handleStoodUp(nodeCT, sNodeEffectLabel) end
 	speedCalculator(nodeCT);
 	bLoopProt = false;
+
+	nodeLastHandled = nodeEffect;
+	nActiveLast = nIsActive;
+	sLabelLast = sNodeEffectLabel;
 end
 function callSpeedCalcEffectDeleted(nodeEffects)
 	if bLoopProt then return end
@@ -243,10 +249,11 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 		tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
 		tAccomSpeed = accommKnownExtsSpeed(nodeCT);
 		bProne = WtWCommon.hasEffectClause(rActor, "^Prone$", nil, false, true)
-		if bProne then
-			nHalved = nHalved + 1
-			table.insert(tEffectNames, "Prone");
-		end
+		--Crawl speed is not max halved, it consumes double
+		--if bProne then
+		--	nHalved = nHalved + 1
+		--	table.insert(tEffectNames, "Prone");
+		--end
 	end
 
 	local nSpeedMod = 0;
@@ -325,7 +332,6 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 				local nRmndrRemainder = tonumber(sRmndrRemainder);
 				if nRmndrRemainder then
 					nMaxMod = nRmndrRemainder
-					--table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 				else
 					Debug.console("SpeedManager.speedCalculator - Syntax Error. Try SPEED: max(5)");
 				end
@@ -336,7 +342,6 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 			else
 				nMaxMod = nMod
 				nMod = nil
-				--table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 			end
 			if nSpeedMax then
 				if nMaxMod < nSpeedMax then
@@ -492,20 +497,15 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 							end
 							if not bExactMatch then
 								if sQualifier then
-									if bFaster then
-										table.remove(tFGSpeedNew, nFound);
-										--table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
-									end
+									if bFaster then table.remove(tFGSpeedNew, nFound) end
 									nFound = false;
 								else
 									if sTypeFly then
 										if (nHover == 1) or sTypeHover then
 											tFGSpeedNew[nFound]['type'] = 'Fly (hover)'
-											--table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 										end
 									elseif sTypeSpider and not bMatchSpider then
 										tFGSpeedNew[nFound]['type'] = 'Spider Climb'
-										--table.insert(tEffectNames, WtWCommon.getEffectName(_,v.label));
 									else
 										nFound = false;
 									end
@@ -1383,29 +1383,16 @@ function accommKnownExtsSpeed(nodeCT)
 	end
 end
 
---function handleExhaustion(nodeCT, nodeEffectLabel, nodeEffect)
-function handleExhaustion(nodeCT, nodeEffectLabel)
+function handleExhaustion(nodeCT, sNodeEffectLabel)
 	if bProtExhaust or Session.RulesetName ~= "5E" then return end
 	if not nodeCT then
 		Debug.console("SpeedManager.handleExhaustion - not nodeCT");
 		return;
 	end
 
-	if nodeEffectLabel then
-		--[[remove SW exhausted effects from CombatManager2.onTurnStart()
-		--local sMatch = string.match(string.lower(nodeEffectLabel), '^%s*exhausted%s*;%s*');
-		local sMatch = string.match(nodeEffectLabel, "^Exhausted; ");
-		if sMatch then
-			if string.match(nodeEffectLabel, "^Exhausted; Speed ")
-				or string.match(nodeEffectLabel, "^Exhausted; DEATH$")
-			then
-				--nodeUbiquinated = nodeEffect;
-				table.insert(tUbiquinatedNodes, nodeEffect);
-			end
-			return;
-		end]]
+	if sNodeEffectLabel then
 		if OptionsManager.isOption('check_item_str', 'on')
-			and string.match(string.lower(nodeEffectLabel), 'str:%s*%d')
+			and string.match(string.lower(sNodeEffectLabel), 'str:%s*%d')
 		then
 			recheckFitness(DB.getChild(nodeCT, 'abilities.strength.score'), nodeCT);
 		end
@@ -1441,7 +1428,6 @@ function handleExhaustion(nodeCT, nodeEffectLabel)
 		bExhausted = false;
 	end
 
-	--local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, '^%s*exhausted%s*;%s*', true, false, false, true);
 	local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; ", false, false, false, true);
 	if bExhausted == false and tOldEffects and tOldEffects[1] then
 		for _,v in ipairs(tOldEffects) do
@@ -1452,7 +1438,6 @@ function handleExhaustion(nodeCT, nodeEffectLabel)
 	end
 
 	if sNewEffect then
-		--local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, '^%s*exhausted%s*;%s*',true,false,false,true);
 		local tOldEffects = WtWCommon.hasEffectFindString(nodeCT, "^Exhausted; ", false, false, false, true);
 		if tOldEffects and tOldEffects[1] then
 			local nFound;
@@ -1504,6 +1489,36 @@ function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg, ...)
 	end
 
 	return faddEffect(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg, ...);
+end
+
+function handleStoodUp(nodeCT, sNodeEffectLabel)
+	if not sNodeEffectLabel then return end
+
+	if Session.RulesetName == '5E' then
+		local bAthlete;
+		if sNodeEffectLabel == ProneManager.sHoppedUp
+			or string.match(sNodeEffectLabel, "^"..ProneManager.sHoppedUp..";")
+		then
+			bAthlete = true;
+		end
+		if bAthlete
+			or sNodeEffectLabel == ProneManager.sStoodUp
+			or string.match(sNodeEffectLabel, "^"..ProneManager.sStoodUp..";")
+		then
+			local tStoodUpCopy = tStoodUp;
+			for nodeCTLocal in pairs(tStoodUpCopy) do
+				if nodeCTLocal == nodeCT then
+					tStoodUp[nodeCT] = nil;
+					return;
+				end
+			end
+			if bAthlete then
+				MovementManager.consumeMovement(nodeCT, 'dist', nil, 5);
+			else
+				MovementManager.consumeMovement(nodeCT, 'half');
+			end
+		end
+	end
 end
 
 --[[forPay extension currently does this by teamTwoey (author: MatteKure)

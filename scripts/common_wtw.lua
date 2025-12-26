@@ -25,27 +25,32 @@ local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB
 local aExceptionDescriptors = {'steal', 'stealtemp'};
 local tClientPrefs = {};
 local nBootToken = 0;
-RIGHT_CLICK_TOKEN_SC = 2;
-RIGHT_CLICK_TOKEN_SPEED_TYPE = 4;
+--top level
 local RIGHT_CLICK_TOKEN_PRIORITY = 1;
-local RIGHT_CLICK_TOKEN_STEPPAGE = 7;
-local RIGHT_CLICK_DASH = 6;
-local RIGHT_CLICK_TOKEN_STEP = 8;
-local RIGHT_CLICK_TOKEN_UNDO = 7;
-local RIGHT_CLICK_TOKEN_ADD_ONE = 6;
-local RIGHT_CLICK_TOKEN_REMOVE_ONE = 5;
-local RIGHT_CLICK_TOKEN_TELE_GO = 5;
-local RIGHT_CLICK_TOKEN_RESTART = 2;
-local RIGHT_CLICK_TOKEN_GM = 1;
-local RIGHT_CLICK_TOKEN_CLEAR = 8
-local RIGHT_CLICK_TOKEN_TELE_ON = 5;
-local RIGHT_CLICK_TOKEN_TELE_OFF = 4;
+RIGHT_CLICK_TOKEN_SC = 2;
+--sub levels
 local RIGHT_CLICK_TOKEN_WIN = 8;
+local RIGHT_CLICK_TOKEN_RESTART = 7;
+local RIGHT_CLICK_DASH = 6;
+local RIGHT_CLICK_TOKEN_TELE_GO = 5;
+RIGHT_CLICK_TOKEN_SPEED_TYPE = 4;
 local RIGHT_CLICK_TOKEN_DIFF = 3;
-local RIGHT_CLICK_TOKEN_DIFF_ON = 8;
-local RIGHT_CLICK_TOKEN_DIFF_OFF = 7;
-local RIGHT_CLICK_TOKEN_NO_LIMIT = 7;
-local RIGHT_CLICK_TOKEN_LIMIT = 6;
+	--subsublevel
+	local RIGHT_CLICK_TOKEN_DIFF_ON = 8;
+	local RIGHT_CLICK_TOKEN_DIFF_OFF = 7;
+local RIGHT_CLICK_TOKEN_STEPPAGE = 2;
+	--subsublevel
+	local RIGHT_CLICK_TOKEN_STEP = 8;
+	local RIGHT_CLICK_TOKEN_UNDO = 7;
+	local RIGHT_CLICK_TOKEN_ADD_ONE = 6;
+	local RIGHT_CLICK_TOKEN_REMOVE_ONE = 5;
+local RIGHT_CLICK_TOKEN_GM = 1;
+	--subsublevel
+	local RIGHT_CLICK_TOKEN_CLEAR = 8
+	local RIGHT_CLICK_TOKEN_NO_LIMIT = 7;
+	local RIGHT_CLICK_TOKEN_LIMIT = 6;
+	local RIGHT_CLICK_TOKEN_TELE_ON = 5;
+	local RIGHT_CLICK_TOKEN_TELE_OFF = 4;
 
 aEffectVarMap = {
 	['sName'] = { sDBType = 'string', sDBField = 'label' },
@@ -157,9 +162,7 @@ function hasExtension(sExtName)
 	if not tExtensions[1] then tExtensions = Extension.getExtensions() end
 	if not sExtName then return end
 	for _,sExtension in ipairs(tExtensions) do
-		if sExtension == sExtName then
-			return true;
-		end
+		if sExtension == sExtName then return true end
 	end
 	return false;
 end
@@ -272,9 +275,7 @@ function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, b
 				bGo = true;
 			end
 		else
-			if nActive ~= 0 then
-				bGo = true;
-			end
+			if nActive ~= 0 then bGo = true end
 		end
 
 		if bGo then
@@ -402,9 +403,7 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 								break;
 							end
 						elseif rEffectComp.type == "IFT" then
-							if not rTarget then
-								break;
-							end
+							if not rTarget then break end
 							if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
 								break;
 							end
@@ -460,21 +459,15 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 		end
 	end
 
-	if #aMatch > 0 then
-		return true;
-	end
+	if #aMatch > 0 then return true end
+
 	return false;
 end
 -- luacheck: pop
 
 -- luacheck: push ignore 561
+-- when using pattern matching, make use of [^%] instead of %uppercase
 function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
-	-- when using pattern matching, make use of [^%] instead of %uppercase
-	--[[if not rActor or not sClause then
-		Debug.console("WtWCommon.hasEffectClause - not rActor or not sClause");
-		return;
-	end]]
-
 	local sLowerClause = sClause:lower();
 	local tEffectCompParams;
 
@@ -532,13 +525,9 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 					-- Check for match
 					if rConditionalHelper.bProcessEffect and string.match(sOriginalLower, sLowerClause) then
 						if rConditionalHelper.bTargeted and not bIgnoreEffectTargets then
-							if EffectManager.isEffectTarget(v, rTarget) then
-								return true, sLabel, v;
-							end
+							if EffectManager.isEffectTarget(v, rTarget) then return true, sLabel, v end
 						else
-							if not bTargetedOnly then
-								return true, sLabel, v;
-							end
+							if not bTargetedOnly then return true, sLabel, v end
 						end
 					end
 				else
@@ -549,9 +538,7 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 								break;
 							end
 						elseif rEffectComp.type == "IFT" then
-							if not rTarget then
-								break;
-							end
+							if not rTarget then break end
 							if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
 								break;
 							end
@@ -560,21 +547,9 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 					-- Check for match
 					if string.match(sOriginalLower, sLowerClause) then
 						if bTargeted and not bIgnoreEffectTargets then
-							if EffectManager.isEffectTarget(v, rTarget) then
-								--if bReturnLabel then
-									return true, sLabel, v;
-								--else
-								--	return true, sLabel, v;
-								--end
-							end
+							if EffectManager.isEffectTarget(v, rTarget) then return true, sLabel, v end
 						else
-							if not bTargetedOnly then
-								--if bReturnLabel then
-									return true, sLabel, v;
-								--else
-								--	return true, sLabel, v;
-								--end
-							end
+							if not bTargetedOnly then return true, sLabel, v end
 						end
 					end
 				end
@@ -649,24 +624,18 @@ function getControllingClient(nodeCT)
 	else
 		sNPCowner = DB.getValue(nodeCT, 'NPCowner', '');
 		if sNPCowner == '' then
-			if Pets and Pets.isCohort(rActor) then
-				sPCNode = getRootCommander(rActor);
-			end
+			if Pets and Pets.isCohort(rActor) then sPCNode = getRootCommander(rActor) end
 		end
 	end
 
 	if sPCNode or sNPCowner then
 		for _,value in pairs(User.getAllActiveIdentities()) do
 			if sPCNode then
-				if 'charsheet.' .. value == sPCNode then
-					return User.getIdentityOwner(value);
-				end
+				if 'charsheet.' .. value == sPCNode then return User.getIdentityOwner(value) end
 			end
 			if sNPCowner then
 				local sIDOwner = User.getIdentityOwner(value)
-				if sIDOwner == sNPCowner then
-					return sIDOwner;
-				end
+				if sIDOwner == sNPCowner then return sIDOwner end
 			end
 		end
 	end
@@ -1299,16 +1268,7 @@ end
 -- luacheck: pop
 
 function convNumToIdNodeName(nId)
-	--[[if not nId then
-		Debug.console("WtWCommon.convNumToIdNodeName - not nId");
-		return;
-	end]]
 	if not string.match(tostring(nId), '^id%-%d%d%d%d%d$') then
-		--[[nId = tonumber(nId);
-		if not nId then
-			Debug.console("WtWCommon.convNumToIdNodeName - not nId")
-			return;
-		end]]
 		nId = tostring(nId);
 		local nZeros = 5 - #nId;
 		local sId = 'id-'
@@ -1364,10 +1324,6 @@ function roundNumber(nInput, nPlaces, sUpDown)
 end
 
 function getConversionFactor(sCurrentUnits, sDesiredUnits)
-	--[[if not sCurrentUnits or not sDesiredUnits then
-		Debug.console("WtWCommon.getConversionFactor - not sCurrentUnits or not sDesiredUnits");
-		return 1;
-	end]]
 	if sCurrentUnits == sDesiredUnits then return 1 end
 	if sCurrentUnits == 'ft.' then
 		if sDesiredUnits == 'm' then
@@ -1866,14 +1822,25 @@ function handleWindowRestart(msgOOB)
 	restartWindow(msgOOB['sWinClass'], DB.findNode(msgOOB['sNodePath']));
 end
 
-function isMovementPossible()
-	if not nCurrMaxSpeed then nCurrMaxSpeed = getLimitingSpeed(nodeCT, nodeWtWCT) end
-
+function isMovementPossible(nodeCT, nDist, sDist, tokenCT, nCurrMaxSpeed, nodeWtWCT)
+	if not nodeCT and not tokenCT then
+		Debug.console("WtWCommon.isMovementPossible - not nodeCT and not tokenCT");
+		return;
+	end
+	if nDist == 0 then return true end
 	if not nodeWtWCT then nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT)) end
+	if not nCurrMaxSpeed then nCurrMaxSpeed = MovementManager.getLimitingSpeed(nodeCT, nodeWtWCT) end
+	if sDist then
+		if nDist or sDist ~= 'half' then
+			Debug.console("WtWCommon.isMovementPossible - sDist invalid");
+			return;
+		end
+		nDist = roundNumber(nCurrMaxSpeed / 2, 0, 'down');
+	end
+
 	local nTraveled = DB.getValue(nodeWtWCT, 'traveled_raw', 0);
 
-	if nTraveled + nDistFriendly > nCurrMaxSpeed then
-		ChatManager.Message("Not enough movement remaining.", WtWCommon.getControllingClient(nodeCT), nodeCT);
-		return false;
-	end
+	if nTraveled + nDist > nCurrMaxSpeed then return false, nDist end
+
+	return true, nDist
 end
