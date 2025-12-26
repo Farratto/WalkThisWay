@@ -93,6 +93,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 * v	<announcement text="Walk this Way v3.1.0 by Farratto." icon="WtW_icon" font="emotefont" />: FIXED: Standing up was cutting max speed by half, when it should be consuming half of max speed; crawl speed was also cutting max speed by half when it should be consuming an additional foot per foot consumed. Reordered Right-click menu. Minor performance improvements.
 * v	<announcement text="Walk this Way v3.1.0 by Farratto." icon="WtW_icon" font="emotefont" />: FIXED: Standing up was cutting max speed by half, when it should be consuming half of max speed; crawl speed was also cutting max speed by half when it should be consuming an additional foot per foot consumed. Reordered Right-click menu. Minor performance improvements.
+* v	<announcement text="Walk this Way v3.1.0 by Farratto." icon="WtW_icon" font="emotefont" />: FIXED: Standing up was cutting max speed by half, when it should be consuming half of max speed; crawl speed was also cutting max speed by half when it should be consuming an additional foot per foot consumed. Reordered Right-click menu. Minor performance improvements.
 * v3.1.0:
 * v3.0.11: FIXED: Dash sometimes doubling on client side. Throwing error when opening speed window from client side for the first time and SC not loaded. Rare errors when using speed syntax incorrectly.
 * v3.0.10: FIXED: exhaustion handling woudld sometimes throw an error.
