@@ -12,12 +12,15 @@
 --luacheck: globals notifyResetRightClick handleResetRightClick processNewCTOwner onTokenRefUpdated onCTDelete
 --luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW cleanDatabase setWtwDbOwner updateWtwDbOwner
 --luacheck: globals restartWindows restartWindow handleWindowRestart isMovementPossible
+--luacheck: globals getLimitingSpeed getSpeedTypes tSpeedTypes populateSpeedtypes t5ESpeedTypes tRulesetSpeedTypes
+--luacheck: globals notifyEmpty handleNotifyEmpty
 
 OOB_MSGTYPE_APPLYHCMDS = 'applyhcmds';
 OOB_MSGTYPE_REGPREF = 'regpreference';
 OOB_MSGTYPE_REQPREF = 'request_preference';
 OOB_MSGTYPE_RESET_RIGHTCLICK = 'reset_right_click';
 OOB_MSGTYPE_RESTART_WINDOW = 'restart_window'
+OOB_MSGTYPE_NOTIFY_EMPTY = 'notify_empty';
 local nodeWtW, nodeWtWList;
 local _sBetterGoldPurity = '';
 local tExtensions = {};
@@ -25,6 +28,10 @@ local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB
 local aExceptionDescriptors = {'steal', 'stealtemp'};
 local tClientPrefs = {};
 local nBootToken = 0;
+tSpeedTypes = {};
+t5ESpeedTypes = {};
+tRulesetSpeedTypes = {};
+
 --top level
 local RIGHT_CLICK_TOKEN_PRIORITY = 1;
 RIGHT_CLICK_TOKEN_SC = 2;
@@ -85,7 +92,9 @@ function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REQPREF, sendPrefRegistration);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_RESET_RIGHTCLICK, handleResetRightClick);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_RESTART_WINDOW, handleWindowRestart);
+	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_NOTIFY_EMPTY, handleNotifyEmpty);
 	DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.tokenrefid', 'onUpdate', onTokenRefUpdated);
+	populateSpeedtypes();
 	if Session.IsHost then
 		setConstants();
 		User.onIdentityActivation = onIdentityActivationWtW;
@@ -1543,7 +1552,7 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 					, RIGHT_CLICK_TOKEN_GM, RIGHT_CLICK_TOKEN_LIMIT
 				);
 			end
-			local sLabels, _, sEmptyLabel = MovementManager.getSpeedTypes(nodeCT);
+			local sLabels, _, sEmptyLabel = getSpeedTypes(nodeCT);
 			MovementManager.populateRightClickSpeedTypes(tokenCT, nodeCT, sLabels, sEmptyLabel);
 		end
 	end
@@ -1823,13 +1832,15 @@ function handleWindowRestart(msgOOB)
 end
 
 function isMovementPossible(nodeCT, nDist, sDist, tokenCT, nCurrMaxSpeed, nodeWtWCT)
-	if not nodeCT and not tokenCT then
-		Debug.console("WtWCommon.isMovementPossible - not nodeCT and not tokenCT");
+	if not SpeedManager or (not nodeCT and not tokenCT) then
+		Debug.console("WtWCommon.isMovementPossible - not SpeedManager or not nodeCT and not tokenCT");
 		return;
 	end
 	if nDist == 0 then return true end
+
 	if not nodeWtWCT then nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT)) end
-	if not nCurrMaxSpeed then nCurrMaxSpeed = MovementManager.getLimitingSpeed(nodeCT, nodeWtWCT) end
+	if not nCurrMaxSpeed then nCurrMaxSpeed = getLimitingSpeed(nodeCT, nodeWtWCT) end
+
 	if sDist then
 		if nDist or sDist ~= 'half' then
 			Debug.console("WtWCommon.isMovementPossible - sDist invalid");
@@ -1843,4 +1854,278 @@ function isMovementPossible(nodeCT, nDist, sDist, tokenCT, nCurrMaxSpeed, nodeWt
 	if nTraveled + nDist > nCurrMaxSpeed then return false, nDist end
 
 	return true, nDist
+end
+
+function getLimitingSpeed(nodeCT, nodeWtWCT)
+	if not nodeWtWCT then nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT)) end
+	local sCurrentSpeed = DB.getValue(nodeCT, 'speed_wtw');
+	local sLimitingSpeedType = DB.getValue(nodeWtWCT, 'speed_type', '');
+	local bEmptyVal, sEmptyLabel;
+	if sLimitingSpeedType == '' then --window not opened or value is default
+		bEmptyVal = true;
+		sEmptyLabel = DB.getValue(nodeWtWCT, 'speed_type_default');
+		if sEmptyLabel and sEmptyLabel ~= '' then
+			sLimitingSpeedType = sEmptyLabel;
+		else
+			getSpeedTypes(nodeCT, nodeWtWCT);
+			if string.match(sCurrentSpeed, 'Crawl') then
+				sLimitingSpeedType = 'crawl';
+			else
+				if OptionsManager.getOption('speed_type_limiter') == 'highest' then
+					sLimitingSpeedType = string.lower(DB.getValue(nodeWtWCT, 'highest_type'));
+				else
+					sLimitingSpeedType = 'walk';
+				end
+			end
+		end
+	end
+
+	--[[if sCurrentSpeed == '' then
+		for _,nodeSpeedType in pairs(DB.getChildren(nodeWtWCT, 'FGSpeed')) do
+			if string.lower(DB.getValue(nodeSpeedType, 'type', '')) == sLimitingSpeedType then
+				local nVel = DB.getValue(nodeSpeedType, 'velocity');
+				if bEmptyVal and nVel and nVel == 0 and OptionsManager.getOption('speed_type_limiter') ~= 'highest'
+				then
+					sLimitingSpeedType = string.lower(DB.getValue(nodeWtWCT, 'highest_type'));
+					for _,nodeSpeedTypeNew in pairs(DB.getChildren(nodeWtWCT, 'FGSpeed')) do
+						if string.lower(DB.getValue(nodeSpeedTypeNew, 'type', '')) == sLimitingSpeedType then
+							return DB.getValue(nodeSpeedTypeNew, 'velocity'), sLimitingSpeedType;
+						end
+					end
+					Debug.console("WtWCommon.getLimitingSpeed - sLimitingSpeedTypeNew not found");
+					return nil, sLimitingSpeedType;
+				end
+				return nVel, sLimitingSpeedType;
+			end
+		end
+		for _,sSpeedType in ipairs(tSpeedTypes) do
+			if sLimitingSpeedType == string.lower(sSpeedType) then
+				for _,nodeSpeedType in pairs(DB.getChildren(nodeWtWCT, 'FGSpeed')) do
+					if string.lower(DB.getValue(nodeSpeedType, 'type', '')) == 'walk' then
+						local nVel = DB.getValue(nodeSpeedType, 'velocity');
+						return nVel, sLimitingSpeedType;
+					end
+				end
+			end
+		end
+		Debug.console("WtWCommon.getLimitingSpeed - sLimitingSpeedType not found");
+		return nil, sLimitingSpeedType;
+	end]]
+
+	local sLimitingSpeed;
+	if sLimitingSpeedType == 'walk' then
+		--sLimitingSpeed = string.gsub(sCurrentSpeed, '%s+%D+.*$', '');
+		sLimitingSpeed = string.match(sCurrentSpeed, '%d+');
+	else
+		local sCurrentSpeedLower = string.lower(sCurrentSpeed);
+		local sParenthesis = string.match(sLimitingSpeedType, '%(.*%)');
+		if sParenthesis then
+			local sLimitSpdSansParenth = string.gsub(sLimitingSpeedType, '%s*%(.*%)%s*', '');
+			for _,sSpdTypeSplit in ipairs(StringManager.splitByPattern(sCurrentSpeedLower, '[,;]', true)) do
+				if string.match(sSpdTypeSplit, '%(.*%)') == sParenthesis then
+					local sSpdTypeSplitSansParenth = string.gsub(sLimitingSpeedType, '%s*%(.*%)%s*', '');
+					if sLimitSpdSansParenth == sSpdTypeSplitSansParenth then
+						sLimitingSpeed = string.match(sSpdTypeSplit, '%d+');
+					end
+				end
+			end
+			if not sLimitingSpeed then sLimitingSpeed = string.match(sCurrentSpeed, '%d+') end
+			if not sLimitingSpeed then sLimitingSpeed = '30' end
+			sLimitingSpeed = string.match(sLimitingSpeed, '%d+');
+		else
+			sCurrentSpeedLower = string.gsub(sCurrentSpeedLower, ';?%s*swimming%*?%s*', '');
+			sLimitingSpeed = string.gsub(sCurrentSpeedLower, '^.*'..sLimitingSpeedType, '');
+			sLimitingSpeed = string.match(sLimitingSpeed, '%d+');
+		end
+	end
+	local nLimitingSpeed = tonumber(sLimitingSpeed);
+
+	if bEmptyVal and nLimitingSpeed and nLimitingSpeed == 0
+		and OptionsManager.getOption('speed_type_limiter') ~= 'highest'
+	then
+		sLimitingSpeedType = string.lower(DB.getValue(nodeWtWCT, 'highest_type'));
+		if sLimitingSpeedType == 'walk' then
+			sLimitingSpeed = string.gsub(sCurrentSpeed, '%s+%D+.*$', '');
+		else
+			local sCurrentSpeedLower = string.lower(sCurrentSpeed);
+			local sParenthesis = string.match(sLimitingSpeedType, '%(.*%)');
+			if sParenthesis then
+				local sLimitSpdSansParenth = string.gsub(sLimitingSpeedType, '%s*%(.*%)%s*', '');
+				for _,sSpdTypeSplit in ipairs(StringManager.splitByPattern(sCurrentSpeedLower, '[,;]', true)) do
+					if string.match(sSpdTypeSplit, '%(.*%)') == sParenthesis then
+						local sSpdTypeSplitSansParenth = string.gsub(sLimitingSpeedType, '%s*%(.*%)%s*', '');
+						if sLimitSpdSansParenth == sSpdTypeSplitSansParenth then
+							sLimitingSpeed = string.match(sSpdTypeSplit, '%d+');
+						end
+					end
+				end
+				sLimitingSpeed = string.match(sLimitingSpeed, '%d+');
+			else
+				sCurrentSpeedLower = string.gsub(sCurrentSpeedLower, ';?%s*swimming%*?%s*', '');
+				sLimitingSpeed = string.gsub(sCurrentSpeedLower, '^.*'..sLimitingSpeedType, '');
+				sLimitingSpeed = string.match(sLimitingSpeed, '%d+');
+			end
+		end
+		return tonumber(sLimitingSpeed), sLimitingSpeedType;
+	end
+
+	return nLimitingSpeed, sLimitingSpeedType;
+end
+function getSpeedTypes(nodeCT, nodeWtWCT)
+	if not nodeCT or type(nodeCT) ~= 'databasenode' then return end
+	if not nodeWtWCT then nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT)) end
+	if not nodeWtWCT then
+		Debug.console("WtWCommon.getSpeedTypes - not nodeWtWCT");
+		return;
+	end
+
+	local sEmptyLabel = 'Walk';
+	local sSpeedTypeSelection = OptionsManager.getOption('speed_type_limiter');
+	if sSpeedTypeSelection == 'highest' then
+		sEmptyLabel = DB.getValue(nodeWtWCT, 'highest_type');
+	end
+
+	local sLabels, sValues, bCanWalk, bCrawl;
+	local sCurrentSpeed = DB.getValue(nodeCT, 'speed_wtw');
+	if sCurrentSpeed then
+		for _,sSpeedSplit in pairs(StringManager.splitByPattern(sCurrentSpeed, '[,;]', true)) do
+			local sWalkVel = string.match(sSpeedSplit, '^%d+');
+			local sSpeedType;
+			if sWalkVel then
+				sSpeedType = 'Walk';
+				bCanWalk = true;
+				local nWalkVel = tonumber(sWalkVel);
+				if nWalkVel and nWalkVel == 0 and sEmptyLabel == 'Walk' then
+					sSpeedTypeSelection = 'highest';
+					sEmptyLabel = DB.getValue(nodeWtWCT, 'highest_type');
+				end
+			else
+				local sSpeedSplitLower = string.lower(sSpeedSplit);
+				if not string.match(sSpeedSplitLower, '^swimming%**$') and not string.match(sSpeedSplitLower
+					, '^difficult%**$') and not string.match(sSpeedSplitLower, '^extra%s*:')
+				then
+					sSpeedType = string.match(sSpeedSplit, '^%D+');
+					if sSpeedType then
+						sSpeedType = string.gsub(sSpeedType, '%s+$', '');
+						sSpeedType = string.gsub(sSpeedType, '%*$', '');
+					else
+						sSpeedType = 'Walk'
+					end
+					local sParenthetic = string.match(sSpeedSplit, '%(.*%)');
+					if sParenthetic then sSpeedType = sSpeedType..' '..sParenthetic end
+					if sSpeedType == 'Walk' then
+						bCanWalk = true;
+						sWalkVel = string.match(sSpeedSplit, '%d+');
+						local nWalkVel;
+						if sWalkVel then
+							nWalkVel = tonumber(sWalkVel);
+							if nWalkVel and nWalkVel == 0 and sEmptyLabel == 'Walk' then
+								sSpeedTypeSelection = 'highest';
+								sEmptyLabel = DB.getValue(nodeWtWCT, 'highest_type');
+							end
+						end
+					end
+					if sSpeedType == 'Crawl' then
+						bCrawl = true;
+					else
+						bCrawl = false;
+					end
+				end
+			end
+			if sSpeedType and sSpeedType ~= sEmptyLabel then
+				if not sLabels then
+					sLabels = sSpeedType;
+				else
+					sLabels = sLabels..'|'..sSpeedType;
+				end
+			end
+		end
+	else
+		for _,nodeSpeedType in pairs(DB.getChildren(nodeWtWCT, 'FGSpeed')) do
+			local sSpeedType = DB.getValue(nodeSpeedType, 'type');
+			if sSpeedType then
+				if sSpeedType == 'Walk' then
+					bCanWalk = true;
+					local nWalkVel = DB.getValue(nodeSpeedType, 'velocity');
+					if nWalkVel and nWalkVel == 0 and sEmptyLabel == 'Walk' then
+						sSpeedTypeSelection = 'highest';
+						sEmptyLabel = DB.getValue(nodeWtWCT, 'highest_type');
+					end
+				end
+				if sSpeedType ~= sEmptyLabel then
+					if not sLabels then
+						sLabels = sSpeedType;
+					else
+						sLabels = sLabels..'|'..sSpeedType;
+					end
+				end
+			end
+		end
+	end
+
+	for _,sSpeedtype in ipairs(tSpeedTypes) do
+		if sSpeedtype ~= sEmptyLabel then
+			if sLabels then
+				if not string.match(sLabels, sSpeedtype) then
+					sLabels = sLabels..'|'..sSpeedtype;
+				end
+			else
+				sLabels = sSpeedtype;
+			end
+		end
+	end
+
+	if bCrawl then
+		sLabels = '';
+		sEmptyLabel = 'Crawl';
+	elseif not bCanWalk and sSpeedTypeSelection == 'walk' then
+		sEmptyLabel = DB.getValue(nodeWtWCT, 'highest_type', '');
+		sLabels = string.gsub(sLabels, sEmptyLabel, '');
+		sLabels = string.gsub(sLabels, '||', '|');
+		sLabels = string.gsub(sLabels, '|$', '');
+	end
+
+	sValues = string.lower(sLabels);
+	notifyEmpty(nodeCT, string.lower(sEmptyLabel), sValues);
+
+	return sLabels, sValues, sEmptyLabel;
+end
+function notifyEmpty(nodeCT, sEmptyLabel, sValues)
+	if Session.IsHost then
+		local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+		DB.setValue(nodeWtWCT, 'speed_type_default', 'string', sEmptyLabel);
+		DB.setValue(nodeWtWCT, 'speed_type_values', 'string', sValues);
+	else
+		local msgOOB = {};
+		msgOOB.type = OOB_MSGTYPE_NOTIFY_EMPTY;
+		msgOOB.sCTNodeID = DB.getPath(nodeCT);
+		msgOOB.sEmptyLabel = sEmptyLabel;
+		msgOOB.sValues = sValues;
+		Comm.deliverOOBMessage(msgOOB, '');
+	end
+end
+function handleNotifyEmpty(msgOOB)
+	if not Session.IsHost then return end
+
+	local sNodeCTName = DB.getName(DB.findNode(msgOOB.sCTNodeID));
+	if not sNodeCTName then return end
+
+	local nodeWtWCT = DB.createChild(nodeWtWList, sNodeCTName);
+	DB.setValue(nodeWtWCT, 'speed_type_default', 'string', msgOOB.sEmptyLabel);
+	DB.setValue(nodeWtWCT, 'speed_type_values', 'string', msgOOB.sValues);
+end
+
+function populateSpeedtypes()
+	table.insert(t5ESpeedTypes, 'Swim');
+	table.insert(t5ESpeedTypes, 'Climb');
+	tRulesetSpeedTypes['5E'] = t5ESpeedTypes;
+
+	for sRuleset,tRulesetSpeeds in pairs(tRulesetSpeedTypes) do --luacheck: ignore 313
+		sRuleset = Session.RulesetName; --remove once multiple rulesets are supported
+		if Session.RulesetName == sRuleset then
+			for _,sSpeedType in ipairs(tRulesetSpeeds) do
+				table.insert(tSpeedTypes, sSpeedType);
+			end
+		end
+	end
 end

@@ -249,11 +249,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 		tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
 		tAccomSpeed = accommKnownExtsSpeed(nodeCT);
 		bProne = WtWCommon.hasEffectClause(rActor, "^Prone$", nil, false, true)
-		--Crawl speed is not max halved, it consumes double
-		--if bProne then
-		--	nHalved = nHalved + 1
-		--	table.insert(tEffectNames, "Prone");
-		--end
+		if bProne then table.insert(tEffectNames, "Prone") end
 	end
 
 	local nSpeedMod = 0;
@@ -756,6 +752,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 
 	local nHighest = 0;
 	local sHighestType;
+	local bCharger = (OptionsManager.isOption('GAVE', '2024') and ActorManager5E.hasRollFeat2024(nodeCT, 'Charger'));
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
 		local nFGSpeed = tSpdRcrd['velocity'];
 		local nFGSpeedNew = nFGSpeed;
@@ -820,6 +817,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 					end
 				end
 				local nSpdFnlFnl = nSpeedFinal;
+				if bCharger then nSpeedFinal = nSpeedFinal + 10 end
 				local nDashType = nDash;
 				while nDashType > 0 do
 					nSpdFnlFnl = nSpdFnlFnl + nSpeedFinal;
@@ -1001,7 +999,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 			end
 		end
 
-		local sVelWithUnits = tostring(tSpdRcrd.velocity) .. ' ' .. sUnitsPrefer
+		local sVelWithUnits = tostring(tSpdRcrd.velocity) .. ' ' .. sUnitsPrefer;
 
 		if bNoBase and not bCurrentFound then
 			nCurrentSpeed = tSpdRcrd.velocity;
@@ -1046,7 +1044,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		end
 	end
 	if bProne and not string.match(sReturn, 'Crawl') then
-		sReturn = 'Crawl '..tostring(nHighest * nConvFactor)..' '..sUnitsPrefer
+		sReturn = 'Crawl '..tostring(nHighest * nConvFactor)..' '..sUnitsPrefer;
 	end
 	if string.match(sReturn, 'Crawl') then
 		DB.setValue(nodeWtWCT, 'highest', 'number', nHighest * nConvFactor);
@@ -1746,8 +1744,6 @@ function closeSpeedWindow(nodeCT)
 end
 
 function turnStartChecks(nodeCT)
-	local sOwner = WtWCommon.getControllingClient(nodeCT);
-
 	--[[--if nodeUbiquinated then
 	for _,nodeUbiquinated in pairs(tUbiquinatedNodes) do
 		if type(nodeUbiquinated) == 'databasenode' then
@@ -1759,6 +1755,22 @@ function turnStartChecks(nodeCT)
 	end
 	tUbiquinatedNodes = {};]]
 
+	if not EffectManagerBCE then
+		for _,nodeCtTemp in ipairs(CombatManager.getAllCombatantNodes()) do
+			local tDashFx = WtWCommon.hasEffectFindString(nodeCtTemp, '^Dash$', true, false, true, true);
+			if tDashFx then
+				for _,tEffect in ipairs(tDashFx) do
+					if DB.getValue(tEffect['node'], 'duration', 1) == 1 then
+						--DB.deleteNode(tEffect['node']);
+						EffectManager.expireEffect(nodeCT, tEffect['node'], 0);
+						--if type(tEffect['node']) == 'databasenode' then DB.deleteNode(tEffect['node']) end
+					end
+				end
+			end
+		end
+	end
+
+	local sOwner = WtWCommon.getControllingClient(nodeCT);
 	if sOwner then
 		local msgOOB = {};
 		msgOOB.type = OOB_MSGTYPE_SPEEDWINDOW;

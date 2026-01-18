@@ -17,13 +17,13 @@ The prone checker will also check for any conditions that disallow a creature to
 
 * Grappled; Paralyzed; Petrified; Restrained; Unconscious; Tasha's Hideous Laughter; Unable to Stand; SPEED: none; NOSTAND; SPEED: max(0)
 
-The window asks if the person wants to stand up.  If they answer okay, the extension will remove the effect that contains prone and add an effect that says "SPEED: halved" that lasts until the end of turn.  If they answer cancel, close the window, or ignore the window, the extension will do nothing. \
+The window asks if the person wants to stand up.  If they answer okay, the extension will remove the effect that contains prone, and if you are also running [Step Counter](https://www.fantasygrounds.com/forums/showthread.php?84497) and 5E, it will consume half of the creature's current max speed.  If they answer cancel, close the window, or ignore the window, the extension will do nothing. \
 The window  can be ignored and it will go away at the end of turn without consequences. \
 The speed effects that are recognized:
 
 | Effect | Description |
 | :--- | :--- |
-| SPEED: none | rooted
+| SPEED: none | rooted |
 | SPEED: -10 or SPEED: 10 dec or SPEED: dec(10) | decreases all speeds by 10 |
 | SPEED: 10 inc or SPEED: inc(10) | increases all speeds by 10 |
 | SPEED: 60 | increases all speeds to 60 (speeds already above 60 will be unchanged) |
@@ -46,7 +46,7 @@ The extension updates all the speeds on the speed field in the combat tracker.  
 
 Option setting (for GM and players) to change the units that speed is displayed in.  Current choices are feet, meters, and tiles.  Automatically rounds final speed down to nearest half tile.  Typing /distunits followed by either ft, m, or tiles will change the units that the effects are processed in.  This is advanced usage and I don't recommend unless all your effects are not in feet (unusual).
 
-Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted, Temporal Fixation, Step Counter, Map Parcels
+Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted, Temporal Fixation, [Step Counter](https://www.fantasygrounds.com/forums/showthread.php?84497), Map Parcels
 
 ### Known Limitations
 
@@ -62,7 +62,7 @@ This extension was designed with 5e in mind, but I have ported it to work on mos
 
 If you would like me to add to this list, or make more specific accomodations for your ruleset, please let me know.
 
-Any ruleset based on DnD or Pathfinder should work for speed calculations and thus for supporting maximum speed limitation in Step Counter.  If you find that one of these rulesets is not working or you have another ruleset you'd like me to add, please let me know.
+Any ruleset based on DnD or Pathfinder should work for speed calculations and thus for supporting maximum speed limitation in [Step Counter](https://www.fantasygrounds.com/forums/showthread.php?84497).  If you find that one of these rulesets is not working or you have another ruleset you'd like me to add, please let me know.
 
 ### Pathfinder 2e
 
@@ -91,10 +91,8 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
-* v	<announcement text="Walk this Way v3.1.0 by Farratto." icon="WtW_icon" font="emotefont" />: FIXED: Standing up was cutting max speed by half, when it should be consuming half of max speed; crawl speed was also cutting max speed by half when it should be consuming an additional foot per foot consumed. Reordered Right-click menu. Minor performance improvements.
-* v	<announcement text="Walk this Way v3.1.0 by Farratto." icon="WtW_icon" font="emotefont" />: FIXED: Standing up was cutting max speed by half, when it should be consuming half of max speed; crawl speed was also cutting max speed by half when it should be consuming an additional foot per foot consumed. Reordered Right-click menu. Minor performance improvements.
-* v	<announcement text="Walk this Way v3.1.0 by Farratto." icon="WtW_icon" font="emotefont" />: FIXED: Standing up was cutting max speed by half, when it should be consuming half of max speed; crawl speed was also cutting max speed by half when it should be consuming an additional foot per foot consumed. Reordered Right-click menu. Minor performance improvements.
-* v3.1.0:
+* v3.2.0: FIXED: Rare error when standing up; was not reporting prone as an effect affecting speed. Charger feat from 2024 PHB now fully automated improved dash. Dash will now expire on turn change without having BCE loaded.
+* v3.1.0: FIXED: Standing up was cutting max speed by half, when it should be consuming half of max speed; crawl speed was also cutting max speed by half when it should be consuming an additional foot per foot consumed. Reordered Right-click menu. Minor performance improvements.
 * v3.0.11: FIXED: Dash sometimes doubling on client side. Throwing error when opening speed window from client side for the first time and SC not loaded. Rare errors when using speed syntax incorrectly.
 * v3.0.10: FIXED: exhaustion handling woudld sometimes throw an error.
 * v3.0.9: FIXED: was not handling speed on certain NPCs well.
