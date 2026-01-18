@@ -91,7 +91,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
-* v3.2.0: FIXED: Rare error when standing up; was not reporting prone as an effect affecting speed. Charger feat from 2024 PHB now fully automated improved dash. Dash will now expire on turn change without having BCE loaded.
+* dr: FIXED: Rare error when standing up; was not reporting prone as an effect affecting speed. Charger feat from 2024 PHB now fully automated improved dash. Dash will now expire on turn change without having BCE loaded.rm
 * v3.1.0: FIXED: Standing up was cutting max speed by half, when it should be consuming half of max speed; crawl speed was also cutting max speed by half when it should be consuming an additional foot per foot consumed. Reordered Right-click menu. Minor performance improvements.
 * v3.0.11: FIXED: Dash sometimes doubling on client side. Throwing error when opening speed window from client side for the first time and SC not loaded. Rare errors when using speed syntax incorrectly.
 * v3.0.10: FIXED: exhaustion handling woudld sometimes throw an error.
