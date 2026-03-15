@@ -304,13 +304,13 @@ function standUp(nodeCT, bHostAuth, bAthlete, nDist)
 			end
 
 			bConsume = true;
-			SpeedManager.tStoodUp[nodeCT] = true; --luacheck: ignore 142
+			--SpeedManager.tStoodUp[nodeCT] = true; --luacheck: ignore 142
 		end
 	end
 
 	if bHostAuth then
 		bConsume = true;
-		SpeedManager.tStoodUp[nodeCT] = true; --luacheck: ignore 142
+		--SpeedManager.tStoodUp[nodeCT] = true; --luacheck: ignore 142
 	end
 
 	WtWCommon.removeEffectClause(nodeCT, "Prone");

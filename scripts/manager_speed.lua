@@ -2,7 +2,7 @@
 -- attribution and copyright information.
 
 --luacheck: globals speedCalculator handleExhaustion setAllCharSheetSpeeds setCharSheetSpeed onLoginWtW
---luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow handleStoodUp
+--luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow
 --luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
 --luacheck: globals parseSpeedType onTabletopInit recalcAllSpeeds tidyUnits handleSlash
 --luacheck: globals handleCloseSpeedWindow closeSpeedWindow roundNearestHalfTile removeEffectTooHeavy
@@ -10,14 +10,13 @@
 --luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
 --luacheck: globals parseBaseSpeed reparseBaseSpeed reparseAllBaseSpeeds reparseBaseSpeedSpecial setConstants
 --luacheck: globals frest restWtW faddEffectByTable addEffectByTableWtW
---luacheck: globals tStoodUp
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
 
 local bLoopProt, nodeWtW, nodeWtWList, bProtExhaust, nodeLastHandled, nActiveLast, sLabelLast;
 --local tUbiquinatedNodes = {};
-tStoodUp = {};
+--tStoodUp = {};
 
 function onInit()
 	if Session.IsHost then
@@ -141,7 +140,7 @@ function callSpeedCalcEffectUpdated(nodeEffectChild)
 
 	bLoopProt = true;
 	handleExhaustion(nodeCT, sNodeEffectLabel);
-	if MovementManager then handleStoodUp(nodeCT, sNodeEffectLabel) end
+	--if MovementManager then handleStoodUp(nodeCT, sNodeEffectLabel) end
 	speedCalculator(nodeCT);
 	bLoopProt = false;
 
@@ -1493,7 +1492,7 @@ function addEffectByTableWtW(vActor, rEffect, ...)
 	return faddEffectByTable(vActor, rEffect, ...);
 end
 
-function handleStoodUp(nodeCT, sNodeEffectLabel)
+--[[function handleStoodUp(nodeCT, sNodeEffectLabel)
 	if not sNodeEffectLabel then return end
 
 	if Session.RulesetName == '5E' then
@@ -1521,7 +1520,7 @@ function handleStoodUp(nodeCT, sNodeEffectLabel)
 			end
 		end
 	end
-end
+end]]
 
 --[[forPay extension currently does this by teamTwoey (author: MatteKure)
 --https://forge.fantasygrounds.com/shop/items/1606/view

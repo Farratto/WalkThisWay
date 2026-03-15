@@ -1880,7 +1880,7 @@ function isMovementPossible(nodeCT, nDist, sDist, tokenCT, nCurrMaxSpeed, nodeWt
 		Debug.console("WtWCommon.isMovementPossible - not SpeedManager or not nodeCT and not tokenCT");
 		return;
 	end
-	if nDist == 0 then return true end
+	if nDist and nDist == 0 then return true end
 
 	if not nodeWtWCT then nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT)) end
 	if not nCurrMaxSpeed then nCurrMaxSpeed = getLimitingSpeed(nodeCT, nodeWtWCT) end
