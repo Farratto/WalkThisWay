@@ -10,10 +10,10 @@
 --luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor getAllImageWindows
 --luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken restoreOtherRightClicks
 --luacheck: globals notifyResetRightClick handleResetRightClick processNewCTOwner onTokenRefUpdated onCTDelete
---luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW cleanDatabase setWtwDbOwner updateWtwDbOwner
+--luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW catchDirtyCtUpdate setWtwDbOwner updateWtwDbOwner
 --luacheck: globals restartWindows restartWindow handleWindowRestart isMovementPossible
 --luacheck: globals getLimitingSpeed getSpeedTypes tSpeedTypes populateSpeedtypes t5ESpeedTypes tRulesetSpeedTypes
---luacheck: globals notifyEmpty handleNotifyEmpty
+--luacheck: globals notifyEmpty handleNotifyEmpty cleanDatabase
 
 OOB_MSGTYPE_APPLYHCMDS = 'applyhcmds';
 OOB_MSGTYPE_REGPREF = 'regpreference';
@@ -99,10 +99,11 @@ function onInit()
 		setConstants();
 		User.onIdentityActivation = onIdentityActivationWtW;
 		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.NPCowner','onUpdate', processNewCTOwner);
+		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.link', 'onUpdate', catchDirtyCtUpdate);
 		DB.addHandler('charsheet.*', 'onObserverUpdate', updateWtwDbOwner);
 		CombatManager.setCustomPreDeleteCombatantHandler(onCTDelete);
-		fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
-		CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
+		--fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
+		--CombatRecordManager.onRecordTypeEvent = onRecordTypeEventWtW;
 	else
 		DB.addEventHandler('onDataLoaded', setConstants);
 	end
@@ -232,7 +233,7 @@ function updateWtwDbOwner(nodeChar)
 	local bPets;
 	if Pets and DB.getChildCount(nodeChar, 'cohorts') > 0 then bPets = true end
 	for _,nodeCTLoop in ipairs(CombatManager.getAllCombatantNodes()) do
-		local nodeWtWCTLoop = DB.createChild(nodeWtW, DB.getName(nodeCTLoop));
+		local nodeWtWCTLoop = DB.createChild(nodeWtWList, DB.getName(nodeCTLoop));
 		if bPets and Pets.isCohort(nodeCTLoop) and Pets.getCommanderNode(nodeCTLoop) == nodeChar then
 			if bOwnerCleared then
 				DB.removeAllHolders(nodeWtWCTLoop);
@@ -244,6 +245,31 @@ function updateWtwDbOwner(nodeChar)
 			if sNPCowner == sOwner then DB.setOwner(nodeWtWCTLoop, sOwner) end
 		end
 	end
+end
+function catchDirtyCtUpdate(nodeLink)
+	--if not PolymorphismManager or not ActorManager.isPC(rActor) then return end
+
+	local nodeCT = DB.getParent(nodeLink);
+	setWtwDbOwner(nil, nodeCT);
+	if SpeedManager then
+		SpeedManager.parseBaseSpeed(nodeCT, true);
+		if OptionsManager.isOption('check_item_str', 'on') then
+			SpeedManager.checkInvForHeavyItems(nodeCT);
+		end
+	end
+end
+function processNewCTOwner(nodeUpdated)
+	local nodeCT = DB.getParent(nodeUpdated);
+	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
+
+	local sNPCowner = DB.getValue(nodeCT, 'NPCowner');
+	if sNPCowner then
+		DB.setOwner(nodeWtWCT, sNPCowner);
+	else
+		DB.removeAllHolders(nodeWtWCT);
+	end
+
+	notifyResetRightClick(nodeCT);
 end
 
 function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, bReturnNode, bFindAll)
@@ -1617,9 +1643,10 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			or nTeleAllowed == 1
 		then
 			MovementManager.processTravelDist(nodeCT, true, token);
-			MovementManager.propagateTextWidget(token, "Tele Start", 'moved', false, false, 'dist_label_large'
-				, -13
-			);
+			--MovementManager.propagateTextWidget(token, "Tele Start", 'moved', false, false, 'dist_label_large'
+			--	, -13
+			--);
+			MovementManager.propagateTextWidget(token, "Tele Start", nil, 'dist_label_large', -13);
 			DB.setValue(nodeWtWCT, 'teleport', 'number', 1);
 		else
 			Comm.addChatMessage({ text = "That creature is not permitted to teleport." });
@@ -1671,8 +1698,15 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 					sValue = string.gsub(sValue, '|.*$', '');
 				end
 				if sSpeedType and sSpeedType == sValue then return end
-				MovementManager.determineGoSpeedChange(nodeCT);
+				--MovementManager.determineGoSpeedChange(nodeCT);
+				local bGoLabel = MovementManager.determineGoSpeedChange(nodeCT);
 				if not bDefault then DB.setValue(nodeWtWCT, 'speed_type', 'string', sValue) end
+				local tokenNew = MovementManager.updateProto(nodeCT, nodeWtWCT, token, sValue);
+				if bGoLabel then
+					--MovementManager.processTravelDist(nodeCT, false, tokenNew);
+					MovementManager.processTravelDist(nodeCT, false, tokenNew, nil, nil, nil, nil, nil, true);
+				end
+				MovementManager.updateSpeedWindow(nodeCT, sValue, nodeWtWCT)
 				return;
 			end
 		end
@@ -1712,20 +1746,6 @@ function notifyResetRightClick(nodeCT, sOwner)
 end
 function handleResetRightClick(msgOOB)
 	registerTokenRightClick(nil, DB.findNode(msgOOB.sCTNodeID), true);
-end
-
-function processNewCTOwner(nodeUpdated)
-	local nodeCT = DB.getParent(nodeUpdated);
-	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
-
-	local sNPCowner = DB.getValue(nodeCT, 'NPCowner');
-	if sNPCowner then
-		DB.setOwner(nodeWtWCT, sNPCowner);
-	else
-		DB.removeAllHolders(nodeWtWCT);
-	end
-
-	notifyResetRightClick(nodeCT);
 end
 
 function onTokenRefUpdated(nodeUpdated)
@@ -1774,22 +1794,22 @@ function onRecordTypeEventWtW(sRecordType, tCustom, ...)
 	if nodeCT then
 		sNodeCTName = DB.getName(nodeCT);
 	else
-		return;
+		return bResult;
 	end
 	if sNodeCTName then
 		DB.deleteChild(nodeWtWList, sNodeCTName);
 	else
 		Debug.console("WtWCommon.onRecordTypeEventWtW - not sNodeCTName");
-		return;
+		return bResult;
 	end
 
 	if SpeedManager then SpeedManager.parseBaseSpeed(nodeCT, true) end
 
 	if MovementManager then
-		if not tCustom.nodeRecord then
-			tCustom.nodeRecord = DB.findNode(tCustom.sRecord);
+		if not tCustom['nodeRecord'] then
+			tCustom['nodeRecord'] = DB.findNode(tCustom['sRecord']);
 		end
-		setWtwDbOwner(tCustom.nodeRecord, nodeCT);
+		setWtwDbOwner(tCustom['nodeRecord'], nodeCT);
 	end
 
 	if SpeedManager and OptionsManager.isOption('check_item_str', 'on') then
@@ -1800,12 +1820,26 @@ function onRecordTypeEventWtW(sRecordType, tCustom, ...)
 end
 
 function restartWindows(sWinClass, nodeSource, nodeCT, sOwner)
-	if not Session.IsHost then
-		restartWindow(sWinClass, nodeSource);
+	if not sWinClass then
+		Debug.console("WtWCommon.restartWindows - not sWinClass");
 		return;
 	end
 
-	if not sOwner then
+	local msgOOB = {};
+	if not Session.IsHost then
+		restartWindow(sWinClass, nodeSource);
+
+		msgOOB['type'] = OOB_MSGTYPE_RESTART_WINDOW;
+		msgOOB['sWinClass'] = sWinClass;
+		msgOOB['sNodePath'] = DB.getPath(nodeSource);
+		msgOOB['sHostTarget'] = 'true';
+		Comm.deliverOOBMessage(msgOOB); --tell host to restart it's window too
+		return;
+	end
+
+	restartWindow(sWinClass, nodeSource); --Host Window
+
+	if not sOwner then --client Window
 		if not nodeCT then nodeCT = DB.findNode(CombatManager.CT_LIST..'.'..DB.getName(nodeSource)) end
 		sOwner = getControllingClient(nodeCT);
 		if not sOwner then
@@ -1814,21 +1848,31 @@ function restartWindows(sWinClass, nodeSource, nodeCT, sOwner)
 		end
 	end
 
-	local msgOOB = {};
 	msgOOB['type'] = OOB_MSGTYPE_RESTART_WINDOW;
 	msgOOB['sWinClass'] = sWinClass;
 	msgOOB['sNodePath'] = DB.getPath(nodeSource);
 	Comm.deliverOOBMessage(msgOOB, sOwner);
 end
+function handleWindowRestart(msgOOB)
+	if not msgOOB then
+		Debug.console("WtWCommon.handleWindowRestart - not msgOOB");
+		return;
+	end
+	if not Session.IsHost and msgOOB['sHostTarget'] == 'true' then return end
+
+	restartWindow(msgOOB['sWinClass'], DB.findNode(msgOOB['sNodePath']));
+end
 function restartWindow(sWinClass, nodeSource)
+	if not sWinClass then
+		Debug.console("WtWCommon.restartWindow - not sWinClass");
+		return;
+	end
+
 	local win = Interface.findWindow(sWinClass, nodeSource);
 	if win then
 		win.close();
 		Interface.openWindow(sWinClass, nodeSource);
 	end
-end
-function handleWindowRestart(msgOOB)
-	restartWindow(msgOOB['sWinClass'], DB.findNode(msgOOB['sNodePath']));
 end
 
 function isMovementPossible(nodeCT, nDist, sDist, tokenCT, nCurrMaxSpeed, nodeWtWCT)

@@ -1,6 +1,6 @@
 ## Walk This Way
-**Current Version**: v3.1.0 \
-**Updated**: 2025-12-26
+**Current Version**: ~v-dev~ \
+**Updated**: ~date~
 
 This extension provides a small popup window at the start of a person's turn that asks if they want to stand up, if they are prone. Version 2 of this extension now also calculates total effective speed after effects in combat tracker.
 
@@ -29,6 +29,7 @@ The speed effects that are recognized:
 | SPEED: 60 | increases all speeds to 60 (speeds already above 60 will be unchanged) |
 | SPEED: type(climb) | adds a new speed 'climb' and sets it to be the same as walking speed |
 | SPEED: 60 type(fly) | adds a new speed 'Fly' and sets only the new speed to 60 |
+| SPEED: 60 type(fly (hover)) | does the above and flags the fly speed as having hover |
 | SPEED: -30 type(fly) | decreases fly speed by 30 |
 | SPEED: type(-fly) | removes fly speed |
 | SPEED: 5 max or SPEED: max(5) | none of the speeds can exceed 5
@@ -40,13 +41,13 @@ The speed effects that are recognized:
 | SPEED: 4 extra | moving 1 unit costs 4 additional units (see 5E's Plant Growth); stackable |
 | SPEED: free | ignores effects that reduce speed except roots, prone, exhausted, & encumbered (see 5E's  Freedom of Movement) |
 
-Supports 5e RAW encumbered (both standard and variant), exhaustion, dash, and 2024 athlete feat rules.  Reduces speed when character is wearing armor the character is not strong enough to wear.  Checks for 2014 dwarfs first.
+Supports 5e RAW encumbered (both standard and variant), exhaustion, dash, the 2024 feats: athlete and charger.  Reduces speed when character is wearing armor the character is not strong enough to wear.  Checks for 2014 dwarfs first.
 
 The extension updates all the speeds on the speed field in the combat tracker.  Character sheets still show base speed.  There is an optional window that shows all the speeds for a character and all the effects affecting their speed.You can have the window open automatically on your turn through an option setting.  Or you can open the window at any time by double-clicking the speed field on a character sheet or the combat tracker.
 
 Option setting (for GM and players) to change the units that speed is displayed in.  Current choices are feet, meters, and tiles.  Automatically rounds final speed down to nearest half tile.  Typing /distunits followed by either ft, m, or tiles will change the units that the effects are processed in.  This is advanced usage and I don't recommend unless all your effects are not in feet (unusual).
 
-Current Extension/Module Support: Better Combat Effects, Pets, GrimPress's 5e Automatic Effects, Team Twohy's 5e Effects Coding, Assistant GM, Mad Nomad's Character Sheet Effects Display, 5E Auto Encumbrance, Exhausted, Temporal Fixation, [Step Counter](https://www.fantasygrounds.com/forums/showthread.php?84497), Map Parcels
+Current Extension/Module Support: [Better Combat Effects](https://www.fantasygrounds.com/forums/showthread.php?68831), [Pets](https://www.fantasygrounds.com/forums/showthread.php?83084), [5e Automatic Effects](https://www.fantasygrounds.com/forums/showthread.php?67481), Team Twohy's 5e Effects Coding, [Assistant GM](https://www.fantasygrounds.com/forums/showthread.php?66158), [Mad Nomad's Character Sheet Effects Display](https://www.fantasygrounds.com/forums/showthread.php?62341), [5E Auto Encumbrance](https://www.fantasygrounds.com/forums/showthread.php?68694), [Exhausted](https://www.fantasygrounds.com/forums/showthread.php?69623), [Initiative-Nanny](https://www.fantasygrounds.com/forums/showthread.php?84346), [Step Counter](https://www.fantasygrounds.com/forums/showthread.php?84497), [Map Parcels](https://www.fantasygrounds.com/forums/showthread.php?62134)
 
 ### Known Limitations
 
@@ -91,6 +92,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v3.2.1: FIXED: rare problems with speed window on client-controlled NPCs. Accomodation for CoreRPG change to EffectManager.addEffect.
 * v3.2.0: FIXED: Rare error when standing up; was not reporting prone as an effect affecting speed. Charger feat from 2024 PHB now fully automated improved dash. Dash will now expire on turn change without having BCE loaded.
 * v3.1.0: FIXED: Standing up was cutting max speed by half, when it should be consuming half of max speed; crawl speed was also cutting max speed by half when it should be consuming an additional foot per foot consumed. Reordered Right-click menu. Minor performance improvements.
 * v3.0.11: FIXED: Dash sometimes doubling on client side. Throwing error when opening speed window from client side for the first time and SC not loaded. Rare errors when using speed syntax incorrectly.

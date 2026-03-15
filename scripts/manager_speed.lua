@@ -9,7 +9,7 @@
 --luacheck: globals turnStartChecks roundMph onTurnEndWtW toggleCheckItemStr clearAllItemStrengthHandlers
 --luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
 --luacheck: globals parseBaseSpeed reparseBaseSpeed reparseAllBaseSpeeds reparseBaseSpeedSpecial setConstants
---luacheck: globals frest restWtW faddEffect addEffectWtW
+--luacheck: globals frest restWtW faddEffectByTable addEffectByTableWtW
 --luacheck: globals tStoodUp
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
@@ -43,8 +43,10 @@ function onInit()
 		frest = CombatManager2.rest;
 		CombatManager2.rest = restWtW;
 		User.onLogin = onLoginWtW;
-		faddEffect = EffectManager.addEffect;
-		EffectManager.addEffect = addEffectWtW;
+		--faddEffect = EffectManager.addEffect;
+		--EffectManager.addEffect = addEffectWtW;
+		faddEffectByTable = EffectManager.addEffectByTable;
+		EffectManager.addEffectByTable = addEffectByTableWtW;
 		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(onTurnEndWtW);
 	else
@@ -314,6 +316,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 		local sRmndrLower = string.lower(sRemainder);
 
 		--start matching
+		--StringManager.startsWith does use patterns
 		if StringManager.startsWith(sRmndrLower, 'free') then
 			bFree = true;
 			bRecognizedRmndr = true;
@@ -1474,19 +1477,20 @@ function restWtW(bLong, ...)
 		handleExhaustion(nodeCT);
 	end
 end
-function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg, ...)
-	if rNewEffect and rNewEffect['sName'] then
-		local sMatch = string.match(rNewEffect['sName'], "^Exhausted; ");
+--function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg, ...)
+function addEffectByTableWtW(vActor, rEffect, ...)
+	if rEffect and rEffect['sName'] then
+		local sMatch = string.match(rEffect['sName'], "^Exhausted; ");
 		if sMatch then
-			if string.match(rNewEffect['sName'], "^Exhausted; Speed ")
-				or string.match(rNewEffect['sName'], "^Exhausted; DEATH$")
+			if string.match(rEffect['sName'], "^Exhausted; Speed ")
+				or string.match(rEffect['sName'], "^Exhausted; DEATH$")
 			then
 				return nil;
 			end
 		end
 	end
 
-	return faddEffect(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg, ...);
+	return faddEffectByTable(vActor, rEffect, ...);
 end
 
 function handleStoodUp(nodeCT, sNodeEffectLabel)
