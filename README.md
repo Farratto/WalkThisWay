@@ -93,10 +93,6 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 ### Change Log
 
 * v3.2.3: FIXED: Error from changes to BCEG
-* v3.2.3: FIXED: Error from changes to BCEG
-* v3.2.3: FIXED: Error from changes to BCEG
-* v3.2.3: FIXED: Error from changes to BCEG
-* v3.2.3: FIXED: Error from changes to BCEG
 * v3.2.2: FIXED: Standing up from prone was consuming too much speed on clients.
 * v3.2.1: FIXED: rare problems with speed window on client-controlled NPCs. Accomodation for CoreRPG change to EffectManager.addEffect.
 * v3.2.0: FIXED: Rare error when standing up; was not reporting prone as an effect affecting speed. Charger feat from 2024 PHB now fully automated improved dash. Dash will now expire on turn change without having BCE loaded.
