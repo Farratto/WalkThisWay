@@ -25,9 +25,7 @@ function onInit()
 			DB.setValue(nodeWtW, 'effectUnits', 'string', 'ft.');
 		end
 		Comm.registerSlashHandler('distunits', handleSlash, '[ft|m|tiles]')
-		EffectManager.registerEffectCompType('SPEED', { bIgnoreTarget = true, bNoDUSE = true,
-			bIgnoreOtherFilter = true, bIgnoreExpire = true
-		});
+		EffectManager.setTagOptions('SPEED', { bIgnoreTarget = true, bNoDUSE = true });
 			--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE
 			--continued: bSpell bOneShot bIgnoreExpire bIgnoreTarget
 		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.speed', 'onUpdate', reparseBaseSpeed);
@@ -248,6 +246,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 		end
 
 		tSpeedEffects = WtWCommon.getEffectsByTypeWtW(rActor, 'SPEED%s*:');
+		--tSpeedEffects = EffectManager.getCompsDataByTag(rActor, 'SPEED');
 		tAccomSpeed = accommKnownExtsSpeed(nodeCT);
 		bProne = WtWCommon.hasEffectClause(rActor, "^Prone$", nil, false, true)
 		if bProne then table.insert(tEffectNames, "Prone") end
@@ -942,6 +941,7 @@ function parseSpeedType(sType, tFGSpeedNew, bMatch)
 	return nFound, bExactMatch, sQualifier, sTypeFly, sTypeHover, sTypeSpider, bMatchSpider;
 end
 
+-- luacheck: push ignore 561
 function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest, bNoBase
 	, sHighestType, bDifficult, nExtra, bSwimming
 )
@@ -1096,6 +1096,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		return false;
 	end
 end
+-- luacheck: pop
 
 function reparseAllBaseSpeeds()
 	if not Session.IsHost then
@@ -1140,6 +1141,7 @@ function reparseBaseSpeed(nodeSpeed, nodeCT)
 	parseBaseSpeed(nodeCT, true);
 end
 
+-- luacheck: push ignore 561
 function parseBaseSpeed(nodeCT, bCalc)
 	if not nodeCT or not Session.IsHost then
 		Debug.console("SpeedManager.parseBaseSpeed - not nodeCT or not host");
@@ -1265,6 +1267,7 @@ function parseBaseSpeed(nodeCT, bCalc)
 	end
 	if not DB.getValue(nodeCT, 'speed_wtw') or bCalc then speedCalculator(nodeCT, true) end
 end
+-- luacheck: pop
 
 function setAllCharSheetSpeeds()
 	if not Session.IsHost then

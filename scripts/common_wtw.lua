@@ -22,7 +22,6 @@ OOB_MSGTYPE_RESET_RIGHTCLICK = 'reset_right_click';
 OOB_MSGTYPE_RESTART_WINDOW = 'restart_window'
 OOB_MSGTYPE_NOTIFY_EMPTY = 'notify_empty';
 local nodeWtW, nodeWtWList;
---local _sBetterGoldPurity = '';
 local tExtensions = {};
 local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
 local aExceptionDescriptors = {'steal', 'stealtemp'};
@@ -110,9 +109,6 @@ function onInit()
 end
 
 function onTabletopInit()
-	--if CharacterListManagerBCE then
-	--	_sBetterGoldPurity = checkBetterGoldPurity();
-	--end
 	if Session.IsHost then
 		for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 			setWtwDbOwner(nil, nodeCT);
@@ -287,31 +283,16 @@ function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, b
 		sClause = string.lower(sString);
 	end
 
-	--if EffectManagerBCE then
-	--	tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
-	--end
 	aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
 
 	local tResults = {};
 	-- Iterate through each effect
 	for _, v in pairs(aEffects) do
-		local nActive = DB.getValue(v, 'isactive', 0);
 		local bGo = false;
 		local tResOne = {};
 
-		--[[if EffectManagerBCE then
-			local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
-				(not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
-				(tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
-
-			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
-			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
-			  (EffectManagerADND.isValidCheckEffect(rActor, v)))) then
-				bGo = true;
-			end
-		else]]
-			if nActive ~= 0 then bGo = true end
-		--end
+		local nActive = DB.getValue(v, 'isactive', 0);
+		if nActive ~= 0 then bGo = true end
 
 		if bGo then
 			local sLabel = DB.getValue(v, 'label', '');
@@ -352,7 +333,8 @@ function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, b
 end
 
 -- luacheck: push ignore 561
---function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets, bNoTurbo)
+--potential replacement: EffectManager.removeEffectsByTag(rActor, sEffectTag, tData)
+  --this replacement requires edit because it's going to remove entire effect instead of only clause
 function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
 	if not rActor or not sClause then
 		Debug.console("WtWCommon.removeEffectClause - not rActor or not sClause");
@@ -361,44 +343,18 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 
 	local sLowerClause = sClause:lower();
 	local aMatch = {};
-	local aEffects;
-	--[[local tEffectCompParams;
-
-	if EffectManagerBCE then
-		tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
-	end
-	if TurboManager and not bNoTurbo then
-		aEffects = TurboManager.getMatchedEffects(rActor, sClause);
-	else]]
-		aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
-	--end
+	local aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
 
 	-- Iterate through each effect
 	for _, v in pairs(aEffects) do
-		local nActive = DB.getValue(v, 'isactive', 0);
 		local bGo = false;
 		local bTargeted;
-		--[[local rConditionalHelper;
 
-		if EffectManagerBCE then
-			rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
-
-			local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
-				(not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
-				(tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
-
-			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
-			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
-			  (EffectManagerADND.isValidCheckEffect(rActor, v) or (rTarget and EffectManagerADND.isValidCheckEffect(rTarget, v))))) then
-				bGo = true
-				rConditionalHelper.bTargeted = EffectManager.isTargetedEffect(v);
-			end
-		else]]
-			if nActive ~= 0 then
-				bGo = true;
-				bTargeted = EffectManager.isTargetedEffect(v);
-			end
-		--end
+		local nActive = DB.getValue(v, 'isactive', 0);
+		if nActive ~= 0 then
+			bGo = true;
+			bTargeted = EffectManager.isTargetedEffect(v);
+		end
 
 		if bGo then
 			-- Parse each effect label
@@ -410,52 +366,30 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 			local tMatch = {};
 			for kEffectComp, sEffectComp in ipairs(aEffectComps) do
 				nEffectComps = nEffectComps + 1
-				local rEffectComp
+				local rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
 				if EffectManager5E then
-					rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
-				elseif EffectManagerPFRPG2 then
-					rEffectComp = EffectManagerPFRPG2.parseEffectComp(sEffectComp);
-				else
-					rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
+					-- Handle conditionals
+					if rEffectComp.type == "IF" then
+						if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
+							break;
+						end
+					elseif rEffectComp.type == "IFT" then
+						if not rTarget then break end
+						if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
+							break;
+						end
+					end
 				end
-				-- Handle conditionals
-				--[[if _sBetterGoldPurity == 'gold' and Session.RulesetName == "5E" then --luacheck: ignore 113
-					EffectManager5EBCE.processConditional(rActor, rTarget, v, rEffectComp, rConditionalHelper);
-					-- Check for match
-					if rConditionalHelper.bProcessEffect and rEffectComp.original:lower() == sLowerClause then
-						if rConditionalHelper.bTargeted and not bIgnoreEffectTargets then
-							if EffectManager.isEffectTarget(v, rTarget) then
-								table.insert(tMatch, 1, kEffectComp);
-							end
-						elseif not bTargetedOnly then
+				-- Check for match
+				if rEffectComp.original:lower() == sLowerClause then
+					if bTargeted and not bIgnoreEffectTargets then
+						if EffectManager.isEffectTarget(v, rTarget) then
 							table.insert(tMatch, 1, kEffectComp);
 						end
+					elseif not bTargetedOnly then
+						table.insert(tMatch, 1, kEffectComp);
 					end
-				else]]
-					if EffectManager5E then
-						-- Handle conditionals
-						if rEffectComp.type == "IF" then
-							if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
-								break;
-							end
-						elseif rEffectComp.type == "IFT" then
-							if not rTarget then break end
-							if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
-								break;
-							end
-						end
-					end
-					-- Check for match
-					if rEffectComp.original:lower() == sLowerClause then
-						if bTargeted and not bIgnoreEffectTargets then
-							if EffectManager.isEffectTarget(v, rTarget) then
-								table.insert(tMatch, 1, kEffectComp);
-							end
-						elseif not bTargetedOnly then
-							table.insert(tMatch, 1, kEffectComp);
-						end
-					end
-				--end
+				end
 			end
 
 			-- If matched, then remove Clause
@@ -503,13 +437,9 @@ end
 
 -- luacheck: push ignore 561
 -- when using pattern matching, make use of [^%] instead of %uppercase
+--potential replacement: EffectManager.hasText(rActor, sEffectTag, tData)
 function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
 	local sLowerClause = sClause:lower();
-	--[[local tEffectCompParams;
-
-	if EffectManagerBCE then
-		tEffectCompParams = EffectManagerBCE.getEffectCompType(sClause);
-	end]]
 	local aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
 
 	-- Iterate through each effect
@@ -517,27 +447,10 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 		local nActive = DB.getValue(v, 'isactive', 0);
 		local bGo = false;
 		local bTargeted;
-		--[[local rConditionalHelper;
-
-		if EffectManagerBCE then
-			rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
-
-			local bActive = (tEffectCompParams.bIgnoreExpire and (nActive == 1)) or
-				(not tEffectCompParams.bIgnoreExpire and (nActive ~= 0)) or
-				(tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0));
-
-			if (not EffectManagerADND and (nActive ~= 0 or bActive)) or
-			  (EffectManagerADND and ((tEffectCompParams.bIgnoreDisabledCheck and (nActive == 0)) or
-			  (EffectManagerADND.isValidCheckEffect(rActor, v) or (rTarget and EffectManagerADND.isValidCheckEffect(rTarget, v))))) then
-				bGo = true;
-				rConditionalHelper.bTargeted = EffectManager.isTargetedEffect(v);
-			end
-		else]]
-			if nActive ~= 0 then
-				bGo = true;
-				bTargeted = EffectManager.isTargetedEffect(v);
-			end
-		--end
+		if nActive ~= 0 then
+			bGo = true;
+			bTargeted = EffectManager.isTargetedEffect(v);
+		end
 
 		if bGo then
 			-- Parse each effect label
@@ -546,49 +459,30 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 
 			-- Iterate through each effect component looking for a type match
 			for _, sEffectComp in ipairs(aEffectComps) do
-				local rEffectComp;
-				if EffectManager5E then
-					rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
-				elseif EffectManagerPFRPG2 then
-					rEffectComp = EffectManagerPFRPG2.parseEffectComp(sEffectComp);
-				else
-					rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
-				end
+				local rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
 				-- Handle conditionals
 				local sOriginalLower = string.lower(rEffectComp.original);
-				--[[if _sBetterGoldPurity == 'gold' and Session.RulesetName == "5E" then --luacheck: ignore 113
-					EffectManager5EBCE.processConditional(rActor, rTarget, v, rEffectComp, rConditionalHelper);
-					-- Check for match
-					if rConditionalHelper.bProcessEffect and string.match(sOriginalLower, sLowerClause) then
-						if rConditionalHelper.bTargeted and not bIgnoreEffectTargets then
-							if EffectManager.isEffectTarget(v, rTarget) then return true, sLabel, v end
-						else
-							if not bTargetedOnly then return true, sLabel, v end
+				if EffectManager5E then
+					-- Handle conditionals
+					if rEffectComp.type == "IF" then
+						if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
+							break;
+						end
+					elseif rEffectComp.type == "IFT" then
+						if not rTarget then break end
+						if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
+							break;
 						end
 					end
-				else]]
-					if EffectManager5E then
-						-- Handle conditionals
-						if rEffectComp.type == "IF" then
-							if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
-								break;
-							end
-						elseif rEffectComp.type == "IFT" then
-							if not rTarget then break end
-							if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
-								break;
-							end
-						end
+				end
+				-- Check for match
+				if string.match(sOriginalLower, sLowerClause) then
+					if bTargeted and not bIgnoreEffectTargets then
+						if EffectManager.isEffectTarget(v, rTarget) then return true, sLabel, v end
+					else
+						if not bTargetedOnly then return true, sLabel, v end
 					end
-					-- Check for match
-					if string.match(sOriginalLower, sLowerClause) then
-						if bTargeted and not bIgnoreEffectTargets then
-							if EffectManager.isEffectTarget(v, rTarget) then return true, sLabel, v end
-						else
-							if not bTargetedOnly then return true, sLabel, v end
-						end
-					end
-				--end
+				end
 			end
 		end
 	end
@@ -703,6 +597,8 @@ function cleanString(s)
 	return sReturn;
 end
 
+--this is going to ignore IF statements on rulesets not 5E due to processConditional pulled from BCEG
+--potential replacement: EffectManager.getCompsDataByTag(rActor, sEffectTag, tData)
 function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly, bCaseSensitive)
 	if not rActor then
 		Debug.console("WtWCommon.getEffectsByTypeWtW - not rActor");
@@ -718,8 +614,8 @@ function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly
 		local nActive = DB.getValue(v, 'isactive', 0);
 		local rConditionalHelper = {bProcessEffect = true, aORStack = {}, aELSEStack = {}, bTargeted = false};
 		if (not EffectManagerADND and nActive ~= 0) or
-			(EffectManagerADND and ((EffectManagerADND.isValidCheckEffect(rActor, v) or
-					(rFilterActor and EffectManagerADND.isValidCheckEffect(rFilterActor, v))))) then
+			(EffectManagerADND and ((EffectManagerADND.isValidCheckEffect(rActor, v) or --luacheck: ignore 143
+					(rFilterActor and EffectManagerADND.isValidCheckEffect(rFilterActor, v))))) then --luacheck: ignore 143
 			local sLabel = DB.getValue(v, 'label', '');
 			-- IF COMPONENT WE ARE LOOKING FOR SUPPORTS TARGETS, THEN CHECK AGAINST OUR TARGET
 			rConditionalHelper.bTargeted = EffectManager.isTargetedEffect(v);
@@ -729,15 +625,7 @@ function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly
 
 				-- Look for type/subtype match
 				for _, sEffectComp in ipairs(aEffectComps) do
-					local rEffectComp;
-					if EffectManager5E then
-						rEffectComp = EffectManager5E.parseEffectComp(sEffectComp);
-					elseif EffectManagerPFRPG2 then
-						rEffectComp = EffectManagerPFRPG2.parseEffectComp(sEffectComp);
-					else
-						rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
-					end
-
+					local rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
 					processConditional(rActor, rFilterActor, v, rEffectComp, rConditionalHelper);
 
 					if rConditionalHelper.bProcessEffect then
@@ -780,6 +668,7 @@ function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly
 	return results;
 end
 
+--this is from old BCEG.  It will ignore IF statements in rulesets not 5E.
 function processConditional(rActor, rTarget, rEffect, rEffectComp, rConditionalHelper)
 	local bOR = table.remove(rConditionalHelper.aORStack);
 
@@ -816,6 +705,7 @@ function processConditional(rActor, rTarget, rEffect, rEffectComp, rConditionalH
 		local RulesetEffectManager;
 		if EffectManager5E then
 			RulesetEffectManager = EffectManager5E;
+		--[[
 		elseif EffectManagerPFRPG2 then
 			RulesetEffectManager = EffectManagerPFRPG2;
 		elseif EffectManagerADND then
@@ -826,6 +716,7 @@ function processConditional(rActor, rTarget, rEffect, rEffectComp, rConditionalH
 			RulesetEffectManager = EffectManager35E;
 		elseif EffectManager4E then
 			RulesetEffectManager = EffectManager4E;
+		]]
 		end
 		if not RulesetEffectManager then return end
 		if rEffectComp.type == 'IF' or (bUntrueExt and rEffectComp.type == 'IFN') then
@@ -868,6 +759,7 @@ function conditionalSuccess(rConditionalHelper, rEffectComp)
 	rConditionalHelper.bProcessEffect = true;
 end
 
+-- luacheck: push ignore 561
 function hasRoot(nodeCT)
 	if Session.RulesetName ~= "5E" then
 		if EffectManagerPFRPG2 then
@@ -1078,8 +970,10 @@ function hasRoot(nodeCT)
 		end
 	end
 end
+-- luacheck: pop
 
 -- these have been modded to not 'touch' the effects' isActive status
+--potential replacement: EffectManager.getBonusData(rActor, vEffectTags, tData)
 function getEffectsBonusLightly(rActor, aEffectType, bModOnly, aFilter, rFilterActor, bTargetedOnly)
 	if not rActor or not aEffectType then
 		Debug.console("WtWCommon.getEffectsBonusLightly - not rActor or not aEffectType");
@@ -1599,6 +1493,7 @@ function restoreOtherRightClicks(tokenCT, nodeCT)
 		);
 	end
 end
+-- luacheck: push ignore 561
 function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 	local nodeCT = CombatManager.getCTFromToken(token);
 	if not nodeCT then
@@ -1735,6 +1630,7 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 		if cImage then cImage.togglePriority(token) end
 	end
 end
+-- luacheck: pop
 
 function notifyResetRightClick(nodeCT, sOwner)
 	if not sOwner then sOwner = getControllingClient(nodeCT) end
@@ -2016,6 +1912,7 @@ function getLimitingSpeed(nodeCT, nodeWtWCT)
 
 	return nLimitingSpeed, sLimitingSpeedType;
 end
+-- luacheck: push ignore 561
 function getSpeedTypes(nodeCT, nodeWtWCT)
 	if not nodeCT or type(nodeCT) ~= 'databasenode' then return end
 	if not nodeWtWCT then nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT)) end
@@ -2135,6 +2032,7 @@ function getSpeedTypes(nodeCT, nodeWtWCT)
 
 	return sLabels, sValues, sEmptyLabel;
 end
+-- luacheck: pop
 function notifyEmpty(nodeCT, sEmptyLabel, sValues)
 	if Session.IsHost then
 		local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
