@@ -12,8 +12,6 @@ OOB_MSGTYPE_QUERYMOVEPOSS = 'query_move_poss';
 OOB_MSGTYPE_MOVEPOSSRESPONSE = 'query_move_response';
 
 local nMoved = 0;
---sStoodUp = 'Stood Up; SPEED: halved';
---sHoppedUp = 'Hopped up; SPEED: 5 dec';
 sStoodUp = "Stood Up";
 sHoppedUp = "Hopped up";
 
@@ -304,16 +302,13 @@ function standUp(nodeCT, bHostAuth, bAthlete, nDist)
 			end
 
 			bConsume = true;
-			--SpeedManager.tStoodUp[nodeCT] = true; --luacheck: ignore 142
 		end
 	end
 
-	if bHostAuth then
-		bConsume = true;
-		--SpeedManager.tStoodUp[nodeCT] = true; --luacheck: ignore 142
-	end
+	if bHostAuth then bConsume = true end
 
 	WtWCommon.removeEffectClause(nodeCT, "Prone");
+
 	if Session.IsHost then
 		if Session.RulesetName == "5E" then
 			if bAthlete then

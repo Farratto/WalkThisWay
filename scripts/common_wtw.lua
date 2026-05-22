@@ -1,7 +1,7 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
---luacheck: globals checkBetterGoldPurity hasEffectFindString removeEffectClause handleApplyHostCommands
+--luacheck: globals hasEffectFindString removeEffectClause handleApplyHostCommands
 --luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 --luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
 --luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly setConstants
@@ -13,7 +13,7 @@
 --luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW catchDirtyCtUpdate setWtwDbOwner updateWtwDbOwner
 --luacheck: globals restartWindows restartWindow handleWindowRestart isMovementPossible
 --luacheck: globals getLimitingSpeed getSpeedTypes tSpeedTypes populateSpeedtypes t5ESpeedTypes tRulesetSpeedTypes
---luacheck: globals notifyEmpty handleNotifyEmpty cleanDatabase
+--luacheck: globals notifyEmpty handleNotifyEmpty cleanDatabase handleRemoveTag clearTable
 
 OOB_MSGTYPE_APPLYHCMDS = 'applyhcmds';
 OOB_MSGTYPE_REGPREF = 'regpreference';
@@ -26,7 +26,6 @@ local tExtensions = {};
 local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
 local aExceptionDescriptors = {'steal', 'stealtemp'};
 local tClientPrefs = {};
-local nBootToken = 0;
 tSpeedTypes = {};
 t5ESpeedTypes = {};
 tRulesetSpeedTypes = {};
@@ -112,7 +111,6 @@ function onTabletopInit()
 	if Session.IsHost then
 		for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 			setWtwDbOwner(nil, nodeCT);
-			if CombatManager.getTokenFromCT(nodeCT) then nBootToken = nBootToken + 1 end
 		end
 	end
 end
@@ -171,17 +169,6 @@ function hasExtension(sExtName)
 		if sExtension == sExtName then return true end
 	end
 	return false;
-end
-
-function checkBetterGoldPurity()
-	local sReturn;
-	if EffectConditionalManagerDnDBCE then
-		sReturn = 'gold'
-	elseif BCEDnDManager then
-		sReturn = 'pyrite'
-	end
-
-	return sReturn;
 end
 
 function setWtwDbOwner(nodeCreature, nodeCT)
@@ -333,10 +320,8 @@ function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, b
 end
 
 -- luacheck: push ignore 561
---potential replacement: EffectManager.removeEffectsByTag(rActor, sEffectTag, tData)
-  --this replacement requires edit because it's going to remove entire effect instead of only clause
 function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
-	if not rActor or not sClause then
+	if not rActor or not sClause then --luacheck: ignore 511
 		Debug.console("WtWCommon.removeEffectClause - not rActor or not sClause");
 		return;
 	end
@@ -410,19 +395,27 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 				else
 					for _,nMatch in ipairs(tMatch) do
 						table.insert(aMatch, v);
+						--[[
 						if Session.IsHost then
-							local nodeEffect = v
-							local nodeActor = DB.getChild(nodeEffect, "...");
+							local nodeEffect = v;
+							local nodeActor = DB.getChild(v, "...");
 							if not nodeActor then
 								ChatManager.SystemMessage(Interface.getString("ct_error_effectmissingactor") ..
 									" ( ... )"
 								);
 								return;
 							end
-							EffectManager.expireEffect(nodeActor, nodeEffect, tonumber(nMatch) or 0);
+							EffectManager.expireEffect(nodeActor, v, tonumber(nMatch) or 0);
 						else
-							EffectManager.notifyExpire(v, nMatch, true);
+							EffectManager.notifyExpire(v, tonumber(nMatch) or 0, true);
 						end
+						]]
+						local tData = {
+							nExpireComp = tonumber(nMatch) or 0,
+							bImmediate = true,
+							bSkipAnnounce = false
+						};
+						EffectManager.expireEffectByNode(nil, v, tData);
 					end
 				end
 			end
@@ -1646,10 +1639,6 @@ function handleResetRightClick(msgOOB)
 end
 
 function onTokenRefUpdated(nodeUpdated)
-	if nBootToken > 0 then
-		nBootToken = nBootToken - 1;
-		return;
-	end
 	local nodeCT = DB.getParent(nodeUpdated);
 	if Session.IsHost then
 		registerTokenRightClick(nil, nodeCT);
@@ -2070,5 +2059,11 @@ function populateSpeedtypes()
 				table.insert(tSpeedTypes, sSpeedType);
 			end
 		end
+	end
+end
+
+function clearTable(tToBeCleared)
+	for key in pairs(tToBeCleared) do
+		tToBeCleared[key] = nil;
 	end
 end

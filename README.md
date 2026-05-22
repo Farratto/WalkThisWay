@@ -92,6 +92,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v3.2.5: FIXED: New creatures added to CT not being recognized by WtW/SC after ruleset 2026-05 update. Added protections against rare errors associated with new effect system from ruleset 2026-05 update.
 * v3.2.4: Accomodations for ruleset 2026-05-05
 * v3.2.3: FIXED: Error from changes to BCEG
 * v3.2.2: FIXED: Standing up from prone was consuming too much speed on clients.

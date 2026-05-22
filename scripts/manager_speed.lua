@@ -40,8 +40,6 @@ function onInit()
 		frest = CombatManager2.rest;
 		CombatManager2.rest = restWtW;
 		User.onLogin = onLoginWtW;
-		--faddEffect = EffectManager.addEffect;
-		--EffectManager.addEffect = addEffectWtW;
 		faddEffectByTable = EffectManager.addEffectByTable;
 		EffectManager.addEffectByTable = addEffectByTableWtW;
 		CombatManager.setCustomTurnStart(turnStartChecks);
@@ -220,7 +218,6 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 	local rActor = ActorManager.resolveActor(nodeCT);
 	if not rActor then
 		Debug.console("SpeedManager.speedCalculator - not rActor for "..DB.getValue(nodeCT, 'name', ''));
-		Debug.printstack();
 		return;
 	end
 	local tSpeedEffects = {};
@@ -1479,7 +1476,6 @@ function restWtW(bLong, ...)
 		handleExhaustion(nodeCT);
 	end
 end
---function addEffectWtW(sUser, sIdentity, nodeCT, rNewEffect, bShowMsg, ...)
 function addEffectByTableWtW(vActor, rEffect, ...)
 	if rEffect and rEffect['sName'] then
 		local sMatch = string.match(rEffect['sName'], "^Exhausted; ");
