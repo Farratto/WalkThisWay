@@ -858,8 +858,8 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 					DB.setValue(nodeWtWCT, 'difficult', 'number', 0);
 					DB.setValue(nodeWtWCT, 'difficult_button', 'string', 'effect');
 					bDifficult = bDifficultEffect;
-				else
-					bDifficult = true;
+				--else
+				--	bDifficult = true;
 				end
 			end
 		end

@@ -395,21 +395,6 @@ function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffe
 				else
 					for _,nMatch in ipairs(tMatch) do
 						table.insert(aMatch, v);
-						--[[
-						if Session.IsHost then
-							local nodeEffect = v;
-							local nodeActor = DB.getChild(v, "...");
-							if not nodeActor then
-								ChatManager.SystemMessage(Interface.getString("ct_error_effectmissingactor") ..
-									" ( ... )"
-								);
-								return;
-							end
-							EffectManager.expireEffect(nodeActor, v, tonumber(nMatch) or 0);
-						else
-							EffectManager.notifyExpire(v, tonumber(nMatch) or 0, true);
-						end
-						]]
 						local tData = {
 							nExpireComp = tonumber(nMatch) or 0,
 							bImmediate = true,
@@ -1307,11 +1292,11 @@ function onIdentityActivationWtW(_, username, activated)
 	if activated then requestPref(username) end
 end
 function requestPref(sUser)
-	Comm.deliverOOBMessage({ type = OOB_MSGTYPE_REQPREF }, sUser); --sendPrefRegistration
+	Comm.deliverOOBMessage({ type = OOB_MSGTYPE_REQPREF }, sUser);
 end
 function sendPrefRegistration(msgOOB) --luacheck: ignore 312
 	msgOOB = {};
-	msgOOB['type'] = OOB_MSGTYPE_REGPREF; --handlePrefRegistration
+	msgOOB['type'] = OOB_MSGTYPE_REGPREF;
 	msgOOB['sPref'] = OptionsManager.getOption('DDLU');
 	msgOOB['sOwner'] = Session.UserName;
 	Comm.deliverOOBMessage(msgOOB);
@@ -1532,9 +1517,6 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			or nTeleAllowed == 1
 		then
 			MovementManager.processTravelDist(nodeCT, true, token);
-			--MovementManager.propagateTextWidget(token, "Tele Start", 'moved', false, false, 'dist_label_large'
-			--	, -13
-			--);
 			MovementManager.propagateTextWidget(token, "Tele Start", nil, 'dist_label_large', -13);
 			DB.setValue(nodeWtWCT, 'teleport', 'number', 1);
 		else
@@ -1587,12 +1569,10 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 					sValue = string.gsub(sValue, '|.*$', '');
 				end
 				if sSpeedType and sSpeedType == sValue then return end
-				--MovementManager.determineGoSpeedChange(nodeCT);
 				local bGoLabel = MovementManager.determineGoSpeedChange(nodeCT);
 				if not bDefault then DB.setValue(nodeWtWCT, 'speed_type', 'string', sValue) end
 				local tokenNew = MovementManager.updateProto(nodeCT, nodeWtWCT, token, sValue);
 				if bGoLabel then
-					--MovementManager.processTravelDist(nodeCT, false, tokenNew);
 					MovementManager.processTravelDist(nodeCT, false, tokenNew, nil, nil, nil, nil, nil, true);
 				end
 				MovementManager.updateSpeedWindow(nodeCT, sValue, nodeWtWCT)
