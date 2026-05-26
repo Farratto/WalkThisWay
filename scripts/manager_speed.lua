@@ -1,7 +1,7 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
---luacheck: globals speedCalculator handleExhaustion setAllCharSheetSpeeds setCharSheetSpeed onLoginWtW
+--luacheck: globals speedCalculator setAllCharSheetSpeeds setCharSheetSpeed onLoginWtW
 --luacheck: globals accommKnownExtsSpeed callSpeedCalcEffectUpdated openSpeedWindow
 --luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
 --luacheck: globals parseSpeedType onTabletopInit recalcAllSpeeds tidyUnits handleSlash
@@ -9,14 +9,13 @@
 --luacheck: globals turnStartChecks roundMph onTurnEndWtW toggleCheckItemStr clearAllItemStrengthHandlers
 --luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
 --luacheck: globals parseBaseSpeed reparseBaseSpeed reparseAllBaseSpeeds reparseBaseSpeedSpecial setConstants
---luacheck: globals frest restWtW faddEffectByTable addEffectByTableWtW
+--luacheck: globals faddEffectByTable addEffectByTableWtW
+--luacheck: globals fconsolidateExhaustion consolidateExhaustionWtW handleExhaustion
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
 
-local bLoopProt, nodeWtW, nodeWtWList, bProtExhaust, nodeLastHandled, nActiveLast, sLabelLast;
---local tUbiquinatedNodes = {};
---tStoodUp = {};
+local bLoopProt, nodeWtW, nodeWtWList, nodeLastHandled, nActiveLast, sLabelLast;
 
 function onInit()
 	if Session.IsHost then
@@ -37,11 +36,11 @@ function onInit()
 		if Session.RulesetName ~= "5E" then
 			DB.addHandler('charsheet.*.speed.final','onUpdate', setCharSheetSpeed);
 		end
-		frest = CombatManager2.rest;
-		CombatManager2.rest = restWtW;
 		User.onLogin = onLoginWtW;
 		faddEffectByTable = EffectManager.addEffectByTable;
 		EffectManager.addEffectByTable = addEffectByTableWtW;
+		fconsolidateExhaustion = ActorManager5E.consolidateExhaustion;
+		ActorManager5E.consolidateExhaustion = consolidateExhaustionWtW;
 		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(onTurnEndWtW);
 	else
@@ -135,8 +134,13 @@ function callSpeedCalcEffectUpdated(nodeEffectChild)
 	local nodeCT = DB.getChild(nodeEffect, '...');
 
 	bLoopProt = true;
-	handleExhaustion(nodeCT, sNodeEffectLabel);
-	--if MovementManager then handleStoodUp(nodeCT, sNodeEffectLabel) end
+	if sNodeEffectLabel then
+		if OptionsManager.isOption('check_item_str', 'on')
+			and string.match(string.lower(sNodeEffectLabel), 'str:%s*%d')
+		then
+			recheckFitness(DB.getChild(nodeCT, 'abilities.strength.score'), nodeCT);
+		end
+	end
 	speedCalculator(nodeCT);
 	bLoopProt = false;
 
@@ -150,7 +154,7 @@ function callSpeedCalcEffectDeleted(nodeEffects)
 
 	bLoopProt = true;
 	local nodeCT = DB.getParent(nodeEffects)
-	handleExhaustion(nodeCT);
+	--handleExhaustion(nodeCT);
 	speedCalculator(nodeCT);
 	bLoopProt = false;
 end
@@ -1383,26 +1387,29 @@ function accommKnownExtsSpeed(nodeCT)
 	end
 end
 
-function handleExhaustion(nodeCT, sNodeEffectLabel)
-	if bProtExhaust or Session.RulesetName ~= "5E" then return end
+function consolidateExhaustionWtW(rActor, ...)
+	local rReturn = fconsolidateExhaustion(rActor, ...);
+
+	handleExhaustion(rActor);
+
+	return rReturn;
+end
+function handleExhaustion(rActor)
+	if Session.RulesetName ~= "5E" then return end
+
+	if not rActor or not rActor['sCTNode'] then
+		Debug.console("SpeedManager.handleExhaustion - not rActor or not sCTNode");
+		return;
+	end
+	local nodeCT = DB.findNode(rActor['sCTNode'])
 	if not nodeCT then
 		Debug.console("SpeedManager.handleExhaustion - not nodeCT");
 		return;
 	end
 
-	if sNodeEffectLabel then
-		if OptionsManager.isOption('check_item_str', 'on')
-			and string.match(string.lower(sNodeEffectLabel), 'str:%s*%d')
-		then
-			recheckFitness(DB.getChild(nodeCT, 'abilities.strength.score'), nodeCT);
-		end
-	end
-
-	local sNewEffect;
-	local nSpeedAdjust;
-	local nExhaustMod = WtWCommon.getEffectsBonusLightly(nodeCT, { "EXHAUSTION" }, true);
+	local sNewEffect, nSpeedAdjust, bExhausted;
 	local bShowMsg = true;
-	local bExhausted;
+	local nExhaustMod = ActorManager5E.getExhaustionLevel(rActor);
 	if nExhaustMod > 5 then
 		if OptionsManager.isOption('ADEC', 'on') then
 			sNewEffect = "Exhausted; DEATH; DESTROY";
@@ -1468,14 +1475,7 @@ function handleExhaustion(nodeCT, sNodeEffectLabel)
 		end
 	end
 end
-function restWtW(bLong, ...)
-	if bLong then bProtExhaust = true end
-	frest(bLong, ...);
-	bProtExhaust = false;
-	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
-		handleExhaustion(nodeCT);
-	end
-end
+
 function addEffectByTableWtW(vActor, rEffect, ...)
 	if rEffect and rEffect['sName'] then
 		local sMatch = string.match(rEffect['sName'], "^Exhausted; ");
