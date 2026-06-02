@@ -10,7 +10,7 @@
 --luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
 --luacheck: globals parseBaseSpeed reparseBaseSpeed reparseAllBaseSpeeds reparseBaseSpeedSpecial setConstants
 --luacheck: globals faddEffectByTable addEffectByTableWtW
---luacheck: globals fconsolidateExhaustion consolidateExhaustionWtW handleExhaustion
+--luacheck: globals fsetExhaustionLevel setExhaustionLevelWtW handleExhaustion
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
@@ -39,8 +39,10 @@ function onInit()
 		User.onLogin = onLoginWtW;
 		faddEffectByTable = EffectManager.addEffectByTable;
 		EffectManager.addEffectByTable = addEffectByTableWtW;
-		fconsolidateExhaustion = ActorManager5E.consolidateExhaustion;
-		ActorManager5E.consolidateExhaustion = consolidateExhaustionWtW;
+		--fconsolidateExhaustion = ActorManager5E.consolidateExhaustion;
+		--ActorManager5E.consolidateExhaustion = consolidateExhaustionWtW;
+		fsetExhaustionLevel = ActorManager5E.setExhaustionLevel;
+		ActorManager5E.setExhaustionLevel = setExhaustionLevelWtW;
 		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(onTurnEndWtW);
 	else
@@ -141,6 +143,11 @@ function callSpeedCalcEffectUpdated(nodeEffectChild)
 			recheckFitness(DB.getChild(nodeCT, 'abilities.strength.score'), nodeCT);
 		end
 	end
+	if (DB.getName(nodeEffectChild) or '') == 'isactive'
+		and string.match(string.lower(sNodeEffectLabel or ''), 'exhaustion')
+	then
+		handleExhaustion(ActorManager.resolveActor(nodeCT));
+	end
 	speedCalculator(nodeCT);
 	bLoopProt = false;
 
@@ -154,7 +161,7 @@ function callSpeedCalcEffectDeleted(nodeEffects)
 
 	bLoopProt = true;
 	local nodeCT = DB.getParent(nodeEffects)
-	--handleExhaustion(nodeCT);
+	handleExhaustion(ActorManager.resolveActor(nodeCT));
 	speedCalculator(nodeCT);
 	bLoopProt = false;
 end
@@ -1387,8 +1394,10 @@ function accommKnownExtsSpeed(nodeCT)
 	end
 end
 
-function consolidateExhaustionWtW(rActor, ...)
-	local rReturn = fconsolidateExhaustion(rActor, ...);
+--function consolidateExhaustionWtW(rActor, ...)
+function setExhaustionLevelWtW(rActor, ...)
+	--local rReturn = fconsolidateExhaustion(rActor, ...);
+	local rReturn = fsetExhaustionLevel(rActor, ...);
 
 	handleExhaustion(rActor);
 
