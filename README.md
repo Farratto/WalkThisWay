@@ -92,7 +92,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
-* v3.2.9: FIXED: Undocumented changes to token.setPosition() API causing slight innaccuracy of distance reporting; sometimes reporting distance with a negative number when snap-to-grid is off. Added protections for future ruleset changes to effects.
+* v3.2.9: FIXED: Error in non-5E rulesets. Added protections for future ruleset changes to effects. Started updating effect handling tie-ins for new ruleset effect-handling system.
 * v3.2.8: FIXED: Exhaustion not working again after another ruleset change
 * v3.2.7: FIXED: Not recognizing Exhaustion correctly after changes in ruleset update
 * v3.2.6: FIXED: difficult terrain button was not working correctly.
