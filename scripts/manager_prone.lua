@@ -307,7 +307,7 @@ function standUp(nodeCT, bHostAuth, bAthlete, nDist)
 
 	if bHostAuth then bConsume = true end
 
-	WtWCommon.removeEffectClause(nodeCT, "Prone");
+	WtWCommon.removeEffectsByClause(nodeCT, "Prone", { bIncludeGlobal = false })
 
 	if Session.IsHost then
 		if Session.RulesetName == "5E" then

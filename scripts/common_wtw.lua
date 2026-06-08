@@ -1,7 +1,7 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
---luacheck: globals hasEffectFindString removeEffectClause handleApplyHostCommands
+--luacheck: globals hasEffectFindString removeEffectsByClause handleApplyHostCommands
 --luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
 --luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
 --luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly setConstants
@@ -13,7 +13,8 @@
 --luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW catchDirtyCtUpdate setWtwDbOwner updateWtwDbOwner
 --luacheck: globals restartWindows restartWindow handleWindowRestart isMovementPossible
 --luacheck: globals getLimitingSpeed getSpeedTypes tSpeedTypes populateSpeedtypes t5ESpeedTypes tRulesetSpeedTypes
---luacheck: globals notifyEmpty handleNotifyEmpty cleanDatabase handleRemoveTag clearTable
+--luacheck: globals notifyEmpty handleNotifyEmpty cleanDatabase handleRemoveTag clearTable printTable
+--luacheck: globals fcheckDataBuild checkDataBuildWtW
 
 OOB_MSGTYPE_APPLYHCMDS = 'applyhcmds';
 OOB_MSGTYPE_REGPREF = 'regpreference';
@@ -21,7 +22,7 @@ OOB_MSGTYPE_REQPREF = 'request_preference';
 OOB_MSGTYPE_RESET_RIGHTCLICK = 'reset_right_click';
 OOB_MSGTYPE_RESTART_WINDOW = 'restart_window'
 OOB_MSGTYPE_NOTIFY_EMPTY = 'notify_empty';
-local nodeWtW, nodeWtWList;
+local nodeWtW, nodeWtWList, sCTCombatantPath, sCTPath;
 local tExtensions = {};
 local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
 local aExceptionDescriptors = {'steal', 'stealtemp'};
@@ -91,13 +92,17 @@ function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_RESET_RIGHTCLICK, handleResetRightClick);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_RESTART_WINDOW, handleWindowRestart);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_NOTIFY_EMPTY, handleNotifyEmpty);
-	DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.tokenrefid', 'onUpdate', onTokenRefUpdated);
+	sCTPath = CombatManager.getTrackerPath();
+	sCTCombatantPath = CombatManager.getTrackerCombatantPath();
+	fcheckDataBuild = EffectQueryManager.checkDataBuild;
+	EffectQueryManager.checkDataBuild = checkDataBuildWtW;
+	DB.addHandler(sCTCombatantPath..'.tokenrefid', 'onUpdate', onTokenRefUpdated);
 	populateSpeedtypes();
 	if Session.IsHost then
 		setConstants();
 		User.onIdentityActivation = onIdentityActivationWtW;
-		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.NPCowner','onUpdate', processNewCTOwner);
-		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.link', 'onUpdate', catchDirtyCtUpdate);
+		DB.addHandler(sCTCombatantPath..'.NPCowner','onUpdate', processNewCTOwner);
+		DB.addHandler(sCTCombatantPath..'.link', 'onUpdate', catchDirtyCtUpdate);
 		DB.addHandler('charsheet.*', 'onObserverUpdate', updateWtwDbOwner);
 		CombatManager.setCustomPreDeleteCombatantHandler(onCTDelete);
 		--fonRecordTypeEvent = CombatRecordManager.onRecordTypeEvent;
@@ -125,7 +130,7 @@ function cleanDatabase()
 
 	local tNodesToDelete = {};
 	for sNodeCtID, node in pairs(DB.getChildren(nodeWtWList)) do
-		local nodeCT = DB.findNode(CombatManager.CT_LIST..'.'..sNodeCtID);
+		local nodeCT = DB.findNode(sCTPath..'.'..sNodeCtID);
 		if not nodeCT then table.insert(tNodesToDelete, node) end
 	end
 
@@ -255,59 +260,62 @@ function processNewCTOwner(nodeUpdated)
 	notifyResetRightClick(nodeCT);
 end
 
-function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, bReturnNode, bFindAll)
+function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, bReturnNode, bFindAll, bCheckGlobals)
 	-- DEFAULTS: case sensitive, not returnString, & not debug
 	-- when using bCaseInsensitive, make use of [^%] instead of %uppercase
+	-- use sparingly.  Ignores conditionals and targetting
 	if not rActor or not sString then
 		Debug.console("WtWCommon.hasEffectFindString - not rActor or not sString");
 		return;
 	end
-	local aEffects;
-	--local tEffectCompParams;
-	local sClause = sString;
 
-	if bCaseInsensitive then
-		sClause = string.lower(sString);
+	local sClause = sString;
+	if bCaseInsensitive then sClause = string.lower(sString) end
+
+	local tEffectsLocs = {};
+	table.insert(tEffectsLocs, DB.getChildList(ActorManager.getCTNode(rActor), 'effects'));
+	if bCheckGlobals then
+		table.insert(tEffectsLocs, DB.getChildList(DB.getChildList(CombatManager.getTrackerEffectParentPath())));
 	end
 
-	aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
-
 	local tResults = {};
-	-- Iterate through each effect
-	for _, v in pairs(aEffects) do
-		local bGo = false;
-		local tResOne = {};
+	for _,tEffectTable in pairs(tEffectsLocs) do
+		-- Iterate through each effect
+		for _, v in pairs(tEffectTable) do
+			local bGo = false;
+			local tResOne = {};
 
-		local nActive = DB.getValue(v, 'isactive', 0);
-		if nActive ~= 0 then bGo = true end
+			local nActive = DB.getValue(v, 'isactive', 0);
+			if nActive ~= 0 then bGo = true end
 
-		if bGo then
-			local sLabel = DB.getValue(v, 'label', '');
-			local sFinalLabel = sLabel;
-			sFinalLabel = StringManager.strip(sFinalLabel)
-			if bCaseInsensitive then
-				sFinalLabel = string.lower(sLabel);
-			end
+			if bGo then
+				local sLabel = DB.getValue(v, 'label', '');
+				local sFinalLabel = sLabel;
+				sFinalLabel = StringManager.strip(sFinalLabel)
+				if bCaseInsensitive then
+					sFinalLabel = string.lower(sLabel);
+				end
 
-			-- Check for match
-			local aFind = string.find(sFinalLabel, sClause)
-			if aFind then
-				if bFindAll then
-					tResOne['label'] = sLabel;
-					tResOne['node'] = v;
-					table.insert(tResults, tResOne);
-				else
-					if bReturnString then
-						if bReturnNode then
-							return sLabel, v;
-						else
-							return sLabel;
-						end
+				-- Check for match
+				local aFind = string.find(sFinalLabel, sClause)
+				if aFind then
+					if bFindAll then
+						tResOne['label'] = sLabel;
+						tResOne['node'] = v;
+						table.insert(tResults, tResOne);
 					else
-						if bReturnNode then
-							return v;
+						if bReturnString then
+							if bReturnNode then
+								return sLabel, v;
+							else
+								return sLabel;
+							end
 						else
-							return true;
+							if bReturnNode then
+								return v;
+							else
+								return true;
+							end
 						end
 					end
 				end
@@ -319,99 +327,60 @@ function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, b
 	return false;
 end
 
--- luacheck: push ignore 561
-function removeEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
-	if not rActor or not sClause then --luacheck: ignore 511
-		Debug.console("WtWCommon.removeEffectClause - not rActor or not sClause");
-		return;
-	end
+function removeEffectsByClause(rActor, sInput, tData)
+	if (sInput or "") == "" then return end
 
-	local sLowerClause = sClause:lower();
-	local aMatch = {};
-	local aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
+	local tCheckData = EffectQueryManager.checkActorData(rActor, sInput, true, tData);
+	local tEffectsData = EffectQueryManager.getCheckEffectResults(tCheckData);
 
-	-- Iterate through each effect
-	for _, v in pairs(aEffects) do
-		local bGo = false;
-		local bTargeted;
-
-		local nActive = DB.getValue(v, 'isactive', 0);
-		if nActive ~= 0 then
-			bGo = true;
-			bTargeted = EffectManager.isTargetedEffect(v);
-		end
-
-		if bGo then
-			-- Parse each effect label
-			local sLabel = DB.getValue(v, 'label', '');
-			local aEffectComps = EffectManager.parseEffect(sLabel);
-			local nEffectComps = 0;
-
-			-- Iterate through each effect component looking for a type match
-			local tMatch = {};
-			for kEffectComp, sEffectComp in ipairs(aEffectComps) do
-				nEffectComps = nEffectComps + 1
-				local rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
-				if EffectManager5E then
-					-- Handle conditionals
-					if rEffectComp.type == "IF" then
-						if not EffectManager5E.checkConditional(rActor, v, rEffectComp.remainder) then
-							break;
-						end
-					elseif rEffectComp.type == "IFT" then
-						if not rTarget then break end
-						if not EffectManager5E.checkConditional(rTarget, v, rEffectComp.remainder, rActor) then
-							break;
-						end
-					end
-				end
-				-- Check for match
-				if rEffectComp.original:lower() == sLowerClause then
-					if bTargeted and not bIgnoreEffectTargets then
-						if EffectManager.isEffectTarget(v, rTarget) then
-							table.insert(tMatch, 1, kEffectComp);
-						end
-					elseif not bTargetedOnly then
-						table.insert(tMatch, 1, kEffectComp);
-					end
-				end
+	local tEffectsUbiq = {};
+	local tClausesUbiq = {};
+	for _, tCompData in ipairs(EffectQueryManager.getCheckCompResults(tCheckData)) do
+		if tCompData['kComp'] == 1 then
+			local sLabel = StringManager.trim(EffectVarManager.getEffectVarFromNode(tCompData['node'], "sName", ""));
+			if sLabel:lower() == StringManager.trim(sInput):lower() then
+				table.insert(tEffectsUbiq, tCompData['node']);
 			end
-
-			-- If matched, then remove Clause
-			if tMatch[1] then
-				if nEffectComps <= (#tMatch + 1) then
-					table.insert(aMatch, v);
-					if Session.IsHost then
-						DB.deleteNode(v);
-					else
-						local nRepeats = #aEffectComps;
-						while nRepeats > 0 do
-							EffectManager.notifyExpire(v, nRepeats, true);
-							nRepeats = nRepeats - 1
-						end
-					end
-				elseif nActive == 2 then
-					DB.setValue(v, 'isactive', 'number', 1);
-				else
-					for _,nMatch in ipairs(tMatch) do
-						table.insert(aMatch, v);
-						local tData = {
-							nExpireComp = tonumber(nMatch) or 0,
-							bImmediate = true,
-							bSkipAnnounce = false
-						};
-						EffectManager.expireEffectByNode(nil, v, tData);
-					end
-				end
+		else
+			if tClausesUbiq[tCompData['node']] then
+				table.insert(tClausesUbiq[tCompData['node']], tCompData['kComp']);
+			else
+				tClausesUbiq[tCompData['node']] = {};
+				table.insert(tClausesUbiq[tCompData['node']], tCompData['kComp']);
 			end
 		end
 	end
 
-	if #aMatch > 0 then return true end
+	for _,tEffectData in ipairs(tEffectsData) do
+		local bFoundNode;
+		for _,nodeEffect in ipairs(tEffectsUbiq) do
+			if tEffectData['node'] == nodeEffect then
+				bFoundNode = true;
+				break;
+			end
+		end
 
-	return false;
+		if not bFoundNode then
+			local tCompRebuild = {};
+			for _, tComp in ipairs(tEffectData['tComps']) do
+				local bFoundComp;
+				for _, nComp in ipairs(tClausesUbiq[tEffectData['node']]) do
+					if nComp == tComp['kComp'] then
+						bFoundComp = true;
+						break;
+					end
+				end
+				if not bFoundComp then table.insert(tCompRebuild, tComp['original']) end
+			end
+			local sNameNew = EffectManager.rebuildParsedEffect(tCompRebuild);
+			EffectVarManager.setEffectVarToNode(tEffectData['node'], 'sName', sNameNew);
+		end
+	end
+
+	for _,nodeEffect in ipairs(tEffectsUbiq) do
+		EffectManager.removeEffectByNode(rActor, nodeEffect);
+	end
 end
--- luacheck: pop
 
 -- luacheck: push ignore 561
 -- when using pattern matching, make use of [^%] instead of %uppercase
@@ -561,9 +530,9 @@ function getRootCommander(rActor)
 end
 
 function getEffectName(nodeEffect, sLabel)
-	if not nodeEffect and not sLabel then return end
+	if not sLabel and (not nodeEffect or type(nodeEffect) ~= 'databasenode') then return "" end
 	if not sLabel then sLabel = DB.getValue(nodeEffect, 'label') end
-	if not sLabel or sLabel == '' then return end
+	if not sLabel or sLabel == '' then return "" end
 	local aClauses = StringManager.split(sLabel, ';');
 	return cleanString(aClauses[1]);
 end
@@ -573,6 +542,49 @@ function cleanString(s)
 	sReturn = string.gsub(sReturn, '^%s+', '');
 	sReturn = string.gsub(sReturn, '%s+$', '');
 	return sReturn;
+end
+
+--rEffectComp = EffectManager.parseEffectCompSimple
+	--rEffectComp.type = any alphanumeric at beginning (may start with @) and ending in colon without spacesSymbols
+	--rEffectComp.mod = numbers after rEffectComp.type
+	--rEffectComp.dice = dice table representing what appeared after rEffectComp.type
+	--rEffectComp.sRemainder = everything not included in type, mod, and dice
+	--rEffectComp.remainder = rEffectComp.sRemainder as a comma-separated table
+	--rEffectComp.original = original clause
+function checkDataBuildWtW(rActor, sEffectTag, bFullText, tData)
+	local tTagOptions = EffectQueryManager.getTagOptions(sEffectTag);
+
+	if not tData then
+		tData = {};
+		tData['bIncludeGlobal'] = true;
+	elseif nil == tData['bIncludeGlobal'] or tData['bIncludeGlobal'] ~= false then
+		tData['bIncludeGlobal'] = true;
+	end
+
+	local tCheckData = {
+		rActor = ActorManager.resolveActor(rActor),
+		rTarget = tData and tData.rTarget,
+		bTargetedOnly = tData and tData.bTargetedOnly,
+		tEffectsData = ActorEffectManager.getEffectsData(rActor, {
+			bIncludeGlobal = tData['bIncludeGlobal'],--changed from always true
+			bIgnoreDisabled = (tTagOptions and tTagOptions.bIgnoreDisabled),
+		}),
+		sEffectTag = sEffectTag,
+		bFullText = bFullText,
+		tTagOptions = tTagOptions,
+		bIgnoreExpire = tData and tData.bIgnoreExpire,
+		tEffectsIgnore = tData and tData.tEffectsIgnore,
+		tFilters = EffectQueryManager.buildCheckFilter(tData and tData.tFilter),
+		tActionTags = tData and tData.tActionTags,
+		tMatch = {},
+		tEffectResults = {},
+		tCompResults = {},
+		-- For conditional debugging
+		-- For topmost check, use local tParent = tCheckData; while tParent.tParent do tParent = tParent.tParent; end
+		tParent = tData and tData.tParent,
+	};
+
+	return tCheckData;
 end
 
 --this is going to ignore IF statements on rulesets not 5E due to processConditional pulled from BCEG
@@ -600,7 +612,6 @@ function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly
 
 			if not rConditionalHelper.bTargeted or (rFilterActor and EffectManager.isEffectTarget(v, rFilterActor)) then
 				local aEffectComps = EffectManager.parseEffect(sLabel);
-
 				-- Look for type/subtype match
 				for _, sEffectComp in ipairs(aEffectComps) do
 					local rEffectComp = EffectManager.parseEffectCompSimple(sEffectComp);
@@ -1706,7 +1717,7 @@ function restartWindows(sWinClass, nodeSource, nodeCT, sOwner)
 	restartWindow(sWinClass, nodeSource); --Host Window
 
 	if not sOwner then --client Window
-		if not nodeCT then nodeCT = DB.findNode(CombatManager.CT_LIST..'.'..DB.getName(nodeSource)) end
+		if not nodeCT then nodeCT = DB.findNode(sCTPath..'.'..DB.getName(nodeSource)) end
 		sOwner = getControllingClient(nodeCT);
 		if not sOwner then
 			restartWindow(sWinClass, nodeSource);
@@ -2046,4 +2057,89 @@ function clearTable(tToBeCleared)
 	for key in pairs(tToBeCleared) do
 		tToBeCleared[key] = nil;
 	end
+end
+
+--https://gist.github.com/revolucas/dd1ecccfca32d558fddf70ddb39eb8a6
+function printTable(t)
+	-- to make output beautiful
+	local function tab(amt)
+		local str = ""
+		for i=1,amt do --luacheck: ignore 213
+			str = str .. "\t"
+		end
+		return str
+	end
+
+	local cache, stack, output = {},{},{}
+	local depth = 1
+	local output_str = "{\n"
+
+	while true do
+		local size = 0
+		for _ in pairs(t) do
+			size = size + 1
+		end
+
+		local cur_index = 1
+		for k,v in pairs(t) do
+			if (cache[t] == nil) or (cur_index >= cache[t]) then
+
+				if (string.find(output_str,"}",output_str:len())) then
+					output_str = output_str .. ",\n"
+				elseif not (string.find(output_str,"\n",output_str:len())) then
+					output_str = output_str .. "\n"
+				end
+
+				-- This is necessary for working with HUGE tables otherwise we run out of memory using concat on huge strings
+				table.insert(output,output_str)
+				output_str = ""
+
+				local key
+				if (type(k) == "number" or type(k) == "boolean") then
+					key = "["..tostring(k).."]"
+				else
+					key = "['"..tostring(k).."']"
+				end
+
+				if (type(v) == "number" or type(v) == "boolean") then
+					output_str = output_str .. tab(depth) .. key .. " = "..tostring(v)
+				elseif (type(v) == "table") then
+					output_str = output_str .. tab(depth) .. key .. " = {\n"
+					table.insert(stack,t)
+					table.insert(stack,v)
+					cache[t] = cur_index+1
+					break
+				else
+					output_str = output_str .. tab(depth) .. key .. " = '"..tostring(v).."'"
+				end
+
+				if (cur_index == size) then
+					output_str = output_str .. "\n" .. tab(depth-1) .. "}"
+				else
+					output_str = output_str .. ","
+				end
+			else
+				-- close the table
+				if (cur_index == size) then
+					output_str = output_str .. "\n" .. tab(depth-1) .. "}"
+				end
+			end
+
+			cur_index = cur_index + 1
+		end
+
+		if (#stack > 0) then
+			t = stack[#stack]
+			stack[#stack] = nil
+			depth = cache[t] == nil and depth + 1 or depth - 1
+		else
+			break
+		end
+	end
+
+	-- This is necessary for working with HUGE tables otherwise we run out of memory using concat on huge strings
+	table.insert(output,output_str)
+	output_str = table.concat(output)
+
+	Debug.console(output_str);
 end

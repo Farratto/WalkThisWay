@@ -15,9 +15,10 @@
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
 
-local bLoopProt, nodeWtW, nodeWtWList, nodeLastHandled, nActiveLast, sLabelLast;
+local bLoopProt, nodeWtW, nodeWtWList, nodeLastHandled, nActiveLast, sLabelLast, sCTCombatantPath;
 
 function onInit()
+	sCTCombatantPath = CombatManager.getTrackerCombatantPath();
 	if Session.IsHost then
 		setConstants();
 		if not DB.getValue(nodeWtW, 'effectUnits') then
@@ -27,10 +28,10 @@ function onInit()
 		EffectManager.setTagOptions('SPEED', { bIgnoreTarget = true, bNoDUSE = true });
 			--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE
 			--continued: bSpell bOneShot bIgnoreExpire bIgnoreTarget
-		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.speed', 'onUpdate', reparseBaseSpeed);
-		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
-		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
-		DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.effects', 'onChildDeleted', callSpeedCalcEffectDeleted);
+		DB.addHandler(sCTCombatantPath..'.speed', 'onUpdate', reparseBaseSpeed);
+		DB.addHandler(sCTCombatantPath..'.effects.*.label', 'onUpdate', callSpeedCalcEffectUpdated);
+		DB.addHandler(sCTCombatantPath..'.effects.*.isactive', 'onUpdate', callSpeedCalcEffectUpdated);
+		DB.addHandler(sCTCombatantPath..'.effects', 'onChildDeleted', callSpeedCalcEffectDeleted);
 		DB.addHandler('charsheet.*.speed.total','onUpdate', setCharSheetSpeed);
 		DB.addHandler('charsheet.*.speed.special','onUpdate', reparseBaseSpeedSpecial);
 		if Session.RulesetName ~= "5E" then
@@ -41,8 +42,10 @@ function onInit()
 		EffectManager.addEffectByTable = addEffectByTableWtW;
 		--fconsolidateExhaustion = ActorManager5E.consolidateExhaustion;
 		--ActorManager5E.consolidateExhaustion = consolidateExhaustionWtW;
-		fsetExhaustionLevel = ActorManager5E.setExhaustionLevel;
-		ActorManager5E.setExhaustionLevel = setExhaustionLevelWtW;
+		if ActorManager5E then
+			fsetExhaustionLevel = ActorManager5E.setExhaustionLevel;
+			ActorManager5E.setExhaustionLevel = setExhaustionLevelWtW;
+		end
 		CombatManager.setCustomTurnStart(turnStartChecks);
 		CombatManager.setCustomTurnEnd(onTurnEndWtW);
 	else
@@ -760,8 +763,10 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 	end
 
 	local nHighest = 0;
-	local sHighestType;
-	local bCharger = (OptionsManager.isOption('GAVE', '2024') and ActorManager5E.hasRollFeat2024(nodeCT, 'Charger'));
+	local sHighestType, bCharger;
+	if ActorManager5E then
+		bCharger = (OptionsManager.isOption('GAVE', '2024') and ActorManager5E.hasRollFeat2024(nodeCT, 'Charger'));
+	end
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
 		local nFGSpeed = tSpdRcrd['velocity'];
 		local nFGSpeedNew = nFGSpeed;
@@ -1335,7 +1340,6 @@ function setCharSheetSpeed(nodeUpdated, nodeChar, nodeSpeed)
 
 	local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
 	DB.setValue(nodeCharWtW, 'base', 'number', nSpeedSet);
-	--set CT speed if not set
 	if not bCtSpeed then DB.setValue(nodeCT, 'speed', 'string', tostring(nSpeedSet)) end
 end
 
@@ -1346,6 +1350,7 @@ function accommKnownExtsSpeed(nodeCT)
 	local bReturn = false;
 	if Session.RulesetName == "5E" then
 		local aDashFx = WtWCommon.getEffectsByTypeWtW(nodeCT, 'Dash$');
+		--local aDashFx = EffectManager.getCompsDataByText(nodeCT, 'Dash'); --case insenstive
 		tReturn['nDash'] = 0;
 		for _,_ in ipairs(aDashFx) do
 			tReturn['nDash'] = tReturn['nDash'] + 1
@@ -1427,8 +1432,8 @@ function handleExhaustion(rActor)
 		end
 	elseif nExhaustMod < 1 then
 		bExhausted = false;
-	elseif (EffectsManagerExhausted and EffectsManagerExhausted.is2024()) or (not EffectsManagerExhausted
-		and OptionsManager.isOption('GAVE', '2024'))
+	elseif (EffectsManagerExhausted and EffectsManagerExhausted.is2024()) --luacheck: ignore 113
+		or (not EffectsManagerExhausted	and OptionsManager.isOption('GAVE', '2024')) --luacheck: ignore 113
 	then
 		nSpeedAdjust = nExhaustMod * 5;
 		sNewEffect = "Exhausted; SPEED: dec(" .. nSpeedAdjust .. ")";
@@ -1500,52 +1505,8 @@ function addEffectByTableWtW(vActor, rEffect, ...)
 	return faddEffectByTable(vActor, rEffect, ...);
 end
 
---[[function handleStoodUp(nodeCT, sNodeEffectLabel)
-	if not sNodeEffectLabel then return end
-
-	if Session.RulesetName == '5E' then
-		local bAthlete;
-		if sNodeEffectLabel == ProneManager.sHoppedUp
-			or string.match(sNodeEffectLabel, "^"..ProneManager.sHoppedUp..";")
-		then
-			bAthlete = true;
-		end
-		if bAthlete
-			or sNodeEffectLabel == ProneManager.sStoodUp
-			or string.match(sNodeEffectLabel, "^"..ProneManager.sStoodUp..";")
-		then
-			local tStoodUpCopy = tStoodUp;
-			for nodeCTLocal in pairs(tStoodUpCopy) do
-				if nodeCTLocal == nodeCT then
-					tStoodUp[nodeCT] = nil;
-					return;
-				end
-			end
-			if bAthlete then
-				MovementManager.consumeMovement(nodeCT, 'dist', nil, 5);
-			else
-				MovementManager.consumeMovement(nodeCT, 'half');
-			end
-		end
-	end
-end]]
-
---[[forPay extension currently does this by teamTwoey (author: MatteKure)
+--forPay extension currently does this by teamTwoey (author: MatteKure)
 --https://forge.fantasygrounds.com/shop/items/1606/view
-function handleEncumbrance(nodeCT)
-	--charsheet.id-00000.encumbrance
-		--holder = "Farratto"
-		--load = current carried weight in a number
-		--max = max carried weight in a number
-	--combattracker.list.id-00000.encumbrance
-		--SAA
-	--variant encumbrance rules:
-		--encumbered condition: -10 speed
-		--heavily encumbered: -20 speed
-	--standard encumbrance rules:
-		--excedes carrying capacity
-			--SPEED: <= 5 ft.
-end]]
 
 function checkFitness(nodeUpdated, bRecheck)
 	local nodeCT;
@@ -1591,7 +1552,8 @@ function checkFitness(nodeUpdated, bRecheck)
 	end
 	local nStr = DB.getValue(nodeCT, 'abilities.strength.score');
 	if not nStr then return end
-	local nStr = nStr + EffectManager5E.getEffectsBonus(nodeCT, 'STR', true);
+	--local nStr = nStr + EffectManager5E.getEffectsBonus(nodeCT, 'STR', true);
+	local nStr = nStr + EffectManager.getBonusMod(nodeCT, 'STR');
 
 	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
 	local nodeHandlerList = DB.createChild(nodeWtWCT, 'handler_list');
@@ -1663,8 +1625,8 @@ function checkAllForHeavyItems()
 		checkInvForHeavyItems(nodeCT);
 	end
 	DB.addHandler('charsheet.*.inventorylist.*.carried', 'onUpdate', checkFitness);
-	DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.inventorylist.*.carried', 'onUpdate', checkFitness);
-	DB.addHandler(CombatManager.CT_COMBATANT_PATH..'.abilities.strength.score', 'onUpdate', recheckFitness);
+	DB.addHandler(sCTCombatantPath..'.inventorylist.*.carried', 'onUpdate', checkFitness);
+	DB.addHandler(sCTCombatantPath..'.abilities.strength.score', 'onUpdate', recheckFitness);
 end
 function removeEffectTooHeavy(nodeCT, sItemNodePath)
 	local nodeMarkedForDeletion;
@@ -1705,8 +1667,8 @@ function toggleCheckItemStr()
 end
 function clearAllItemStrengthHandlers()
 	DB.removeHandler('charsheet.*.inventorylist.*.carried', 'onUpdate', checkFitness);
-	DB.removeHandler(CombatManager.CT_COMBATANT_PATH..'.inventorylist.*.carried', 'onUpdate', checkFitness);
-	DB.removeHandler(CombatManager.CT_COMBATANT_PATH..'.abilities.strength.score', 'onUpdate', recheckFitness);
+	DB.removeHandler(sCTCombatantPath..'.inventorylist.*.carried', 'onUpdate', checkFitness);
+	DB.removeHandler(sCTCombatantPath..'.abilities.strength.score', 'onUpdate', recheckFitness);
 	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 		local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
 		local nodeHandlerList = DB.createChild(nodeWtWCT, 'handler_list');
