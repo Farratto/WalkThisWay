@@ -92,6 +92,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v3.3.0: FIXED: Wasn't rechecking strength after effect removal. Encumbrance Speed rules support added for 5e. For non-5e rulesets: replaced Dash button with Double-Move button. Added Run button for 3.5e-based rulesets (it doesn't affect AC). Support added for global effects window. Reworked background effect processing to use new ruleset effect system and end reliance on BCEG. Added more user-friendly syntax messages.
 * v3.2.9: FIXED: Error in non-5E rulesets. Added protections for future ruleset changes to effects. Started updating effect handling tie-ins for new ruleset effect-handling system.
 * v3.2.8: FIXED: Exhaustion not working again after another ruleset change
 * v3.2.7: FIXED: Not recognizing Exhaustion correctly after changes in ruleset update

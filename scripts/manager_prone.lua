@@ -55,106 +55,63 @@ function processTurnStart(nodeCT)
 end
 
 function checkProne(nodeCT)
-	if not nodeCT then
-		Debug.console("ProneManager.checkProne - not nodeCT");
-		return;
-	end
-
-	if Session.RulesetName ~= "5E" then
-		if EffectManagerPFRPG2 then
-			if not WtWCommon.hasEffectClause(nodeCT, "^Prone$", nil, false, true) then
-				return false;
-			elseif WtWCommon.hasRoot(nodeCT) then
-				return false;
-			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
-				return false;
-			elseif WtWCommon.hasEffectClause(nodeCT, "^NOSTAND$", nil, false, true) then
-				return false;
-			else
-				return true;
-			end
-		else
-			if not WtWCommon.hasEffectClause(nodeCT, "^Prone$", nil, false, true) then
-				return false;
-			elseif WtWCommon.hasRoot(nodeCT) then
-				return false;
-			elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
-				return false;
-			elseif WtWCommon.hasEffectClause(nodeCT, "^NOSTAND$", nil, false, true) then
-				return false;
-			else
-				return true;
-			end
-		end
+	--if not WtWCommon.hasEffectClause(nodeCT, "^Prone$", nil, false, true) then
+	if not EffectManager.hasText(nodeCT, "Prone", { bIncludeGlobal = false }) then
+		return false;
+	--elseif WtWCommon.hasRoot(nodeCT) then
+	elseif WtWCommon.getRootData(nodeCT)[1] then
+		return false;
+	--elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
+	elseif EffectManager.hasText(nodeCT, "Unable to Stand") then
+		return false;
+	--elseif WtWCommon.hasEffectClause(nodeCT, "^NOSTAND$", nil, false, true) then
+	elseif EffectManager.hasText(nodeCT, "NOSTAND") then
+		return false;
+	elseif Session.RulesetName == "5E" and checkHideousLaughter(nodeCT) then
+		return false;
 	else
-		if not WtWCommon.hasEffectClause(nodeCT, "^Prone", nil, false, true) then
-			return false;
-			elseif WtWCommon.hasRoot(nodeCT) then
-				return false;
-		elseif WtWCommon.hasEffectFindString(nodeCT, "Unable to Stand", true) then
-			return false;
-		elseif WtWCommon.hasEffectClause(nodeCT, "^NOSTAND$", nil, false, true) then
-			return false;
-		elseif checkHideousLaughter(nodeCT) then
-			return false;
-		else
-			return true;
-		end
+		return true;
 	end
 end
 function checkHideousLaughter(rActor)
-	local bClauseExceptFound = false;
-	local nMatch = 0;
-	local sClause = "Tasha's Hideous Laughter";
-		-- should return true, but only if it's not clause1
-	local sClause1 = "^Tasha's Hideous Laughter; Prone$";
-		-- should return false, but only if none of the other trues are present
-		-- and also if the only sClause is the one contained within sClause1
-	local sClause2 = "^Tasha's Hideous Laughter %(C%); Prone; Incapacitated";
-		-- should return true, regardless of other clauses
-		-- starts with clause
-		-- Team Twohy with ongoing save extension
-	local sClause3 = "^Tasha's Hideous Laughter; Incapacitated$";
-		-- should return true, regardless of other clauses
-		-- whole clause
-		-- Team Twohy without ongoing save extension
-	--local sClause4 = "Tasha's Hideous Laughter (C)";
-		-- should return false, if all other clauses are not found
+	--if WtWCommon.hasEffectFindString(rActor, "^Tasha's Hideous Laughter; Incapacitated$")
+	if WtWCommon.getTextDataInLabel(rActor, "^Tasha's Hideous Laughter; Incapacitated$", nil, true, true)
+			-- clause3
+			-- should return true, regardless of other clauses
+			-- whole clause
+			-- Team Twohy without ongoing save extension
+		--or WtWCommon.hasEffectFindString(rActor, "^Tasha's Hideous Laughter %(C%); Prone; Incapacitated", false)
+		or WtWCommon.getTextDataInLabel(rActor,"^Tasha's Hideous Laughter %(C%); Prone; Incapacitated",nil,true,true)
+			-- clause2
+			-- should return true, regardless of other clauses
+			-- starts with clause
+			-- Team Twohy with ongoing save extension
+	then
+		return true;
+	end
+
+	--local bClause0 = WtWCommon.hasEffectClause(rActor, "Tasha's Hideous Laughter", nil, false, true);
+	local bClause0 = EffectManager.hasText(rActor, "Tasha's Hideous Laughter");
+		-- should return true, but only if it's not part of clause1 or clause5
+	--local bClause1 = WtWCommon.hasEffectFindString(rActor, "^Tasha's Hideous Laughter; Prone$");
+	local bClause1 = WtWCommon.getTextDataInLabel(rActor, "^Tasha's Hideous Laughter; Prone$", nil, true, true);
+		-- should return false
+	--local bClause4 = EffectManager.hasText(rActor, "Tasha's Hideous Laughter (C)");
+		-- should return false, if not part of clause2
 		-- whole clause
 		-- Team Twohy without ongoing save extension
 		-- lucky here. This one is a last check anyway, and it doesn't hit with any of the others.
-	local sClause5 = "^Tasha's Hideous Laughter; %(C%)$";
-		-- should return false, if clauses 0, 2, or 3 are not present
-		-- should behave same as clause1
+	--local bClause5 = WtWCommon.hasEffectFindString(rActor, "^Tasha's Hideous Laughter; %(C%)$");
+	local bClause5 = WtWCommon.getTextDataInLabel(rActor, "^Tasha's Hideous Laughter; %(C%)$", nil, true, true);
+		-- should return false
 		-- whole clause
 		-- 5eAE with self concentration
 
-	if WtWCommon.hasEffectFindString(rActor, sClause3) then
+	if bClause0 and not bClause1 and not bClause5 then
 		return true;
+	else
+		return false;
 	end
-
-	if WtWCommon.hasEffectFindString(rActor, sClause2, false) then
-		return true;
-	end
-
-	local hasClause1 = WtWCommon.hasEffectFindString(rActor, sClause1);
-	local hasClause5 = WtWCommon.hasEffectFindString(rActor, sClause5);
-	if hasClause1 or hasClause5 then
-		bClauseExceptFound = true;
-		nMatch = nMatch + 1;
-	elseif WtWCommon.hasEffectFindString(rActor, sClause, true) then
-		nMatch = nMatch + 1;
-	end
-	if hasClause1 and hasClause5 then
-		nMatch = nMatch - 1;
-	end
-
-	if WtWCommon.hasEffectClause(rActor, sClause, nil, false, true) then
-		if not bClauseExceptFound or nMatch > 1 then
-			return true;
-		end
-	end
-	return false;
 end
 
 function delWTWdataChild(sChildNode)
@@ -307,19 +264,22 @@ function standUp(nodeCT, bHostAuth, bAthlete, nDist)
 
 	if bHostAuth then bConsume = true end
 
-	WtWCommon.removeEffectsByClause(nodeCT, "Prone", { bIncludeGlobal = false })
+	WtWCommon.removeEffectsByClause(nodeCT, "Prone", { bIncludeGlobal = false });
 
-	if Session.IsHost then
+	--if Session.IsHost then
 		if Session.RulesetName == "5E" then
 			if bAthlete then
-				EffectManager.addEffect("","",nodeCT,{sName = sHoppedUp,nDuration = 1,sChangeState = "rts"},"");
+				--EffectManager.addEffect("","",nodeCT,{sName = sHoppedUp,nDuration = 1,sChangeState = "rts"},"");
+				EffectManager.addEffectByTable(nodeCT, { sName = sHoppedUp,nDuration = 1,sChangeState = "rts" });
 			else
-				EffectManager.addEffect("","",nodeCT,{sName = sStoodUp,nDuration = 1,sChangeState = "rts" },"");
+				--EffectManager.addEffect("","",nodeCT,{sName = sStoodUp,nDuration = 1,sChangeState = "rts" },"");
+				EffectManager.addEffectByTable(nodeCT, { sName = sStoodUp,nDuration = 1,sChangeState = "rts" });
 			end
 		else
-			EffectManager.addEffect("","",nodeCT,{sName = sStoodUp,nDuration = 1},"");
+			--EffectManager.addEffect("","",nodeCT,{sName = sStoodUp,nDuration = 1},"");
+			EffectManager.addEffectByTable(nodeCT, { sName = sStoodUp,nDuration = 1 });
 		end
-	else
+	--[[else
 		if Session.RulesetName == "5E" then
 			if bAthlete then
 				WtWCommon.notifyApplyHostCommands(nodeCT,0,{sName = sHoppedUp,nDuration = 1,sChangeState = "rts"});
@@ -329,7 +289,7 @@ function standUp(nodeCT, bHostAuth, bAthlete, nDist)
 		else
 			WtWCommon.notifyApplyHostCommands(nodeCT,0,{sName = sStoodUp,nDuration = 1,sChangeState = "rts"});
 		end
-	end
+	end]]
 
 	if bConsume then
 		if bAthlete then

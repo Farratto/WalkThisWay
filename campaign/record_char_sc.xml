@@ -19,6 +19,7 @@
 								, sChangeState = "rts"
 							});
 						end
+						--EffectManager.addEffectByTable(nodeCT, {sName = 'Dash', nDuration = 1, sChangeState = "rts"});
 
 						if super and super.onDoubleClick then
 							return super.onDoubleClick(x,y);

@@ -1,20 +1,24 @@
 -- Please see the LICENSE.txt file included with this distribution for
 -- attribution and copyright information.
 
---luacheck: globals hasEffectFindString removeEffectsByClause handleApplyHostCommands
---luacheck: globals notifyApplyHostCommands getRootCommander getControllingClient getEffectName cleanString
---luacheck: globals getEffectsByTypeWtW processConditional conditionalFail conditionalSuccess hasExtension
---luacheck: globals hasEffectClause hasRoot getEffectsBonusLightly getEffectsBonusByTypeLightly setConstants
---luacheck: globals convNumToIdNodeName roundNumber getVisCtEntries handlePullMoveData aEffectVarMap
---luacheck: globals getPreference registerPreference handlePrefChange requestPref handlePrefRegistration
---luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor getAllImageWindows
---luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken restoreOtherRightClicks
---luacheck: globals notifyResetRightClick handleResetRightClick processNewCTOwner onTokenRefUpdated onCTDelete
---luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW catchDirtyCtUpdate setWtwDbOwner updateWtwDbOwner
---luacheck: globals restartWindows restartWindow handleWindowRestart isMovementPossible
---luacheck: globals getLimitingSpeed getSpeedTypes tSpeedTypes populateSpeedtypes t5ESpeedTypes tRulesetSpeedTypes
---luacheck: globals notifyEmpty handleNotifyEmpty cleanDatabase handleRemoveTag clearTable printTable
 --luacheck: globals fcheckDataBuild checkDataBuildWtW
+--luacheck: globals getTextDataInLabel removeEffectsByClause getEffectNamesByText getCompsDataByPattern
+--luacheck: globals getRootData getRootList tRootList populateRootList
+--luacheck: globals notifyApplyHostCommands handleApplyHostCommands
+--luacheck: globals getRootCommander getControllingClient getVisCtEntries getAllImageWindows hasExtension
+--luacheck: globals getEffectName cleanString tidyUnits
+--luacheck: globals clearTable printTable
+--luacheck: globals convNumToIdNodeName roundNumber handlePullMoveData aEffectVarMap setConstants
+--luacheck: globals getPreference registerPreference handlePrefChange requestPref handlePrefRegistration
+--luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor
+--luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken restoreOtherRightClicks
+--luacheck: globals notifyResetRightClick handleResetRightClick
+--luacheck: globals processNewCTOwner onTokenRefUpdated onCTDelete
+--luacheck: globals fonRecordTypeEvent onRecordTypeEventWtW catchDirtyCtUpdate setWtwDbOwner updateWtwDbOwner
+--luacheck: globals restartWindows restartWindow handleWindowRestart
+--luacheck: globals isMovementPossible reportError
+--luacheck: globals getLimitingSpeed getSpeedTypes tSpeedTypes populateSpeedtypes t5ESpeedTypes tRulesetSpeedTypes
+--luacheck: globals notifyEmpty handleNotifyEmpty cleanDatabase handleRemoveTag
 
 OOB_MSGTYPE_APPLYHCMDS = 'applyhcmds';
 OOB_MSGTYPE_REGPREF = 'regpreference';
@@ -24,12 +28,11 @@ OOB_MSGTYPE_RESTART_WINDOW = 'restart_window'
 OOB_MSGTYPE_NOTIFY_EMPTY = 'notify_empty';
 local nodeWtW, nodeWtWList, sCTCombatantPath, sCTPath;
 local tExtensions = {};
-local aExceptionTags = {'SHAREDMG', 'DMGMULT', 'HEALMULT', 'HEALEDMULT', 'ABSORB'};
-local aExceptionDescriptors = {'steal', 'stealtemp'};
 local tClientPrefs = {};
 tSpeedTypes = {};
 t5ESpeedTypes = {};
 tRulesetSpeedTypes = {};
+tRootList = {};
 
 --top level
 local RIGHT_CLICK_TOKEN_PRIORITY = 1;
@@ -38,9 +41,10 @@ RIGHT_CLICK_TOKEN_SC = 2;
 local RIGHT_CLICK_TOKEN_WIN = 8;
 local RIGHT_CLICK_TOKEN_RESTART = 7;
 local RIGHT_CLICK_DASH = 6;
-local RIGHT_CLICK_TOKEN_TELE_GO = 5;
-RIGHT_CLICK_TOKEN_SPEED_TYPE = 4;
-local RIGHT_CLICK_TOKEN_DIFF = 3;
+local RIGHT_CLICK_RUN = 5;
+local RIGHT_CLICK_TOKEN_TELE_GO = 4;
+RIGHT_CLICK_TOKEN_SPEED_TYPE = 3;
+local RIGHT_CLICK_TOKEN_DIFF = 2;
 	--subsublevel
 	local RIGHT_CLICK_TOKEN_DIFF_ON = 8;
 	local RIGHT_CLICK_TOKEN_DIFF_OFF = 7;
@@ -98,6 +102,7 @@ function onInit()
 	EffectQueryManager.checkDataBuild = checkDataBuildWtW;
 	DB.addHandler(sCTCombatantPath..'.tokenrefid', 'onUpdate', onTokenRefUpdated);
 	populateSpeedtypes();
+	populateRootList();
 	if Session.IsHost then
 		setConstants();
 		User.onIdentityActivation = onIdentityActivationWtW;
@@ -197,8 +202,8 @@ function setWtwDbOwner(nodeCreature, nodeCT)
 		else
 			sOwner = DB.getOwner(nodeCreature);
 		end
+		if not nodeCT then nodeCT = ActorManager.getCTNode(nodeCreature) end
 		if sOwner and sOwner ~= '' then
-			if not nodeCT then nodeCT = ActorManager.getCTNode(nodeCreature) end
 			local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
 			DB.setOwner(nodeWtWCT, sOwner);
 		end
@@ -230,7 +235,9 @@ function updateWtwDbOwner(nodeChar)
 			end
 		elseif not bOwnerCleared then
 			local sNPCowner = DB.getValue(nodeCTLoop, 'NPCowner', '');
-			if sNPCowner == sOwner then DB.setOwner(nodeWtWCTLoop, sOwner) end
+			if sNPCowner == sOwner then
+				DB.setOwner(nodeWtWCTLoop, sOwner);
+			end
 		end
 	end
 end
@@ -260,6 +267,7 @@ function processNewCTOwner(nodeUpdated)
 	notifyResetRightClick(nodeCT);
 end
 
+--[[
 function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, bReturnNode, bFindAll, bCheckGlobals)
 	-- DEFAULTS: case sensitive, not returnString, & not debug
 	-- when using bCaseInsensitive, make use of [^%] instead of %uppercase
@@ -326,8 +334,39 @@ function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, b
 
 	return false;
 end
+]]
+function getTextDataInLabel(rActor, sInput, tData, bPattern, bHasOnly)
+	if not rActor or ((sInput or "") == "") then return nil end
 
-function removeEffectsByClause(rActor, sInput, tData)
+	local tCheckData = EffectQueryManager.checkDataBuild(rActor, sInput, true, tData);
+
+	for nIndex,tEffectData in pairs(tCheckData['tEffectsData']) do
+		if bPattern then
+			if string.match(tEffectData['sLabel'], sInput) then
+				local tTemp = {};
+				table.insert(tTemp, nIndex);
+				table.insert(tCheckData['tMatch'], tTemp);
+			end
+		else
+			if string.lower(tEffectData['sLabel']) == string.lower(sInput) then
+				local tTemp = {};
+				table.insert(tTemp, nIndex);
+				table.insert(tCheckData['tMatch'], tTemp);
+			end
+		end
+	end
+
+	EffectQueryManager.checkDataFinalize(tCheckData);
+
+	if bHasOnly then
+		return EffectQueryManager.checkHasResults(tCheckData);
+	else
+		return EffectQueryManager.getCheckEffectResults(tCheckData);
+	end
+end
+
+-- make pattern with assumption that all will be converted to lowercase
+function removeEffectsByClause(rActor, sInput, tData, bPattern)
 	if (sInput or "") == "" then return end
 
 	local tCheckData = EffectQueryManager.checkActorData(rActor, sInput, true, tData);
@@ -338,8 +377,14 @@ function removeEffectsByClause(rActor, sInput, tData)
 	for _, tCompData in ipairs(EffectQueryManager.getCheckCompResults(tCheckData)) do
 		if tCompData['kComp'] == 1 then
 			local sLabel = StringManager.trim(EffectVarManager.getEffectVarFromNode(tCompData['node'], "sName", ""));
-			if sLabel:lower() == StringManager.trim(sInput):lower() then
-				table.insert(tEffectsUbiq, tCompData['node']);
+			if bPattern then
+				if string.match(sLabel:lower(), sInput) then
+					table.insert(tEffectsUbiq, tCompData['node']);
+				end
+			else
+				if sLabel:lower() == StringManager.trim(sInput):lower() then
+					table.insert(tEffectsUbiq, tCompData['node']);
+				end
 			end
 		else
 			if tClausesUbiq[tCompData['node']] then
@@ -382,9 +427,9 @@ function removeEffectsByClause(rActor, sInput, tData)
 	end
 end
 
--- luacheck: push ignore 561
 -- when using pattern matching, make use of [^%] instead of %uppercase
---potential replacement: EffectManager.hasText(rActor, sEffectTag, tData)
+-- luacheck: push ignore 561
+--[[
 function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectTargets)
 	local sLowerClause = sClause:lower();
 	local aEffects = DB.getChildList(ActorManager.getCTNode(rActor), 'effects');
@@ -435,7 +480,53 @@ function hasEffectClause(rActor, sClause, rTarget, bTargetedOnly, bIgnoreEffectT
 	end
 	return false;
 end
+]]
 -- luacheck: pop
+-- make pattern with assumption that all will be converted to lowercase
+function getCompsDataByPattern(rActor, sInput, tData, bPattern, bHasOnly)
+	if not bPattern then
+		if bHasOnly then
+			return EffectManager.hasText(rActor, sInput, tData);
+		else
+			return EffectManager.getCompsDataByText(rActor, sInput, tData);
+		end
+	end
+
+	if not rActor or ((sInput or "") == "") then return nil end
+
+	local tCheckData = EffectQueryManager.checkDataBuild(rActor, sInput, true, tData);
+	--EffectQueryManager.checkDataEffects(tCheckData);
+	for nEffect,tEffectData in ipairs(tCheckData['tEffectsData'] or {}) do
+		tCheckData['nEffectCheck'] = nEffect;
+		if GameManager.callFunction("onEffectCheckApply", tCheckData) then
+			--EffectQueryManager.checkDataComps(tCheckData);
+			EffectQueryManager.checkDataCompSetup(tCheckData);
+			for nComp in ipairs(EffectManager.parseEffectComps(tEffectData)) do
+				tCheckData['nCompCheck'] = nComp;
+				if EffectQueryManager.checkDataCompConditional(tCheckData) then
+					--if EffectQueryManager.checkDataCompApply(tCheckData) then
+					local tCompData = tEffectData['tComps'][nComp];
+					if tCompData then
+						--return (tCompData['original']:lower() == tCheckData['sEffectTag']:lower());
+						if string.match(StringManager.trim(string.lower(tCompData['original'])), sInput) then
+							EffectQueryManager.checkDataCompOnMatch(tCheckData);
+						end
+					end
+				end
+			end
+			EffectQueryManager.checkDataCompCleanup(tCheckData);
+		end
+	end
+	tCheckData['nEffectCheck'] = nil;
+
+	EffectQueryManager.checkDataFinalize(tCheckData);
+
+	if bHasOnly then
+		return EffectQueryManager.checkHasResults(tCheckData);
+	else
+		return EffectQueryManager.getCheckCompResults(tCheckData);
+	end
+end
 
 function notifyApplyHostCommands(nodeCT, iAction, rValues)
 	local msgOOB = {};
@@ -493,9 +584,10 @@ end
 
 --Returns nil for inactive identities and those owned by the GM
 function getControllingClient(nodeCT)
-	local sPCNode;
+	if not nodeCT then return nil end
+
 	local rActor = ActorManager.resolveActor(nodeCT);
-	local sNPCowner;
+	local sPCNode, sNPCowner;
 	if ActorManager.isPC(rActor) then
 		sPCNode = ActorManager.getCreatureNodeName(rActor);
 	else
@@ -589,6 +681,7 @@ end
 
 --this is going to ignore IF statements on rulesets not 5E due to processConditional pulled from BCEG
 --potential replacement: EffectManager.getCompsDataByTag(rActor, sEffectTag, tData)
+--[[
 function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly, bCaseSensitive)
 	if not rActor then
 		Debug.console("WtWCommon.getEffectsByTypeWtW - not rActor");
@@ -656,7 +749,6 @@ function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly
 	-- RESULTS
 	return results;
 end
-
 --this is from old BCEG.  It will ignore IF statements in rulesets not 5E.
 function processConditional(rActor, rTarget, rEffect, rEffectComp, rConditionalHelper)
 	local bOR = table.remove(rConditionalHelper.aORStack);
@@ -694,18 +786,18 @@ function processConditional(rActor, rTarget, rEffect, rEffectComp, rConditionalH
 		local RulesetEffectManager;
 		if EffectManager5E then
 			RulesetEffectManager = EffectManager5E;
-		--[[
-		elseif EffectManagerPFRPG2 then
-			RulesetEffectManager = EffectManagerPFRPG2;
-		elseif EffectManagerADND then
-			RulesetEffectManager = EffectManagerADND;
-		elseif EffectManagerSFRPG then
-			RulesetEffectManager = EffectManagerSFRPG;
-		elseif EffectManager35E then
-			RulesetEffectManager = EffectManager35E;
-		elseif EffectManager4E then
-			RulesetEffectManager = EffectManager4E;
-		]]
+
+		--elseif EffectManagerPFRPG2 then
+		--	RulesetEffectManager = EffectManagerPFRPG2;
+		--elseif EffectManagerADND then
+		--	RulesetEffectManager = EffectManagerADND;
+		--elseif EffectManagerSFRPG then
+		--	RulesetEffectManager = EffectManagerSFRPG;
+		--elseif EffectManager35E then
+		--	RulesetEffectManager = EffectManager35E;
+		--elseif EffectManager4E then
+		--	RulesetEffectManager = EffectManager4E;
+
 		end
 		if not RulesetEffectManager then return end
 		if rEffectComp.type == 'IF' or (bUntrueExt and rEffectComp.type == 'IFN') then
@@ -731,7 +823,6 @@ function processConditional(rActor, rTarget, rEffect, rEffectComp, rConditionalH
 		rConditionalHelper.bSkipIF = false;
 	end
 end
-
 function conditionalFail(rConditionalHelper, rEffectComp)
 	rConditionalHelper.bProcessEffect = false;
 	if rEffectComp.mod > 0 then
@@ -747,8 +838,10 @@ function conditionalSuccess(rConditionalHelper, rEffectComp)
 	end
 	rConditionalHelper.bProcessEffect = true;
 end
+]]
 
 -- luacheck: push ignore 561
+--[[
 function hasRoot(nodeCT)
 	if Session.RulesetName ~= "5E" then
 		if EffectManagerPFRPG2 then
@@ -959,232 +1052,75 @@ function hasRoot(nodeCT)
 		end
 	end
 end
+]]
 -- luacheck: pop
-
--- these have been modded to not 'touch' the effects' isActive status
---potential replacement: EffectManager.getBonusData(rActor, vEffectTags, tData)
-function getEffectsBonusLightly(rActor, aEffectType, bModOnly, aFilter, rFilterActor, bTargetedOnly)
-	if not rActor or not aEffectType then
-		Debug.console("WtWCommon.getEffectsBonusLightly - not rActor or not aEffectType");
-		if bModOnly then
-			return 0, 0;
-		end
-		return {}, 0, 0;
+function getRootData(nodeCT)
+	local tEffectNames = {};
+	for _, sRoot in pairs(getRootList()) do
+		getEffectNamesByText(nodeCT, sRoot, tEffectNames);
 	end
-
-	-- MAKE BONUS TYPE INTO TABLE, IF NEEDED
-	if type(aEffectType) ~= 'table' then
-		aEffectType = {aEffectType};
-	end
-
-	-- START WITH AN EMPTY MODIFIER TOTAL
-	local aTotalDice = {};
-	local nTotalMod = 0;
-	local nTotalPercent = 0;
-	local bMax = false;
-	local nEffectCount = 0;
-
-	-- ITERATE THROUGH EACH BONUS TYPE
-	local masterbonuses = {};
-	local masterpenalties = {};
-	for _, v in pairs(aEffectType) do
-		-- GET THE MODIFIERS FOR THIS MODIFIER TYPE
-		local effbonusbytype,nEffectSubCount = getEffectsBonusByTypeLightly(rActor, v, true, aFilter, rFilterActor
-			, bTargetedOnly
-		);
-
-		-- ITERATE THROUGH THE MODIFIERS
-		for k2, v2 in pairs(effbonusbytype) do
-			-- IF MODIFIER TYPE IS UNTYPED, THEN APPEND TO TOTAL MODIFIER
-			-- (SUPPORTS DICE)
-			if k2 == '' or StringManager.contains(DataCommon.dmgtypes, k2) or k2 == 'all' then
-				for _, v3 in pairs(v2.dice) do
-					table.insert(aTotalDice, v3);
-				end
-				nTotalMod = nTotalMod + v2.mod;
-				nTotalPercent = nTotalPercent + v2.nPercent;
-
-				-- OTHERWISE, WE HAVE A NON-ENERGY MODIFIER TYPE, WHICH MEANS WE NEED TO INTEGRATE
-				-- (IGNORE DICE, ONLY TAKE BIGGEST BONUS AND/OR PENALTY FOR EACH MODIFIER TYPE)
-			else
-				if v2.mod >= 0 then
-					masterbonuses[k2].mod = math.max(v2.mod, masterbonuses[k2].mod or 0);
-				elseif v2.mod < 0 then
-					masterpenalties[k2].mod = math.min(v2.mod, masterpenalties[k2].mod or 0);
-				end
-				if v2.percent >= 0 then
-					masterbonuses[k2].nPercent = math.max(v2.percent, masterbonuses[k2].nPercent or 0);
-				elseif v2.percent < 0 then
-					masterpenalties[k2].nPercent = math.min(v2.percent, masterpenalties[k2].nPercent or 0);
-				end
-			end
-			if v2.bMax then
-				bMax = true;
-			end
-		end
-
-		-- ADD TO EFFECT COUNT
-		nEffectCount = nEffectCount + nEffectSubCount;
-	end
-
-	-- ADD INTEGRATED BONUSES AND PENALTIES FOR NON-ENERGY TYPED MODIFIERS
-	for _, v in pairs(masterbonuses) do
-		nTotalMod = nTotalMod + v.mod;
-		nTotalPercent = nTotalPercent + v.nPercent;
-	end
-	for _, v in pairs(masterpenalties) do
-		nTotalMod = nTotalMod + v.mod;
-		nTotalPercent = nTotalPercent + v.nPercent;
-	end
-	if bModOnly then
-		return nTotalMod, nEffectCount, nTotalPercent;
-	end
-	return aTotalDice, nTotalMod, nEffectCount, nTotalPercent, bMax;
+	return tEffectNames;
 end
--- luacheck: push ignore 561
-function getEffectsBonusByTypeLightly(rActor, aEffectType, bAddEmptyBonus, aFilter, rFilterActor, bTargetedOnly)
-	if not rActor or not aEffectType then
-		Debug.console("WtWCommon.getEffectsBonusByTypeLightly - not rActor or not aEffectType");
-		return {}, 0;
+function populateRootList()
+	table.insert(tRootList, "Unconscious");
+	table.insert(tRootList, "SPEED: max(0)");
+	table.insert(tRootList, "SPEED: 0 max");
+	table.insert(tRootList, "Speed: 0");
+	table.insert(tRootList, "SPEED: none");
+	table.insert(tRootList, "DEATH");
+	table.insert(tRootList, "Dead");
+	table.insert(tRootList, "Dying");
+	table.insert(tRootList, "Grappled");
+	table.insert(tRootList, "Paralyzed");
+	table.insert(tRootList, "Petrified");
+	table.insert(tRootList, "Stable");
+
+	if Session.RulesetName == '5E'
+		or Session.RulesetName == 'PFRPG2'
+		or Session.RulesetName == 'PFRPG' or Session.RulesetName == '3.5E'
+	then
+		table.insert(tRootList, "Restrained");
 	end
 
-	-- MAKE BONUS TYPE INTO TABLE, IF NEEDED
-	if type(aEffectType) ~= 'table' then
-		aEffectType = {aEffectType};
+	if Session.RulesetName == 'PFRPG2' then
+		table.insert(tRootList, "Immobilized");
+		table.insert(tRootList, "Grabbed");
+		table.insert(tRootList, "Stunned");
+		return;
 	end
 
-	-- PER EFFECT TYPE VARIABLES
-	local results = {};
-	local bonuses = {};
-	local penalties = {};
-	local nEffectCount = 0;
-
-	for _, v in pairs(aEffectType) do
-		-- LOOK FOR EFFECTS THAT MATCH BONUSTYPE
-		local aEffectsByType = getEffectsByTypeWtW(rActor, v, aFilter, rFilterActor, bTargetedOnly);
-
-		-- ITERATE THROUGH EFFECTS THAT MATCHED
-		for _, v2 in pairs(aEffectsByType) do
-			if not v2.nPercent then
-				v2.nPercent = 0;
-			end
-			-- LOOK FOR ENERGY OR BONUS TYPES
-			local dmg_type = nil;
-			local mod_type = nil;
-			for _, v3 in pairs(v2.remainder) do
-				if StringManager.contains(DataCommon.dmgtypes, v3) or StringManager.contains(DataCommon.conditions
-					, v3) or v3 == 'all'
-				then
-					dmg_type = v3;
-					break;
-				else
-					if StringManager.contains(DataCommon.bonustypes, v3) then
-						mod_type = v3;
-						break;
-					end
-				end
-			end
-			if v2.mod % 1 ~= 0 then
-				local rEffectComp = EffectManager.parseEffectCompSimple(v2.original);
-				local bSkip = false;
-				if not StringManager.contains(aExceptionTags, rEffectComp.type) then
-					for _, sDescriptor in ipairs(rEffectComp.remainder) do
-						if StringManager.contains(aExceptionDescriptors, sDescriptor) then
-							bSkip = true;
-							break
-						end
-					end
-					if not bSkip then
-						v2.nPercent = v2.mod;
-						v2.mod = 0;
-					end
-				end
-			end
-
-			-- IF MODIFIER TYPE IS UNTYPED, THEN APPEND MODIFIERS
-			-- (SUPPORTS DICE)
-			if dmg_type or not mod_type then
-				-- ADD EFFECT RESULTS
-				local new_key = dmg_type or '';
-				local new_results = results[new_key] or {dice = {}, mod = 0, remainder = {}, nPercent = 0};
-
-				-- BUILD THE NEW RESULT
-				for _, v3 in pairs(v2.dice) do
-					table.insert(new_results.dice, v3);
-				end
-				if bAddEmptyBonus then
-					new_results.mod = new_results.mod + v2.mod;
-					new_results.nPercent = new_results.nPercent + v2.nPercent;
-				else
-					new_results.mod = math.max(new_results.mod, v2.mod);
-					new_results.nPercent = math.max(new_results.nPercent, v2.nPercent);
-				end
-				for _, v3 in pairs(v2.remainder) do
-					table.insert(new_results.remainder, v3);
-				end
-				new_results.bMax = v2.bMax;
-				-- SET THE NEW DICE RESULTS BASED ON ENERGY TYPE
-				results[new_key] = new_results;
-
-				-- OTHERWISE, TRACK BONUSES AND PENALTIES BY MODIFIER TYPE
-				-- (IGNORE DICE, ONLY TAKE BIGGEST BONUS AND/OR PENALTY FOR EACH MODIFIER TYPE)
-			else
-				local bStackable = StringManager.contains(DataCommon.stackablebonustypes, mod_type);
-				if v2.mod >= 0 then
-					bonuses[mod_type].bMax = v2.bMax;
-					if bStackable then
-						bonuses[mod_type].mod = (bonuses[mod_type] or 0) + v2.mod;
-						bonuses[mod_type].nPercent = (bonuses[mod_type] or 0) + v2.nPercent;
-					else
-						bonuses[mod_type].mod = math.max(v2.mod, bonuses[mod_type].mod or 0);
-						bonuses[mod_type].nPercent = math.max(v2.nPercent, bonuses[mod_type].nPercent or 0);
-					end
-				elseif v2.mod < 0 then
-					penalties[mod_type].bMax = v2.bMax;
-					if bStackable then
-						penalties[mod_type].mod = (penalties[mod_type] or 0) + v2.mod;
-						penalties[mod_type].nPercent = (penalties[mod_type] or 0) + v2.nPercent;
-					else
-						penalties[mod_type].mod = math.min(v2.mod, penalties[mod_type].mod or 0);
-						penalties[mod_type].nPercent = math.min(v2.nPercent, penalties[mod_type].nPercent or 0);
-					end
-				end
-
-			end
-
-			-- INCREMENT EFFECT COUNT
-			nEffectCount = nEffectCount + 1;
-		end
+	if Session.RulesetName == 'PFRPG' or Session.RulesetName == '3.5E' then
+		table.insert(tRootList, "Cowering");
+		table.insert(tRootList, "Dazed");
+		table.insert(tRootList, "Stunned");
+		table.insert(tRootList, "Helpless");
+		table.insert(tRootList, "Pinned");
 	end
-
-	-- COMBINE BONUSES AND PENALTIES FOR NON-ENERGY TYPED MODIFIERS
-	for k2, v2 in pairs(bonuses) do
-		if not v2.nPercent then
-			v2.nPercent = 0;
-		end
-		results[k2].bMax = v2.bMax
-		if results[k2] then
-			results[k2].mod = results[k2].mod + v2.mod;
-			results[k2].nPercent = results[k2].nPercent + v2.nPercent;
-		else
-			results[k2] = {dice = {}, mod = v2.mod, remainder = {}, v2.nPercent};
-		end
-	end
-	for k2, v2 in pairs(penalties) do
-		if not v2.nPercent then
-			v2.nPercent = 0;
-		end
-		results[k2].bMax = v2.bMax
-		if results[k2] then
-			results[k2].mod = results[k2].mod + v2.mod;
-			results[k2].nPercent = results[k2].nPercent + v2.nPercent;
-		else
-			results[k2] = {dice = {}, mod = v2.mod, remainder = {}, nPercent = v2.nPercent};
-		end
-	end
-	return results, nEffectCount;
 end
--- luacheck: pop
+function getRootList(sRuleSet, b2024)
+	if not sRuleSet then sRuleSet = Session.RulesetName end
+
+	local tReturn = tRootList;
+	if sRuleSet == '5E' then
+		if b2024 == nil then b2024 = OptionsManager.isOption('GAVE', '2024') end
+		if not b2024 then table.insert(tReturn, "STUNNED") end
+	end
+
+	return tReturn;
+end
+
+function getEffectNamesByText(rActor, sText, tEffectNames)
+	local tEffectsData = EffectQueryManager.getEffectsDataByText(rActor, sText);
+	if not tEffectsData then return false, {} end
+
+	local bFound = false;
+	if not tEffectNames then tEffectNames = {} end
+	for _, tEffectData in ipairs(tEffectsData) do
+		bFound = true;
+		table.insert(tEffectNames, getEffectName(nil, tEffectData['sLabel']));
+	end
+	return bFound, tEffectNames;
+end
 
 function convNumToIdNodeName(nId)
 	if not string.match(tostring(nId), '^id%-%d%d%d%d%d$') then
@@ -1207,7 +1143,11 @@ function convNumToIdNodeName(nId)
 	end
 end
 
-function roundNumber(nInput, nPlaces, sUpDown)
+function roundNumber(nInput, nPlaces, sUpDown, nRoundBy)
+	if not nRoundBy then nRoundBy = 1 end
+
+	nInput = nInput / nRoundBy;
+
 	--accommodation for negative numbers
 	local nMultiplier = 1;
 	if nInput < 0 then
@@ -1239,7 +1179,7 @@ function roundNumber(nInput, nPlaces, sUpDown)
 		return (nMultiplier * (nWhole + 1)) / nPlaceAdj;
 	end
 
-	return (nMultiplier * nWhole) / nPlaceAdj;
+	return ((nMultiplier * nWhole) / nPlaceAdj) * nRoundBy;
 end
 
 function getConversionFactor(sCurrentUnits, sDesiredUnits)
@@ -1335,8 +1275,11 @@ function handlePrefChange(sOptionKey) --luacheck: ignore 212
 		sendPrefRegistration();
 	end
 end
-function getPreference(sOwner)
-	if not Session.IsHost or not sOwner then return OptionsManager.getOption('DDLU') end
+function getPreference(nodeCT)
+	if not Session.IsHost or not nodeCT then return OptionsManager.getOption('DDLU') end
+
+	local sOwner = getControllingClient(nodeCT);
+	if not sOwner then return OptionsManager.getOption('DDLU') end
 
 	for sOwnerKey,sPref in pairs(tClientPrefs) do
 		if sOwnerKey == sOwner then return sPref end
@@ -1347,9 +1290,13 @@ function getPreference(sOwner)
 end
 
 function getVisCtEntries()
-	local winCT = Interface.findWindow('combattracker_host', 'combattracker');
+	local sCTPath = CombatManager.CT_MAIN_PATH;
+	local sWinClass = 'combattracker_host'
+	if not Session.IsHost then sWinClass = 'combattracker_client' end
+
+	local winCT = Interface.findWindow(sWinClass, sCTPath);
 	if not winCT then
-		winCT = Interface.openWindow('combattracker_host', 'combattracker');
+		winCT = Interface.openWindow(sWinClass, sCTPath);
 		winCT.close();
 	end
 
@@ -1390,9 +1337,20 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 		tokenCT.registerMenuItem('Open Speed Window', 'restorewindow', RIGHT_CLICK_TOKEN_SC
 			, RIGHT_CLICK_TOKEN_WIN
 		);
-		tokenCT.registerMenuItem('Dash', 'tokenacceptmove', RIGHT_CLICK_TOKEN_SC
-			, RIGHT_CLICK_DASH
-		);
+		if Session.RulesetName == "5E" then
+			tokenCT.registerMenuItem('Dash', 'tokenacceptmove', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_DASH
+			);
+		else
+			tokenCT.registerMenuItem('Double Move', 'tokenacceptmove', RIGHT_CLICK_TOKEN_SC
+				, RIGHT_CLICK_DASH
+			);
+			if Session.RulesetName == "3.5E" or "PFRPG" then
+				tokenCT.registerMenuItem('Run', 'tokenacceptmove', RIGHT_CLICK_TOKEN_SC
+					, RIGHT_CLICK_RUN
+				);
+			end
+		end
 	end
 	if MovementManager then
 		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
@@ -1505,22 +1463,66 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 		SpeedManager.openSpeedWindow(nodeCT);
 	elseif nSub == RIGHT_CLICK_TOKEN_STEPPAGE then
 		if nSubSub == RIGHT_CLICK_TOKEN_ADD_ONE then
+			if OptionsManager.isOption('SC_enabled', 'off') then
+				ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
+				return;
+			end
 			MovementManager.addOneTile(nodeCT, token, 1);
 		elseif nSubSub == RIGHT_CLICK_TOKEN_REMOVE_ONE then
+			if OptionsManager.isOption('SC_enabled', 'off') then
+				ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
+				return;
+			end
 			MovementManager.addOneTile(nodeCT, token, -1);
 		elseif nSubSub == RIGHT_CLICK_TOKEN_STEP then
+			if OptionsManager.isOption('SC_enabled', 'off') then
+				ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
+				return;
+			end
 			MovementManager.processTravelDist(nodeCT, true, token);
 		elseif nSubSub == RIGHT_CLICK_TOKEN_UNDO then
+			if OptionsManager.isOption('SC_enabled', 'off') then
+				ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
+				return;
+			end
 			MovementManager.undoLastStep(nodeCT, false, token);
 		end
 	elseif nSub == RIGHT_CLICK_DASH then
-		local rValues = { sName = 'Dash', nDuration = 1, sChangeState = 'rts' };
+		local rValues = { sName = 'Double Move; SPEED: doubled', nDuration = 1, sChangeState = 'rts' };
+		if Session.RulesetName == "5E" then
+			rValues = { sName = 'Dash', nDuration = 1, sChangeState = 'rts' };
+		end
 		if Session.IsHost then
 			EffectManager.addEffect('', '', nodeCT, rValues, true);
 		else
 			notifyApplyHostCommands(nodeCT, 0, rValues);
 		end
+		--EffectManager.addEffectByTable(nodeCT, rValues)
+	elseif nSub == RIGHT_CLICK_RUN then
+		local nodeChar = nodeCT;
+		if ActorManager.isPC(nodeCT) then nodeChar = ActorManager.getCreatureNode(nodeCT) end
+
+		local rValues = { sName = 'Run; SPEED: doubled; SPEED: doubled', nDuration = 1, sChangeState = 'rts' };
+
+		local bFound;
+		for _,nodeItem in pairs(DB.getChildren(nodeChar, 'inventorylist')) do
+			if DB.getValue(nodeItem, 'carried', 0) == 2
+				and string.lower(DB.getValue(nodeItem, 'subtype', '')) == 'heavy armor'
+				or (string.lower(DB.getValue(nodeItem, 'type', '')) == 'armor'
+					and string.lower(DB.getValue(nodeItem, 'subtype', '')) == 'heavy'
+					)
+			then
+				bFound = true;
+			end
+		end
+		if bFound then rValues = { sName = 'Run; SPEED: tripled', nDuration = 1, sChangeState = 'rts' } end
+
+		EffectManager.addEffectByTable(nodeCT, rValues)
 	elseif nSub == RIGHT_CLICK_TOKEN_TELE_GO then
+		if OptionsManager.isOption('SC_enabled', 'off') then
+			ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
+			return;
+		end
 		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
 		local nTeleAllowed = DB.getValue(nodeWtWCT, 'teleport_allowed', 2);
 		if (OptionsManager.isOption('allow_tele', 'on') and nTeleAllowed ~= 0)
@@ -1534,6 +1536,10 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			Comm.addChatMessage({ text = "That creature is not permitted to teleport." });
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_RESTART then
+		if OptionsManager.isOption('SC_enabled', 'off') then
+			ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
+			return;
+		end
 		for nodeCTTmp,tokenTmp in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
 			MovementManager.returnToStart(nodeCTTmp, tokenTmp);
 		end
@@ -2053,6 +2059,23 @@ function populateSpeedtypes()
 	end
 end
 
+function tidyUnits(sUnitsGave)
+	if not sUnitsGave then sUnitsGave = "" end
+	local sUnitsGave = string.lower(sUnitsGave);
+	if sUnitsGave == "'" or sUnitsGave == "ft" or sUnitsGave == "ft." or sUnitsGave == "feet" then
+		return "ft.";
+	elseif sUnitsGave == "m." or sUnitsGave == "m" or sUnitsGave == "meter" or sUnitsGave == "meters" then
+		return "m";
+	elseif sUnitsGave == "tiles" or sUnitsGave == "in." or sUnitsGave == "in" or sUnitsGave == "inches" then
+		return "tiles";
+	elseif sUnitsGave == "miles per hour" or sUnitsGave == "mph" then
+		return "mph";
+	else
+		ChatManager.Message("WtWCommon.tidyUnits - Unsupported units, please request this unit in the forum. Treating as feet.");
+		return "ft.";
+	end
+end
+
 function clearTable(tToBeCleared)
 	for key in pairs(tToBeCleared) do
 		tToBeCleared[key] = nil;
@@ -2060,12 +2083,21 @@ function clearTable(tToBeCleared)
 end
 
 --https://gist.github.com/revolucas/dd1ecccfca32d558fddf70ddb39eb8a6
+--slight modifications
 function printTable(t)
+	local print = Debug.console;
+	local sTab = "   " --original is "\t"
+
+	if type(t) ~= 'table' then
+		print("not table = "..tostring(t)..".");
+		return false;
+	end
+
 	-- to make output beautiful
 	local function tab(amt)
 		local str = ""
 		for i=1,amt do --luacheck: ignore 213
-			str = str .. "\t"
+			str = str .. sTab
 		end
 		return str
 	end
@@ -2109,6 +2141,8 @@ function printTable(t)
 					table.insert(stack,v)
 					cache[t] = cur_index+1
 					break
+				elseif type(v) == 'databasenode' then
+					output_str = output_str .. tab(depth) .. key .. " = node: "..DB.getPath(v)
 				else
 					output_str = output_str .. tab(depth) .. key .. " = '"..tostring(v).."'"
 				end
@@ -2141,5 +2175,15 @@ function printTable(t)
 	table.insert(output,output_str)
 	output_str = table.concat(output)
 
-	Debug.console(output_str);
+	print(output_str);
+	return true;
+end
+
+function reportError(sTxt)
+	if not sTxt or sTxt == '' then return end
+
+	local tMsg = {};
+	if Session.IsHost then tMsg['secret'] = true end
+	tMsg['text'] = sTxt;
+	Comm.addChatMessage(tMsg);
 end
