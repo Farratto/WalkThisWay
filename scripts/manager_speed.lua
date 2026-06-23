@@ -6,14 +6,15 @@
 --luacheck: globals callSpeedCalcEffectUpdated callSpeedCalcEffectDeleted onGlobalEffectUpdated onGlobalEffectDeleted
 --luacheck: globals callSpeedCalcEffectDeleted setOptions updateDisplaySpeed handleSpeedWindowClient
 --luacheck: globals parseSpeedType onTabletopInit recalcAllSpeeds handleSlash
---luacheck: globals handleCloseSpeedWindow closeSpeedWindow roundNearestHalfTile removeEffectTooHeavy
---luacheck: globals turnStartChecks roundMph onTurnEndWtW toggleCheckItemStr clearAllItemStrengthHandlers
---luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
+--luacheck: globals handleCloseSpeedWindow closeSpeedWindow turnStartChecks onTurnEndWtW
 --luacheck: globals parseBaseSpeed reparseBaseSpeed reparseAllBaseSpeeds reparseBaseSpeedSpecial
 --luacheck: globals faddEffectByTable addEffectByTableWtW
 --luacheck: globals fsetExhaustionLevel setExhaustionLevelWtW handleExhaustion
 --luacheck: globals setConstants addDbHandlers
---luacheck: globals handleEncumbUpdated populateEncumbranceTable toggleEncumbTracking
+--luacheck: globals checkFitness recheckFitness checkInvForHeavyItems checkAllForHeavyItems undoItemTooHeavy
+--luacheck: globals handleEncumbUpdated populateEncumbranceTable toggleEncumbTracking removeEffectTooHeavy
+--luacheck: globals toggleCheckItemStr clearAllItemStrengthHandlers
+--luacheck: globals getRoundingPref getRSDefaultGridSize convertAndRound getEffectUnits getDefaultEffectUnits
 
 OOB_MSGTYPE_SPEEDWINDOW = 'speedwindow';
 OOB_MSGTYPE_CLOSESPEEDWINDOW = 'close_speedwindow';
@@ -27,9 +28,7 @@ function onInit()
 	setConstants();
 	addDbHandlers();
 	if Session.IsHost then
-		if not DB.getValue(nodeWtW, 'effectUnits') then
-			DB.setValue(nodeWtW, 'effectUnits', 'string', 'ft.');
-		end
+		getEffectUnits();
 		Comm.registerSlashHandler('distunits', handleSlash, '[ft|m|tiles]')
 		EffectManager.setTagOptions('SPEED', {bIgnoreTarget = true, bNoDUSE = true, bIgnoreExpire = true});
 			--known options: bIgnoreOtherFilter bIgnoreDisabledCheck bDamageFilter bConditionFilter bNoDUSE
@@ -65,24 +64,24 @@ function setConstants()
 	if Session.IsHost then
 		nodeWtW = DB.createNode('WalkThisWay');
 		if not nodeWtW then
-			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtW");
+			WtWCommon.reportError("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtW");
 			return;
 		end
 		DB.setPublic(nodeWtW, true);
 		nodeWtWList = DB.createChild(nodeWtW, 'ct_list');
 		if not nodeWtWList then
-			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtWList");
+			WtWCommon.reportError("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtWList");
 			return;
 		end
 	else
 		nodeWtW = DB.findNode('WalkThisWay');
 		if not nodeWtW then
-			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to find nodeWtW");
+			WtWCommon.reportError("SpeedManager.setConstants - Unrecoverable error - unable to find nodeWtW");
 			return;
 		end
 		nodeWtWList = DB.getChild(nodeWtW, 'ct_list');
 		if not nodeWtWList then
-			Debug.console("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtWList");
+			WtWCommon.reportError("SpeedManager.setConstants - Unrecoverable error - unable to create nodeWtWList");
 			return;
 		end
 	end
@@ -157,6 +156,17 @@ function setOptions()
 			--OptionsManager.registerCallback('encumbrance_tracking', toggleEncumbTracking);
 			OptionsManager.registerCallback('HREN', toggleEncumbTracking);
 			sEncOption = OptionsManager.getOption('HREN');
+			OptionsManager.registerOptionData({	sKey = 'speed_rounding', sGroupRes = 'option_header_WtW'
+				, tCustom =
+					{ labelsres = "option_val_grid|option_val_whole|option_val_tenth"
+					, values = "grid|whole|tenth"
+					, baselabelres = "option_val_hgrid"
+					, baseval = "hgrid"
+					, default = "hgrid"
+					}
+				}
+			);
+			OptionsManager.registerCallback('speed_rounding', recalcAllSpeeds);
 		end
 	end
 	OptionsManager.registerOptionData({	sKey = 'AOSW', sGroupRes = 'option_header_WtW', bLocal = true });
@@ -276,14 +286,14 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 	local nodeFGSpeed = DB.getChild(nodeWtWCT, 'FGSpeed');
 	if not nodeFGSpeed then
 		if bCalledFromParse then
-			Debug.console("SpeedManager.speedCalculator - bCalledFromParse");
+			WtWCommon.reportError("SpeedManager.speedCalculator - bCalledFromParse");
 			return;
 		else
 			parseBaseSpeed(nodeCT, false);
 		end
 		nodeFGSpeed = DB.getChild(nodeWtWCT, 'FGSpeed');
 		if not nodeFGSpeed then
-			Debug.console("SpeedManager.speedCalculator - not nodeFGSpeed");
+			WtWCommon.reportError("SpeedManager.speedCalculator - not nodeFGSpeed");
 			return;
 		end
 	end
@@ -304,7 +314,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 	end
 	nBaseSpeed = tonumber(nBaseSpeed);
 	if not nBaseSpeed then
-		Debug.console("SpeedManager.speedCalculator - not nBaseSpeed for "..DB.getValue(nodeCT, 'name', ''));
+		WtWCommon.reportError("SpeedManager.speedCalculator - not nBaseSpeed for "..DB.getValue(nodeCT, 'name', ''));
 		nBaseSpeed = 30;
 	end
 
@@ -312,7 +322,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 
 	local rActor = ActorManager.resolveActor(nodeCT);
 	if not rActor then
-		Debug.console("SpeedManager.speedCalculator - not rActor for "..DB.getValue(nodeCT, 'name', ''));
+		WtWCommon.reportError("SpeedManager.speedCalculator - not rActor for "..DB.getValue(nodeCT, 'name', ''));
 		return;
 	end
 	local tSpeedEffects = {};
@@ -389,21 +399,21 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 		if DiceManager.isDiceString(sMod) then
 			nMod = tonumber(sMod);
 			if not nMod then
-				Debug.console("SpeedManager.speedCalculator - dice not currently supported. Please request this feature in the forums.");
+				WtWCommon.reportError("SpeedManager.speedCalculator - dice not currently supported. Please request this feature in the forums.");
 			end
 			sRemainder = sMinusSpeed:gsub('^' .. tostring(sMod) .. '%s*', '');
 		else
 			sRemainder = sMinusSpeed;
 		end
 		if not sRemainder and not nMod then
-			Debug.console("SpeedManager.speedCalculator - Syntax Error 438");
+			WtWCommon.reportError("SpeedManager.speedCalculator - Syntax Error 438");
 		end
 		]]
 		if v['original'] == "SPEED:" then
-			WtWCommon.reportError("Walk this Way - Syntax Error. Please consult forums.")
+			WtWCommon.reportError("Walk this Way - Syntax Error. Please consult forums.", true)
 		end
 		if v['dice'][1] then
-			WtWCommon.reportError("Walk this Way does not currently support dice expressions.  Please request this feature in the forums.");
+			WtWCommon.reportError("Walk this Way does not currently support dice expressions.  Please request this feature in the forums.", true);
 		end
 
 		local sMod;
@@ -432,7 +442,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 				if nRmndrRemainder then
 					nMaxMod = nRmndrRemainder
 				else
-					WtWCommon.reportError("Walk This Way - Syntax Error. Try SPEED: max(5)");
+					WtWCommon.reportError("Walk This Way - Syntax Error. Try SPEED: max(5)", true);
 				end
 				if nMod then
 					sRemainder = ''
@@ -483,7 +493,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 		if sRmndrLower == 'extra' then
 			bRecognizedRmndr = true;
 			if not nMod then
-				WtWCommon.reportError("Walk This Way - Syntax error. Try SPEED: 4 extra");
+				WtWCommon.reportError("Walk This Way - Syntax error. Try SPEED: 4 extra", true);
 			else
 				nExtra = nExtra + nMod;
 				table.insert(tEffectNames, sEffectName);
@@ -499,7 +509,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 			bRecognizedRmndr = true;
 			local sStrip = string.match(sRemainder, '^%s*[Tt][Yy][Pp][Ee]%s*%(%s*');
 			if not string.match(sRmndrLower, '%)$') then
-				WtWCommon.reportError("Walk This Way - Syntax error. Try SPEED: type(fly)");
+				WtWCommon.reportError("Walk This Way - Syntax error. Try SPEED: type(fly)", true);
 			elseif sStrip then
 				sStrip = string.gsub(sStrip, '%(', '%%(');
 				local sRmndrRemainder = sRemainder:gsub(sStrip, '');
@@ -723,13 +733,13 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 			bRecognizedRmndr = true;
 			if string.match(sRmndrLower, '%)$') then
 				if nMod then
-					Debug.console("SpeedManager.speedCalculator - Syntax Error 664");
+					WtWCommon.reportError("SpeedManager.speedCalculator - Syntax Error 664");
 				else
 					local sRmndrRemainder = sRmndrLower:gsub('^inc%s*%(', '');
 					sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
 					local nSpeedInc = tonumber(sRmndrRemainder);
 					if not nSpeedInc then
-						Debug.console("SpeedManager.speedCalculator - Syntax Error 670")
+						WtWCommon.reportError("SpeedManager.speedCalculator - Syntax Error 670")
 					else
 						nSpeedMod = nSpeedMod + nSpeedInc;
 						table.insert(tEffectNames, sEffectName);
@@ -747,13 +757,13 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 			bRecognizedRmndr = true;
 			if string.match(sRmndrLower, '%)$') then
 				if nMod then
-					Debug.console("SpeedManager.speedCalculator - Syntax Error 684");
+					WtWCommon.reportError("SpeedManager.speedCalculator - Syntax Error 684");
 				else
 					local sRmndrRemainder = sRmndrLower:gsub('^dec%s*%(', '');
 					sRmndrRemainder = sRmndrRemainder:gsub('%)$', '');
 					local nSpeedInc = tonumber(sRmndrRemainder);
 					if not nSpeedInc then
-						Debug.console("SpeedManager.speedCalculator - Syntax Error 690")
+						WtWCommon.reportError("SpeedManager.speedCalculator - Syntax Error 690")
 					else
 						nSpeedMod = nSpeedMod - nSpeedInc;
 						table.insert(tEffectNames, sEffectName);
@@ -767,7 +777,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 				end
 			else
 				if not nMod then
-					WtWCommon.reportError("Walk This Way - Syntax Error - use SPEED: 5 dec or SPEED: dec(5)");
+					WtWCommon.reportError("Walk This Way - Syntax Error - use SPEED: 5 dec or SPEED: dec(5)", true);
 				else
 					nSpeedMod = nSpeedMod - nMod;
 					nDecs = nDecs + nMod;
@@ -779,7 +789,8 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 		end
 		if not bRecognizedRmndr and sRmndrLower ~= '' then
 			WtWCommon.reportError("Walk This Way - Syntax Error - "..tostring(sRmndrLower)
-				.." is not a recognized command. Try inc, dec, max, doubled, halved, difficult, or type. Otherwise try the forums."
+				.." is not a recognized command. Try inc, dec, max, doubled, halved, difficult, or type. Otherwise try the forums.",
+				true
 			);
 		else
 			if nMod and sRmndrLower == '' then
@@ -880,7 +891,7 @@ function speedCalculator(nodeCT, bCalledFromParse, bDifficultButton)
 				tFGSpeedNew[k]['velocity'] = tostring(nWalkSpeed);
 			else
 				nFGSpeedNew = 30;
-				Debug.console("SpeedManager.speedCalculator - not nWalkSpeed.");
+				WtWCommon.reportError("SpeedManager.speedCalculator - not nWalkSpeed.");
 			end
 		end
 		if nFGSpeedNew then
@@ -1057,36 +1068,24 @@ function parseSpeedType(sType, tFGSpeedNew, bMatch)
 end
 
 -- luacheck: push ignore 561
-function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEffectNames, nHighest, bNoBase
+function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sUnitsPrefer, tEffectNames, nHighest, bNoBase
 	, sHighestType, bDifficult, nExtra, bSwimming
 )
 	if not Session.IsHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed then
-		Debug.console("SpeedManager.updateDisplaySpeed - not isHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed");
+		WtWCommon.reportError("SpeedManager.updateDisplaySpeed - not isHost or not nodeCT or not tFGSpeedNew or not nBaseSpeed");
 		return;
 	end
 
+	if not sUnitsPrefer then sUnitsPrefer = OptionsManager.getOption('DDLU') end
 	local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
-	if not sPref then
-		sPref = OptionsManager.getOption('DDLU');
-	end
-	local sUnitsPrefer = sPref;
-	local nConvFactor = 1;
+	--[[
 	local sLngthUnits = DB.getValue(nodeWtWCT, 'units');
 	if not sLngthUnits or sLngthUnits == '' then
-		Debug.console("SpeedManager.updateDisplaySpeed - units not in DB for "..DB.getValue(nodeCT, 'name', ''));
-		sLngthUnits = DB.getValue(nodeWtW, 'effectUnits');
+		WtWCommon.reportError("SpeedManager.updateDisplaySpeed - units not in DB for "..DB.getValue(nodeCT, 'name', ''));
+		sLngthUnits = getEffectUnits();
 	end
-	if sLngthUnits ~= sUnitsPrefer then
-		nConvFactor = WtWCommon.getConversionFactor(sLngthUnits, sUnitsPrefer);
-		if not nConvFactor then
-			nConvFactor = 1;
-		end
-	end
-	nBaseSpeed = nBaseSpeed * nConvFactor;
-	local sReturn = "";
-	local nBonusSpeed;
-	local nCurrentSpeed = nBaseSpeed;
-	local bCurrentFound;
+	]]
+	local sEffectUnits = getEffectUnits();
 
 	local sMarker = "";
 	if bSwimming then sMarker = "; swimming" end
@@ -1098,32 +1097,47 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		sMarker = "*";
 	end
 
+	local nConvFactor = 1;
+	--if sLngthUnits ~= sUnitsPrefer then
+	--	nConvFactor = WtWCommon.getConversionFactor(sLngthUnits, sUnitsPrefer);
+	if sEffectUnits ~= sUnitsPrefer then
+		nConvFactor = WtWCommon.getConversionFactor(sEffectUnits, sUnitsPrefer);
+	end
+	local nRoundingPref = getRoundingPref(sUnitsPrefer);
+	nBaseSpeed = nBaseSpeed * nConvFactor;
+	local nCurrentSpeed = nBaseSpeed;
+	local nBonusSpeed, bCurrentFound;
+	local sReturn = "";
+
 	for k,tSpdRcrd in ipairs(tFGSpeedNew) do
-		tSpdRcrd.velocity = tSpdRcrd.velocity * nConvFactor
+		tSpdRcrd['velocity'] = tSpdRcrd['velocity'] * nConvFactor
+		tSpdRcrd['velocity'] = WtWCommon.roundNumber(tSpdRcrd['velocity'], 0, 'down', nRoundingPref);
+		--[[
 		if sUnitsPrefer == 'ft.' then
-			tSpdRcrd.velocity = tSpdRcrd.velocity / 2.5;
-			tSpdRcrd.velocity = math.floor(tSpdRcrd.velocity);
-			tSpdRcrd.velocity = tSpdRcrd.velocity * 2.5;
+			tSpdRcrd['velocity'] = tSpdRcrd['velocity'] / 2.5;
+			tSpdRcrd['velocity'] = math.floor(tSpdRcrd['velocity']);
+			tSpdRcrd['velocity'] = tSpdRcrd['velocity'] * 2.5;
 		elseif sUnitsPrefer == 'tiles' then
-			tSpdRcrd.velocity = tSpdRcrd.velocity / 0.5;
-			tSpdRcrd.velocity = math.floor(tSpdRcrd.velocity);
-			tSpdRcrd.velocity = tSpdRcrd.velocity * 0.5;
+			tSpdRcrd['velocity'] = tSpdRcrd['velocity'] / 0.5;
+			tSpdRcrd['velocity'] = math.floor(tSpdRcrd['velocity']);
+			tSpdRcrd['velocity'] = tSpdRcrd['velocity'] * 0.5;
 		else
 			if sUnitsPrefer == 'm' then
-				tSpdRcrd.velocity = tSpdRcrd.velocity / 0.75;
-				tSpdRcrd.velocity = math.floor(tSpdRcrd.velocity);
-				tSpdRcrd.velocity = tSpdRcrd.velocity * 0.75;
+				tSpdRcrd['velocity'] = tSpdRcrd['velocity'] / 0.75;
+				tSpdRcrd['velocity'] = math.floor(tSpdRcrd['velocity']);
+				tSpdRcrd['velocity'] = tSpdRcrd['velocity'] * 0.75;
 			end
 		end
+		]]
 
-		local sVelWithUnits = tostring(tSpdRcrd.velocity) .. ' ' .. sUnitsPrefer;
+		local sVelWithUnits = tostring(tSpdRcrd['velocity']) .. ' ' .. sUnitsPrefer;
 
 		if bNoBase and not bCurrentFound then
-			nCurrentSpeed = tSpdRcrd.velocity;
+			nCurrentSpeed = tSpdRcrd['velocity'];
 			bCurrentFound = true;
 		end
 		if tSpdRcrd.type == '' or (string.match(tSpdRcrd.type, '^Walk')) then
-			nCurrentSpeed = tSpdRcrd.velocity;
+			nCurrentSpeed = tSpdRcrd['velocity'];
 			if bProne then
 				sReturn = "Crawl " .. sVelWithUnits;
 				break;
@@ -1181,7 +1195,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		if sSpeedWtWPrev == sReturn then return false end
 		local rActor = ActorManager.resolveActor(nodeCT);
 		if not rActor then
-			Debug.console("SpeedManager.updateDisplaySpeed - not rActor");
+			WtWCommon.reportError("SpeedManager.updateDisplaySpeed - not rActor");
 			return;
 		end
 		local nodeEffectNames = DB.getChild(nodeWtWCT, 'effectNames');
@@ -1198,7 +1212,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		end
 		local nodeChar = ActorManager.getCreatureNode(rActor);
 		if not nodeChar then
-			Debug.console("SpeedManager.updateDisplaySpeed - not nodeChar");
+			WtWCommon.reportError("SpeedManager.updateDisplaySpeed - not nodeChar");
 			return;
 		end
 		local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
@@ -1207,7 +1221,7 @@ function updateDisplaySpeed(nodeCT, tFGSpeedNew, nBaseSpeed, bProne, sPref, tEff
 		DB.setValue(nodeCharWtW, 'currentspeed', 'number', nCurrentSpeed);
 		return true;
 	else
-		Debug.console("SpeedManager.updateDisplaySpeed - no sReturn");
+		WtWCommon.reportError("SpeedManager.updateDisplaySpeed - no sReturn");
 		return false;
 	end
 end
@@ -1215,7 +1229,7 @@ end
 
 function reparseAllBaseSpeeds()
 	if not Session.IsHost then
-		Debug.console("SpeedManager.reparseAllBaseSpeeds - not host");
+		WtWCommon.reportError("SpeedManager.reparseAllBaseSpeeds - not host");
 		return;
 	end
 	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
@@ -1230,21 +1244,18 @@ function reparseBaseSpeedSpecial(nodeupdated)
 	reparseBaseSpeed(DB.getChild(nodeCT, 'speed'), nodeCT)
 end
 function reparseBaseSpeed(nodeSpeed, nodeCT)
-	if not Session.IsHost then
-		Debug.console("SpeedManager.reparseBaseSpeed - not host");
-		return;
-	end
+	if not Session.IsHost then return end
 
 	if not nodeCT then
 		if nodeSpeed then
 			nodeCT = DB.getParent(nodeSpeed);
 		else
-			Debug.console("SpeedManager.reparseBaseSpeed - not nodeCT and not nodeSpeed");
+			WtWCommon.reportError("SpeedManager.reparseBaseSpeed - not nodeCT and not nodeSpeed");
 			return;
 		end
 	end
 	if not nodeCT then
-		Debug.console("SpeedManager.reparseBaseSpeed - not nodeCT");
+		WtWCommon.reportError("SpeedManager.reparseBaseSpeed - not nodeCT");
 		return;
 	end
 
@@ -1258,12 +1269,12 @@ end
 
 -- luacheck: push ignore 561
 function parseBaseSpeed(nodeCT, bCalc)
-	if not nodeCT or not Session.IsHost then
-		Debug.console("SpeedManager.parseBaseSpeed - not nodeCT or not host");
+	if not Session.IsHost or not nodeCT then
+		WtWCommon.reportError("SpeedManager.parseBaseSpeed - not nodeCT or not host");
 		return;
 	end
 
-	local sUnitsGave = DB.getValue(nodeWtW, 'effectUnits');
+	local sEffectUnits = getEffectUnits();
 
 	--dont forget some creatures dont have a speed, like objects
 	local sFGSpeed = DB.getValue(nodeCT, 'speed');
@@ -1290,10 +1301,10 @@ function parseBaseSpeed(nodeCT, bCalc)
 	if not nodeFGSpeed then
 		nodeFGSpeed = DB.createChild(nodeWtWCT, 'FGSpeed');
 		local aSpdTypeSplit = StringManager.splitByPattern(sFGSpeed, '[,;]', true)
-		local sFinalUnits = '';
-		local sLngthUnits = '';
+		--local sFinalUnits = '';
+		--local sLngthUnits = '';
 		local sStripPattern = '';
-		local sMphAdd;
+		local sMphAdd, sLngthUnits, sUnitsBase;
 		for _,sSpdTypeSplit in ipairs(aSpdTypeSplit) do
 			local nodeSpeedRcrd = DB.createChild(nodeFGSpeed);
 			local sVelocity = string.match(sSpdTypeSplit, '%d+');
@@ -1316,12 +1327,16 @@ function parseBaseSpeed(nodeCT, bCalc)
 				end
 			end
 			local sType;
-			local bConverted = false;
-			local nConvFactor = 1;
-			if sLngthUnits == '' then
+			--local bConverted = false;
+			--local nConvFactor = 1;
+			--if sLngthUnits == '' then
+			if not sLngthUnits then
 				local aUnitsSplit = StringManager.splitByPattern(sSpdTypeSplit, '%s+', true)
-				local bFound = false;
+				--local bFound = false;
 				for _,word in ipairs(aUnitsSplit) do
+
+
+					--[[
 					if not bFound then
 						if string.match(string.lower(word), '^ft%.?$')
 							or string.match(string.lower(word), '^feet$')
@@ -1335,22 +1350,36 @@ function parseBaseSpeed(nodeCT, bCalc)
 							end
 						end
 						if bFound then sLngthUnits = word end
+					]]
+					if not sLngthUnits then
+						if string.match(string.lower(word), '^ft%.?$') or string.match(string.lower(word), '^feet$')
+							or string.match(string.lower(word), '^m%.?$')
+							or string.match(string.lower(word), '^tiles%.?$')
+							or string.match(string.lower(word), '^in%.?$') or string.match(string.lower(word), '^inches$')
+						then
+							--bFound = true;
+							sLngthUnits = word;
+						end
 					end
 				end
-				if not bFound then
+				--if not bFound then
+				if not sLngthUnits then
 					if sMph then
 						sLngthUnits = 'mph';
 					else
-						sLngthUnits = sUnitsGave;
+						sLngthUnits = sEffectUnits;
 					end
 				end
-				sFinalUnits = sLngthUnits
+				sUnitsBase = WtWCommon.tidyUnits(sLngthUnits);
+				--[[
+				sFinalUnits = sLngthUnits;
 				sFinalUnits = WtWCommon.tidyUnits(sFinalUnits);
-				if sFinalUnits ~= sUnitsGave then
-					nConvFactor = WtWCommon.getConversionFactor(sFinalUnits, sUnitsGave);
-					sFinalUnits = sUnitsGave;
+				if sFinalUnits ~= sEffectUnits then
+					nConvFactor = WtWCommon.getConversionFactor(sFinalUnits, sEffectUnits);
+					sFinalUnits = sEffectUnits;
 					bConverted = true;
 				end
+				]]
 				if string.match(sLngthUnits, '%.') then
 					sStripPattern = string.gsub(sLngthUnits, '%.', '');
 					sStripPattern = sStripPattern .. '%.';
@@ -1366,19 +1395,22 @@ function parseBaseSpeed(nodeCT, bCalc)
 			if sType == '' then sType = 'Walk' end
 
 			local nVelocity = tonumber(sVelocity);
-			nVelocity = roundNearestHalfTile(nVelocity, false, sFinalUnits);
+			--nVelocity = roundNearestHalfTile(nVelocity, false, sFinalUnits);
+			nVelocity = convertAndRound(nVelocity, sUnitsBase, sEffectUnits);
 
+			--[[
 			if bConverted and nVelocity then
 				nVelocity = nVelocity * nConvFactor;
 				if sLngthUnits == 'mph' then
 					nVelocity = roundMph(nVelocity, sFinalUnits);
 				end
 			end
+			]]
 			sVelocity = tostring(nVelocity);
 			DB.setValue(nodeSpeedRcrd, 'velocity', 'number', sVelocity);
 			DB.setValue(nodeSpeedRcrd, 'type', 'string', sType);
 		end
-		DB.setValue(nodeWtWCT, 'units', 'string', sFinalUnits);
+		--DB.setValue(nodeWtWCT, 'units', 'string', sFinalUnits);
 	end
 	if not DB.getValue(nodeCT, 'speed_wtw') or bCalc then speedCalculator(nodeCT, true) end
 end
@@ -1386,7 +1418,7 @@ end
 
 function setAllCharSheetSpeeds()
 	if not Session.IsHost then
-		Debug.console("SpeedManager.setAllCharSheetSpeeds - not host");
+		WtWCommon.reportError("SpeedManager.setAllCharSheetSpeeds - not host");
 		return;
 	end
 	local nodeCharSheets = DB.createNode('charsheet');
@@ -1397,7 +1429,7 @@ function setAllCharSheetSpeeds()
 end
 function setCharSheetSpeed(nodeUpdated, nodeChar, nodeSpeed)
 	if (not nodeUpdated and not nodeChar) or not Session.IsHost then
-		Debug.console("SpeedManager.setCharSheetSpeed - not host or (not nodeUpdated and not nodeChar)");
+		WtWCommon.reportError("SpeedManager.setCharSheetSpeed - not host or (not nodeUpdated and not nodeChar)");
 		return;
 	end
 
@@ -1415,7 +1447,7 @@ function setCharSheetSpeed(nodeUpdated, nodeChar, nodeSpeed)
 		if not nSpeedSet then nSpeedSet = DB.getValue(nodeSpeed, 'total') end
 	end
 	if not nSpeedSet then
-		Debug.console("Walk This Way cannot find the PC speed field for this ruleset.");
+		WtWCommon.reportError("Walk this Way cannot find the PC speed field for this ruleset.", true)
 		return;
 	end
 
@@ -1428,13 +1460,17 @@ function setCharSheetSpeed(nodeUpdated, nodeChar, nodeSpeed)
 			bCtSpeed = false;
 		end
 	end
-	local sUnitsGave = DB.getValue(nodeWtW, 'effectUnits');
-	local nConvFactor = WtWCommon.getConversionFactor(sUnitsGave, WtWCommon.getPreference(nodeCT));
-	local nRoundConv = WtWCommon.getConversionFactor(sUnitsGave, 'tiles') * 2;
-	local nRounded = nSpeedSet * nRoundConv;
-	nRounded = math.floor(nRounded);
-	nRounded = nRounded / nRoundConv
-	nSpeedSet = nRounded * nConvFactor;
+
+	--local sUnitPref = WtWCommon.getPreference(nodeCT);
+	--local nConvFactor = WtWCommon.getConversionFactor(getEffectUnits(), sUnitPref);
+	--nSpeedSet = WtWCommon.roundNumber(nSpeedSet * nConvFactor, 0, 'down', getRoundingPref(sUnitPref));
+	--local nConvFactor = WtWCommon.getConversionFactor(sEffectUnits, WtWCommon.getPreference(nodeCT));
+	--local nRoundConv = WtWCommon.getConversionFactor(sEffectUnits, 'tiles') * 2;
+	--local nRounded = nSpeedSet * nRoundConv;
+	--nRounded = math.floor(nRounded);
+	--nRounded = nRounded / nRoundConv
+	--nSpeedSet = nRounded * nConvFactor;
+	nSpeedSet = convertAndRound(nSpeedSet, getEffectUnits(), WtWCommon.getPreference(nodeCT));
 
 	local nodeCharWtW = DB.createChild(nodeChar, 'WalkThisWay');
 	DB.setValue(nodeCharWtW, 'base', 'number', nSpeedSet);
@@ -1509,7 +1545,7 @@ function handleEncumbUpdated(nodeLevelUpdated, bDontRecalc)
 	local nLevel = DB.getValue(nodeLevelUpdated, '.', 0);
 	if nLevel > 4 then nLevel = 4 end
 	if not bDontRecalc and nLevel == 0 then
-		ChatManager.Message("is no longer Encumbered.", WtWCommon.getControllingClient(nodeCT), nodeCT);
+		WtWCommon.reportError("is no longer Encumbered.", true, nil, nodeCT);
 		speedCalculator(nodeCT);
 		return;
 	end
@@ -1517,7 +1553,7 @@ function handleEncumbUpdated(nodeLevelUpdated, bDontRecalc)
 	if not tLevelEncumbTypes[nLevel] then populateEncumbranceTable() end
 
 	if tLevelEncumbTypes[nLevel] then
-		ChatManager.Message("is "..tLevelEncumbTypes[nLevel]..".", WtWCommon.getControllingClient(nodeCT), nodeCT);
+		WtWCommon.reportError("is "..tLevelEncumbTypes[nLevel]..".", true, nil, nodeCT);
 		if not bDontRecalc then speedCalculator(nodeCT) end
 	end
 end
@@ -1535,9 +1571,9 @@ end
 function toggleEncumbTracking(sOption) --luacheck: ignore 212
 	local sEncOptionNew = OptionsManager.getOption('HREN');
 	if sEncOptionNew == 'off' then
-		ChatManager.Message("Encumbrance Tracking disabled.");
+		WtWCommon.reportError("Encumbrance Tracking disabled.", true);
 	elseif sEncOption == 'off' then
-		ChatManager.Message("Encumbrance Tracking enabled.");
+		WtWCommon.reportError("Encumbrance Tracking enabled.", true);
 	end
 
 	for _,nodeCTLcl in ipairs(CombatManager.getAllCombatantNodes()) do
@@ -1558,12 +1594,12 @@ function handleExhaustion(rActor)
 	if Session.RulesetName ~= "5E" then return end
 
 	if not rActor or not rActor['sCTNode'] then
-		Debug.console("SpeedManager.handleExhaustion - not rActor or not sCTNode");
+		WtWCommon.reportError("SpeedManager.handleExhaustion - not rActor or not sCTNode");
 		return;
 	end
 	local nodeCT = DB.findNode(rActor['sCTNode'])
 	if not nodeCT then
-		Debug.console("SpeedManager.handleExhaustion - not nodeCT");
+		WtWCommon.reportError("SpeedManager.handleExhaustion - not nodeCT");
 		return;
 	end
 
@@ -1899,7 +1935,7 @@ function turnStartChecks(nodeCT)
 		if OptionsManager.isOption('AOSW', 'on') then openSpeedWindow(nodeCT) end
 	end
 end
-function onTurnEndWtW(nodeCT, bForce)
+function onTurnEndWtW(nodeCT, bForce, bSkipDash)
 	local sOwner = WtWCommon.getControllingClient(nodeCT);
 	if sOwner then
 		local msgOOB = {};
@@ -1911,6 +1947,7 @@ function onTurnEndWtW(nodeCT, bForce)
 		if not bForce and OptionsManager.isOption('ACSW', 'on') then closeSpeedWindow(nodeCT) end
 	end
 
+	if bSkipDash then return end
 	local nCount = 0;
 	for _,nodeCTTemp in pairs(CombatManager.getAllCombatantNodes()) do
 		if nCount > 1 then
@@ -1930,10 +1967,24 @@ function handleCloseSpeedWindow(msgOOB)
 	end
 end
 
+function handleSlash(_, sParams)
+	if not Session.IsHost then return end
+
+	local sUnitsClean = WtWCommon.tidyUnits(sParams);
+	if not sUnitsClean then
+		WtWCommon.reportError("Only three options are supported: ft, m, or tiles. Request additional options on the forum.", true, false);
+		return;
+	end
+
+	DB.setValue(nodeWtW, 'effectUnits', 'string', sUnitsClean);
+	reparseAllBaseSpeeds();
+end
+
+--[[
 function roundMph(number, sUnitsPrefer)
 	if number then tonumber(number) end
 	if not number then
-		Debug.console("SpeedManager.roundMph - not number");
+		WtWCommon.reportError("SpeedManager.roundMph - not number");
 		return number;
 	end
 	if not sUnitsPrefer then sUnitsPrefer = 'ft.' end
@@ -1954,22 +2005,6 @@ function roundMph(number, sUnitsPrefer)
 	end
 	return number;
 end
-
-function handleSlash(_, sParams)
-	if not Session.IsHost then return end
-
-	local sUnitsClean = WtWCommon.tidyUnits(sParams);
-	if not sUnitsClean then
-		local tMsg = {};
-		tMsg.text = "Only three options are supported: ft, m, or tiles. Contact author of WalkThisWay if you desire additional options."
-		Comm.addChatMessage(tMsg)
-		return;
-	end
-
-	DB.setValue(nodeWtW, 'effectUnits', 'string', sUnitsClean);
-	reparseAllBaseSpeeds();
-end
-
 function roundNearestHalfTile(nSpeed, bUp, sUnits)
 	if not sUnits then sUnits = DB.getValue(nodeWtW, 'effectUnits') end
 
@@ -1981,4 +2016,53 @@ function roundNearestHalfTile(nSpeed, bUp, sUnits)
 		nSpeedRounded = math.floor(nSpeedRounded);
 	end
 	return nSpeedRounded / nRoundFactor
+end
+]]
+
+function convertAndRound(nSpeed, sUnitsCurrent, sUnitsPrefer)
+	local nConvFactor = WtWCommon.getConversionFactor(sUnitsCurrent, sUnitsPrefer);
+	return WtWCommon.roundNumber(nSpeed * nConvFactor, 0, 'down', getRoundingPref(sUnitsPrefer));
+end
+
+function getRoundingPref(sUnitsPrefer, nRSDefaultGridSize)
+	local sSpeedRounding = OptionsManager.getOption('speed_rounding');
+	if string.match(sSpeedRounding, 'grid$') then
+		if not nRSDefaultGridSize then nRSDefaultGridSize = getRSDefaultGridSize() end
+		if not sUnitsPrefer then sUnitsPrefer = OptionsManager.getOption('DDLU') end
+		nRSDefaultGridSize = nRSDefaultGridSize * WtWCommon.getConversionFactor('ft.', sUnitsPrefer);
+	end
+
+	if sSpeedRounding == 'grid' then
+		return nRSDefaultGridSize;
+	elseif sSpeedRounding == 'hgrid' then
+		return nRSDefaultGridSize / 2;
+	elseif sSpeedRounding == 'whole' then
+		return 1;
+	elseif sSpeedRounding == 'tenth' then
+		return 0.1;
+	else
+		return 5;
+	end
+end
+function getRSDefaultGridSize()
+	if WtWCommon.isSavageWorlds() then
+		return 6;
+	else
+		return 5;
+	end
+end
+
+function getEffectUnits()
+	local sReturn = DB.getValue(nodeWtW, 'effectUnits');
+	if not sReturn then sReturn = getDefaultEffectUnits(true) end
+	return sReturn;
+end
+function getDefaultEffectUnits(bWrite)
+	if WtWCommon.isSavageWorlds() then
+		if bWrite then DB.setValue(nodeWtW, 'effectUnits', 'string', 'tiles') end
+		return 'tiles';
+	else
+		if bWrite then DB.setValue(nodeWtW, 'effectUnits', 'string', 'ft.') end
+		return 'ft.';
+	end
 end

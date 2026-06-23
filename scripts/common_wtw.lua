@@ -6,11 +6,11 @@
 --luacheck: globals getRootData getRootList tRootList populateRootList
 --luacheck: globals notifyApplyHostCommands handleApplyHostCommands
 --luacheck: globals getRootCommander getControllingClient getVisCtEntries getAllImageWindows hasExtension
---luacheck: globals getEffectName cleanString tidyUnits
+--luacheck: globals getEffectName cleanString tidyUnits isSavageWorlds
 --luacheck: globals clearTable printTable
 --luacheck: globals convNumToIdNodeName roundNumber handlePullMoveData aEffectVarMap setConstants
 --luacheck: globals getPreference registerPreference handlePrefChange requestPref handlePrefRegistration
---luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor
+--luacheck: globals sendPrefRegistration onIdentityActivationWtW getConversionFactor handleInvalidConvUnits
 --luacheck: globals RIGHT_CLICK_TOKEN_SC RIGHT_CLICK_TOKEN_SPEED_TYPE onMenuSelectionToken restoreOtherRightClicks
 --luacheck: globals notifyResetRightClick handleResetRightClick
 --luacheck: globals processNewCTOwner onTokenRefUpdated onCTDelete
@@ -77,18 +77,24 @@ aEffectVarMap = {
 
 function onInit()
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
-	if Session.RulesetName == "5E" then
+	if isSavageWorlds() then
 		OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
-			tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
+			tCustom = { labelsres = "option_val_inches|option_val_meters", values = "tiles|m",
 				baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
 			}
 		});
 	else
 		OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
-			tCustom = { labelsres = "option_val_meters", values = "m",
+			tCustom = { labelsres = "option_val_tiles|option_val_meters", values = "tiles|m",
 				baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
 			}
 		});
+	--else
+	--	OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
+	--		tCustom = { labelsres = "option_val_meters", values = "m",
+	--			baselabelres = "option_val_feet", baseval = "ft.", default = "ft."
+	--		}
+	--	});
 	end
 	OptionsManager.registerCallback('DDLU', handlePrefChange);
 	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_REGPREF, handlePrefRegistration);
@@ -136,7 +142,15 @@ function cleanDatabase()
 	local tNodesToDelete = {};
 	for sNodeCtID, node in pairs(DB.getChildren(nodeWtWList)) do
 		local nodeCT = DB.findNode(sCTPath..'.'..sNodeCtID);
-		if not nodeCT then table.insert(tNodesToDelete, node) end
+		if not nodeCT then
+			table.insert(tNodesToDelete, node);
+		end
+	end
+
+	for sNodeName, nodeChild in pairs(DB.getChildren(nodeWtW, '.')) do
+		if string.match(sNodeName, '^id%-%d%d%d%d%d$') then
+			table.insert(tNodesToDelete, nodeChild);
+		end
 	end
 
 	for _,node in pairs(tNodesToDelete) do
@@ -148,24 +162,24 @@ function setConstants()
 	if Session.IsHost then
 		nodeWtW = DB.createNode('WalkThisWay');
 		if not nodeWtW then
-			Debug.console("WtWCommon.setConstants - Unrecoverable error - unable to create nodeWtW");
+			reportError("WtWCommon.setConstants - Unrecoverable error - unable to create nodeWtW");
 			return;
 		end
 		DB.setPublic(nodeWtW, true);
 		nodeWtWList = DB.createChild(nodeWtW, 'ct_list');
 		if not nodeWtWList then
-			Debug.console("WtWCommon.setConstants - Unrecoverable error - unable to create nodeWtWList");
+			reportError("WtWCommon.setConstants - Unrecoverable error - unable to create nodeWtWList");
 			return;
 		end
 	else
 		nodeWtW = DB.findNode('WalkThisWay');
 		if not nodeWtW then
-			Debug.console("WtWCommon.setConstants - Unrecoverable error - unable to find nodeWtW");
+			reportError("WtWCommon.setConstants - Unrecoverable error - unable to find nodeWtW");
 			return;
 		end
 		nodeWtWList = DB.getChild(nodeWtW, 'ct_list');
 		if not nodeWtWList then
-			Debug.console("WtWCommon.setConstants - Unrecoverable error - unable to create nodeWtWList");
+			reportError("WtWCommon.setConstants - Unrecoverable error - unable to create nodeWtWList");
 			return;
 		end
 	end
@@ -189,6 +203,7 @@ function setWtwDbOwner(nodeCreature, nodeCT)
 		if Pets and Pets.isCohort(nodeCreature) then
 			bGo = true;
 		else
+			if not nodeCT then nodeCT = ActorManager.getCTNode(nodeCreature) end
 			sNPCowner = DB.getValue(nodeCT, 'NPCowner');
 			if sNPCowner then bGo = true end
 		end
@@ -202,8 +217,8 @@ function setWtwDbOwner(nodeCreature, nodeCT)
 		else
 			sOwner = DB.getOwner(nodeCreature);
 		end
-		if not nodeCT then nodeCT = ActorManager.getCTNode(nodeCreature) end
 		if sOwner and sOwner ~= '' then
+			if not nodeCT then nodeCT = ActorManager.getCTNode(nodeCreature) end
 			local nodeWtWCT = DB.createChild(nodeWtWList, DB.getName(nodeCT));
 			DB.setOwner(nodeWtWCT, sOwner);
 		end
@@ -234,8 +249,7 @@ function updateWtwDbOwner(nodeChar)
 				DB.setOwner(nodeWtWCTLoop, sOwner);
 			end
 		elseif not bOwnerCleared then
-			local sNPCowner = DB.getValue(nodeCTLoop, 'NPCowner', '');
-			if sNPCowner == sOwner then
+			if DB.getValue(nodeCTLoop, 'NPCowner', '') == sOwner then
 				DB.setOwner(nodeWtWCTLoop, sOwner);
 			end
 		end
@@ -273,7 +287,7 @@ function hasEffectFindString(rActor, sString, bCaseInsensitive, bReturnString, b
 	-- when using bCaseInsensitive, make use of [^%] instead of %uppercase
 	-- use sparingly.  Ignores conditionals and targetting
 	if not rActor or not sString then
-		Debug.console("WtWCommon.hasEffectFindString - not rActor or not sString");
+		reportError("WtWCommon.hasEffectFindString - not rActor or not sString");
 		return;
 	end
 
@@ -684,7 +698,7 @@ end
 --[[
 function getEffectsByTypeWtW(rActor, sEffectType, _, rFilterActor, bTargetedOnly, bCaseSensitive)
 	if not rActor then
-		Debug.console("WtWCommon.getEffectsByTypeWtW - not rActor");
+		reportError("WtWCommon.getEffectsByTypeWtW - not rActor");
 		return;
 	end
 	local results = {};
@@ -1073,7 +1087,6 @@ function populateRootList()
 	table.insert(tRootList, "Grappled");
 	table.insert(tRootList, "Paralyzed");
 	table.insert(tRootList, "Petrified");
-	table.insert(tRootList, "Stable");
 
 	if Session.RulesetName == '5E'
 		or Session.RulesetName == 'PFRPG2'
@@ -1136,7 +1149,7 @@ function convNumToIdNodeName(nId)
 		local sReturn = string.match(nId, '%d+');
 		local nReturn = tonumber(sReturn);
 		if not nReturn then
-			Debug.console("WtWCommon.convNumToIdNodeName - not nReturn");
+			reportError("WtWCommon.convNumToIdNodeName - not nReturn");
 		else
 			return nReturn;
 		end
@@ -1182,63 +1195,94 @@ function roundNumber(nInput, nPlaces, sUpDown, nRoundBy)
 	return ((nMultiplier * nWhole) / nPlaceAdj) * nRoundBy;
 end
 
-function getConversionFactor(sCurrentUnits, sDesiredUnits)
+function getConversionFactor(sCurrentUnits, sDesiredUnits, bIRL)
 	if sCurrentUnits == sDesiredUnits then return 1 end
 	if sCurrentUnits == 'ft.' then
 		if sDesiredUnits == 'm' then
-			return 0.3048;
+			if not bIRL then
+				return 0.3;
+			else
+				return 0.3048;
+			end
 		elseif sDesiredUnits == 'tiles' then
-			--if Session.RulesetName == "5E" then
+			if isSavageWorlds() then
+				return 1 / 6;
+			else
 				return 0.2;
-			--end
+			end
 		elseif sDesiredUnits == 'mi.' then
 			return 1 / 5280;
 		else
-			Debug.console("WtWCommon.getConversionFactor - Invalid units.");
-			return 1;
+			return handleInvalidConvUnits(sDesiredUnits, false);
 		end
 	elseif sCurrentUnits == 'm' then
 		if sDesiredUnits == 'ft.' then
-			return 1 / 0.3048;
+			if not bIRL then
+				return 1 / 0.3;
+			else
+				return 1 / 0.3048;
+			end
 		elseif sDesiredUnits == 'tiles' then
-			--if Session.RulesetName == "5E" then
+			if isSavageWorlds() then
+				return 0.5;
+			else
 				return 1 / 1.5;
-			--end
+			end
 		elseif sDesiredUnits == 'mi.' then
 			return 1 / 1609.344;
 		else
-			Debug.console("WtWCommon.getConversionFactor - Invalid units.");
-			return 1;
+			return handleInvalidConvUnits(sDesiredUnits, false);
 		end
 	elseif sCurrentUnits == 'tiles' then
-		--if Session.RulesetName == "5E" then
+		if isSavageWorlds() then
+			if sDesiredUnits == 'ft.' then
+				return 6;
+			elseif sDesiredUnits == 'm' then
+				return 2;
+			else
+				return handleInvalidConvUnits(sDesiredUnits, false);
+			end
+		else
 			if sDesiredUnits == 'ft.' then
 				return 5;
 			elseif sDesiredUnits == 'm' then
-				return 1.5;
+			if not bIRL then
+					return 1.5;
+				else
+					return 1.524;
+				end
 			else
-				Debug.console("WtWCommon.getConversionFactor - Invalid units.");
-				return 1;
+				return handleInvalidConvUnits(sDesiredUnits, false);
 			end
-		--end
+		end
 	elseif sCurrentUnits == 'mph' then
 		if sDesiredUnits == 'ft.' then
 			return 8.8;
 		elseif sDesiredUnits == 'm' then
 			return 2.68224;
 		elseif sDesiredUnits == 'tiles' then
-			--if Session.RulesetName == "5E" then
+			if isSavageWorlds() then
+				return 8.8 / 6;
+			else
 				return 1.76;
-			--end
+			end
 		else
-			Debug.console("WtWCommon.getConversionFactor - Invalid units.");
-			return 1;
+			return handleInvalidConvUnits(sDesiredUnits, false);
 		end
 	else
-		Debug.console("WtWCommon.getConversionFactor - Invalid units.");
-		return 1;
+		return handleInvalidConvUnits(sCurrentUnits, true);
 	end
 end
+function handleInvalidConvUnits(sUnits, bCurrentUnits)
+	local sUnitWhich = 'desired';
+	if bCurrentUnits then sUnitWhich = 'current' end
+
+	reportError("WtWCommon.getConversionFactor - Invalid "..sUnitWhich.." units: "..tostring(sUnits));
+	Debug.printstack();
+
+	return 1;
+end
+
 function onIdentityActivationWtW(_, username, activated)
 	if activated then requestPref(username) end
 end
@@ -1289,6 +1333,18 @@ function getPreference(nodeCT)
 	return OptionsManager.getOption('DDLU');
 end
 
+function isSavageWorlds()
+	if Session.RulesetName == 'SavageWorlds'
+		or Session.RulesetName == 'SWADE'
+		or Session.RulesetName == 'SWD'
+		or Session.RulesetName == 'SWPF'
+	then
+		return true;
+	else
+		return false;
+	end
+end
+
 function getVisCtEntries()
 	local sCTPath = CombatManager.CT_MAIN_PATH;
 	local sWinClass = 'combattracker_host'
@@ -1337,7 +1393,7 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 		tokenCT.registerMenuItem('Open Speed Window', 'restorewindow', RIGHT_CLICK_TOKEN_SC
 			, RIGHT_CLICK_TOKEN_WIN
 		);
-		if Session.RulesetName == "5E" then
+		if Session.RulesetName == '5E' then
 			tokenCT.registerMenuItem('Dash', 'tokenacceptmove', RIGHT_CLICK_TOKEN_SC
 				, RIGHT_CLICK_DASH
 			);
@@ -1345,7 +1401,7 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 			tokenCT.registerMenuItem('Double Move', 'tokenacceptmove', RIGHT_CLICK_TOKEN_SC
 				, RIGHT_CLICK_DASH
 			);
-			if Session.RulesetName == "3.5E" or "PFRPG" then
+			if Session.RulesetName == '3.5E' or 'PFRPG' then
 				tokenCT.registerMenuItem('Run', 'tokenacceptmove', RIGHT_CLICK_TOKEN_SC
 					, RIGHT_CLICK_RUN
 				);
@@ -1533,11 +1589,11 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			MovementManager.propagateTextWidget(token, "Tele Start", nil, 'dist_label_large', -13);
 			DB.setValue(nodeWtWCT, 'teleport', 'number', 1);
 		else
-			Comm.addChatMessage({ text = "That creature is not permitted to teleport." });
+			reportError("That creature is not permitted to teleport.", true, false);
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_RESTART then
 		if OptionsManager.isOption('SC_enabled', 'off') then
-			ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
+			reportError("Step Counter usage: Movement tracking currently disabled.", true, false);
 			return;
 		end
 		for nodeCTTmp,tokenTmp in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
@@ -1579,7 +1635,7 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 					sValue = string.match(sValues, '|'..sLabelLower);
 					if not sValue then
 						registerTokenRightClick(token, nodeCT, true);
-						Debug.console("WtWCommon.onMenuSelectionToken - not sValue");
+						reportError("WtWCommon.onMenuSelectionToken - not sValue");
 						return;
 					end
 					sValue = string.gsub(sValue, '^|', '');
@@ -1651,7 +1707,7 @@ end
 function onCTDelete(nodeCT)
 	if SpeedManager then
 		SpeedManager.closeSpeedWindow(nodeCT);
-		SpeedManager.onTurnEndWtW(nodeCT, true);
+		SpeedManager.onTurnEndWtW(nodeCT, true, true);
 	end
 
 	local sNodeName = DB.getName(nodeCT);
@@ -1682,7 +1738,7 @@ function onRecordTypeEventWtW(sRecordType, tCustom, ...)
 	if sNodeCTName then
 		DB.deleteChild(nodeWtWList, sNodeCTName);
 	else
-		Debug.console("WtWCommon.onRecordTypeEventWtW - not sNodeCTName");
+		reportError("WtWCommon.onRecordTypeEventWtW - not sNodeCTName");
 		return bResult;
 	end
 
@@ -1704,7 +1760,7 @@ end
 
 function restartWindows(sWinClass, nodeSource, nodeCT, sOwner)
 	if not sWinClass then
-		Debug.console("WtWCommon.restartWindows - not sWinClass");
+		reportError("WtWCommon.restartWindows - not sWinClass");
 		return;
 	end
 
@@ -1738,7 +1794,7 @@ function restartWindows(sWinClass, nodeSource, nodeCT, sOwner)
 end
 function handleWindowRestart(msgOOB)
 	if not msgOOB then
-		Debug.console("WtWCommon.handleWindowRestart - not msgOOB");
+		reportError("WtWCommon.handleWindowRestart - not msgOOB");
 		return;
 	end
 	if not Session.IsHost and msgOOB['sHostTarget'] == 'true' then return end
@@ -1747,7 +1803,7 @@ function handleWindowRestart(msgOOB)
 end
 function restartWindow(sWinClass, nodeSource)
 	if not sWinClass then
-		Debug.console("WtWCommon.restartWindow - not sWinClass");
+		reportError("WtWCommon.restartWindow - not sWinClass");
 		return;
 	end
 
@@ -1760,7 +1816,7 @@ end
 
 function isMovementPossible(nodeCT, nDist, sDist, tokenCT, nCurrMaxSpeed, nodeWtWCT)
 	if not SpeedManager or (not nodeCT and not tokenCT) then
-		Debug.console("WtWCommon.isMovementPossible - not SpeedManager or not nodeCT and not tokenCT");
+		reportError("WtWCommon.isMovementPossible - not SpeedManager or not nodeCT and not tokenCT");
 		return;
 	end
 	if nDist and nDist == 0 then return true end
@@ -1770,7 +1826,7 @@ function isMovementPossible(nodeCT, nDist, sDist, tokenCT, nCurrMaxSpeed, nodeWt
 
 	if sDist then
 		if nDist or sDist ~= 'half' then
-			Debug.console("WtWCommon.isMovementPossible - sDist invalid");
+			reportError("WtWCommon.isMovementPossible - sDist invalid");
 			return;
 		end
 		nDist = roundNumber(nCurrMaxSpeed / 2, 0, 'down');
@@ -1819,7 +1875,7 @@ function getLimitingSpeed(nodeCT, nodeWtWCT)
 							return DB.getValue(nodeSpeedTypeNew, 'velocity'), sLimitingSpeedType;
 						end
 					end
-					Debug.console("WtWCommon.getLimitingSpeed - sLimitingSpeedTypeNew not found");
+					reportError("WtWCommon.getLimitingSpeed - sLimitingSpeedTypeNew not found");
 					return nil, sLimitingSpeedType;
 				end
 				return nVel, sLimitingSpeedType;
@@ -1835,7 +1891,7 @@ function getLimitingSpeed(nodeCT, nodeWtWCT)
 				end
 			end
 		end
-		Debug.console("WtWCommon.getLimitingSpeed - sLimitingSpeedType not found");
+		reportError("WtWCommon.getLimitingSpeed - sLimitingSpeedType not found");
 		return nil, sLimitingSpeedType;
 	end]]
 
@@ -1903,7 +1959,7 @@ function getSpeedTypes(nodeCT, nodeWtWCT)
 	if not nodeCT or type(nodeCT) ~= 'databasenode' then return end
 	if not nodeWtWCT then nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT)) end
 	if not nodeWtWCT then
-		Debug.console("WtWCommon.getSpeedTypes - not nodeWtWCT");
+		reportError("WtWCommon.getSpeedTypes - not nodeWtWCT");
 		return;
 	end
 
@@ -2070,6 +2126,12 @@ function tidyUnits(sUnitsGave)
 		return "tiles";
 	elseif sUnitsGave == "miles per hour" or sUnitsGave == "mph" then
 		return "mph";
+	elseif sUnitsGave == "" then
+		if isSavageWorlds() then
+			return "tiles";
+		else
+			return "ft.";
+		end
 	else
 		ChatManager.Message("WtWCommon.tidyUnits - Unsupported units, please request this unit in the forum. Treating as feet.");
 		return "ft.";
@@ -2085,7 +2147,7 @@ end
 --https://gist.github.com/revolucas/dd1ecccfca32d558fddf70ddb39eb8a6
 --slight modifications
 function printTable(t)
-	local print = Debug.console;
+	local print = reportError;
 	local sTab = "   " --original is "\t"
 
 	if type(t) ~= 'table' then
@@ -2179,11 +2241,15 @@ function printTable(t)
 	return true;
 end
 
-function reportError(sTxt)
-	if not sTxt or sTxt == '' then return end
+function reportError(sMsg, bChatWindow, bBroadcast, nodeCT)
+	if not sMsg or sMsg == '' then return end
 
-	local tMsg = {};
-	if Session.IsHost then tMsg['secret'] = true end
-	tMsg['text'] = sTxt;
-	Comm.addChatMessage(tMsg);
+	if not bChatWindow then
+		Debug.console(sMsg);
+		return;
+	end
+
+	if bBroadcast == nil and nodeCT and WtWCommon.getControllingClient(nodeCT) then bBroadcast = true end
+
+	ChatManager.sendMessage(sMsg, { text = sMsg, secret = not bBroadcast, rActor = nodeCT, icon = 'WtW_icon' });
 end

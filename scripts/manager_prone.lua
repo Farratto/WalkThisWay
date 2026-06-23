@@ -253,8 +253,7 @@ function standUp(nodeCT, bHostAuth, bAthlete, nDist)
 
 			if bHasEnoughMovement == nil then return end
 			if bHasEnoughMovement == false then
-				local sOwner = WtWCommon.getControllingClient(nodeCT);
-				ChatManager.Message("Not enough movement remaining.", sOwner, nodeCT);
+				WtWCommon.reportError("Not enough movement remaining.", true, nil, nodeCT);
 				return;
 			end
 
@@ -320,8 +319,7 @@ function handleQueryMovePossible(msgOOB)
 
 	if bHasEnoughMovement == nil then return end
 	if bHasEnoughMovement == false then
-		local sOwner = WtWCommon.getControllingClient(nodeCT);
-		ChatManager.Message("Not enough movement remaining.", sOwner, nodeCT);
+		WtWCommon.reportError("Not enough movement remaining.", true, nil, nodeCT);
 		return;
 	end
 
@@ -353,7 +351,7 @@ end
 
 function sendCloseWindowCmd(nodeCT, sOwner)
 	if not Session.IsHost then
-		Debug.console('ProneManager.sendCloseWindowCmd - not IsHost');
+		WtWCommon.reportError('ProneManager.sendCloseWindowCmd - not IsHost');
 		return;
 	end
 	if not sOwner then sOwner = WtWCommon.getControllingClient(nodeCT) end
