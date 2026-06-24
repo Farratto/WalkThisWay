@@ -92,6 +92,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v3.3.2: FIXED: rounded speeds were sometimes rounded incorrectly.
 * v3.3.1: FIXED: Stable condition was flagged as a root. Support added for SavageWorlds-based rulesets to include inches and correct conversions for those rulesets. New option to set rounding on creature speeds, default unchanged at 1/2 grid
 * v3.3.0: FIXED: Wasn't rechecking strength after effect removal. Encumbrance Speed rules support added for 5e. For non-5e rulesets: replaced Dash button with Double-Move button. Added Run button for 3.5e-based rulesets (it doesn't affect AC). Support added for global effects window. Reworked background effect processing to use new ruleset effect system and end reliance on BCEG. Added more user-friendly syntax messages.
 * v3.2.9: FIXED: Error in non-5E rulesets. Added protections for future ruleset changes to effects. Started updating effect handling tie-ins for new ruleset effect-handling system.

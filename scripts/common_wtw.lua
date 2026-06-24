@@ -1189,7 +1189,7 @@ function roundNumber(nInput, nPlaces, sUpDown, nRoundBy)
 	end
 
 	if nDec and nDec >= 0.5 then
-		return (nMultiplier * (nWhole + 1)) / nPlaceAdj;
+		nWhole = nWhole + 1;
 	end
 
 	return ((nMultiplier * nWhole) / nPlaceAdj) * nRoundBy;
