@@ -239,7 +239,7 @@ function standUp(nodeCT, bHostAuth, bAthlete, nDist)
 		if not bAthlete and ActorManager5E.hasRollFeat2024(nodeCT, 'Athlete') then bAthlete = true end
 		if bAthlete then nDist = 5 end
 
-		if not bHostAuth and MovementManager then
+		if not bHostAuth and StepManager then
 			if not Session.IsHost then
 				queryMovePossible(nodeCT, bAthlete);
 				return;
@@ -292,9 +292,9 @@ function standUp(nodeCT, bHostAuth, bAthlete, nDist)
 
 	if bConsume then
 		if bAthlete then
-			MovementManager.consumeMovement(nodeCT, 'dist', nil, 5);
+			StepManager.consumeMovement(nodeCT, 'dist', nil, 5);
 		else
-			MovementManager.consumeMovement(nodeCT, 'dist', nil, nDist);
+			StepManager.consumeMovement(nodeCT, 'dist', nil, nDist);
 		end
 	end
 end

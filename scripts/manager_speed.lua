@@ -270,11 +270,11 @@ function recalcAllSpeeds(sOwner)
 	for _,nodeCT in ipairs(CombatManager.getAllCombatantNodes()) do
 		if sOwner and sOwner ~= 'WESC' then
 			if sOwner == WtWCommon.getControllingClient(nodeCT) then
-				if MovementManager then MovementManager.setConvFactor(nodeCT) end
+				if StepManager then StepManager.setConvFactor(nodeCT) end
 				speedCalculator(nodeCT);
 			end
 		else
-			if MovementManager then MovementManager.setConvFactor(nodeCT) end
+			if StepManager then StepManager.setConvFactor(nodeCT) end
 			speedCalculator(nodeCT);
 		end
 	end

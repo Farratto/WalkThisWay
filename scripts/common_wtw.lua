@@ -1408,7 +1408,7 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 			end
 		end
 	end
-	if MovementManager then
+	if StepManager then
 		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
 		local nTeleAllowed = DB.getValue(nodeWtWCT, 'teleport_allowed', 2);
 		tokenCT.registerMenuItem('Steppage', 'tool_shoe_false', RIGHT_CLICK_TOKEN_SC
@@ -1477,7 +1477,7 @@ function registerTokenRightClick(tokenCT, nodeCT, bNoMenu)
 				);
 			end
 			local sLabels, _, sEmptyLabel = getSpeedTypes(nodeCT);
-			MovementManager.populateRightClickSpeedTypes(tokenCT, nodeCT, sLabels, sEmptyLabel);
+			StepManager.populateRightClickSpeedTypes(tokenCT, nodeCT, sLabels, sEmptyLabel);
 		end
 	end
 
@@ -1523,25 +1523,25 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 				ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
 				return;
 			end
-			MovementManager.addOneTile(nodeCT, token, 1);
+			StepManager.addOneTile(nodeCT, token, 1);
 		elseif nSubSub == RIGHT_CLICK_TOKEN_REMOVE_ONE then
 			if OptionsManager.isOption('SC_enabled', 'off') then
 				ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
 				return;
 			end
-			MovementManager.addOneTile(nodeCT, token, -1);
+			StepManager.addOneTile(nodeCT, token, -1);
 		elseif nSubSub == RIGHT_CLICK_TOKEN_STEP then
 			if OptionsManager.isOption('SC_enabled', 'off') then
 				ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
 				return;
 			end
-			MovementManager.processTravelDist(nodeCT, true, token);
+			StepManager.processTravelDist(nodeCT, true, token);
 		elseif nSubSub == RIGHT_CLICK_TOKEN_UNDO then
 			if OptionsManager.isOption('SC_enabled', 'off') then
 				ChatManager.Message("Step Counter usage: Movement tracking currently disabled.");
 				return;
 			end
-			MovementManager.undoLastStep(nodeCT, false, token);
+			StepManager.undoLastStep(nodeCT, false, token);
 		end
 	elseif nSub == RIGHT_CLICK_DASH then
 		local rValues = { sName = 'Double Move; SPEED: doubled', nDuration = 1, sChangeState = 'rts' };
@@ -1585,8 +1585,8 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			or Session.IsHost
 			or nTeleAllowed == 1
 		then
-			MovementManager.processTravelDist(nodeCT, true, token);
-			MovementManager.propagateTextWidget(token, "Tele Start", nil, 'dist_label_large', -13);
+			StepManager.processTravelDist(nodeCT, true, token);
+			StepManager.propagateTextWidget(token, "Tele Start", nil, 'dist_label_large', -13);
 			DB.setValue(nodeWtWCT, 'teleport', 'number', 1);
 		else
 			reportError("That creature is not permitted to teleport.", true, false);
@@ -1596,15 +1596,15 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 			reportError("Step Counter usage: Movement tracking currently disabled.", true, false);
 			return;
 		end
-		for nodeCTTmp,tokenTmp in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
-			MovementManager.returnToStart(nodeCTTmp, tokenTmp);
+		for nodeCTTmp,tokenTmp in pairs(StepManager.getMoreTargets(nodeCT, token)) do
+			StepManager.returnToStart(nodeCTTmp, tokenTmp);
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_DIFF then
 		if Session.IsHost then
-			MovementManager.processManualDifficult(nodeCT, nSubSub == RIGHT_CLICK_TOKEN_DIFF_ON);
+			StepManager.processManualDifficult(nodeCT, nSubSub == RIGHT_CLICK_TOKEN_DIFF_ON);
 		else
 			local msgOOB = {};
-			msgOOB.type = MovementManager.OOB_MSGTYPE_NOTIFY_MANUAL_DIFFICULT;
+			msgOOB.type = StepManager.OOB_MSGTYPE_NOTIFY_MANUAL_DIFFICULT;
 			msgOOB.sCTNodeID = DB.getPath(nodeCT);
 			if nSub == RIGHT_CLICK_TOKEN_DIFF_ON then
 				msgOOB.sDifficult = '1';
@@ -1618,7 +1618,7 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 		local sSpeedType = DB.getValue(nodeWtWCT, 'speed_type');
 		local sDefaultSpeedType = DB.getValue(nodeWtWCT, 'speed_type_default');
 		local sValues = DB.getValue(nodeWtWCT, 'speed_type_values');
-		for nK, sLabel in pairs(MovementManager.tTypesToNumbers) do
+		for nK, sLabel in pairs(StepManager.tTypesToNumbers) do
 			local sLabelLower = string.lower(sLabel);
 			if nSubSub == nK then
 				local bDefault;
@@ -1642,21 +1642,21 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 					sValue = string.gsub(sValue, '|.*$', '');
 				end
 				if sSpeedType and sSpeedType == sValue then return end
-				local bGoLabel = MovementManager.determineGoSpeedChange(nodeCT);
+				local bGoLabel = StepManager.determineGoSpeedChange(nodeCT);
 				if not bDefault then DB.setValue(nodeWtWCT, 'speed_type', 'string', sValue) end
-				local tokenNew = MovementManager.updateProto(nodeCT, nodeWtWCT, token, sValue);
+				local tokenNew = StepManager.updateProto(nodeCT, nodeWtWCT, token, sValue);
 				if bGoLabel then
-					MovementManager.processTravelDist(nodeCT, false, tokenNew, nil, nil, nil, nil, nil, true);
+					StepManager.processTravelDist(nodeCT, false, tokenNew, nil, nil, nil, nil, nil, true);
 				end
-				MovementManager.updateSpeedWindow(nodeCT, sValue, nodeWtWCT)
+				StepManager.updateSpeedWindow(nodeCT, sValue, nodeWtWCT)
 				return;
 			end
 		end
 	elseif nSub == RIGHT_CLICK_TOKEN_GM then
 		local nodeWtWCT = DB.getChild(nodeWtWList, DB.getName(nodeCT));
 		if nSubSub == RIGHT_CLICK_TOKEN_CLEAR then
-			for nodeCTTmp,tokenTmp in pairs(MovementManager.getMoreTargets(nodeCT, token)) do
-				MovementManager.resetCreatureForOne(nodeCTTmp,tokenTmp);
+			for nodeCTTmp,tokenTmp in pairs(StepManager.getMoreTargets(nodeCT, token)) do
+				StepManager.resetCreatureForOne(nodeCTTmp,tokenTmp);
 			end
 		elseif nSubSub == RIGHT_CLICK_TOKEN_NO_LIMIT then
 			DB.setValue(nodeWtWCT, 'limit_movement', 'number', 0);
@@ -1701,7 +1701,7 @@ function onTokenRefUpdated(nodeUpdated)
 		return;
 	end
 
-	if MovementManager then MovementManager.onTokenRefUpdated(nodeUpdated, nodeCT) end
+	if StepManager then StepManager.onTokenRefUpdated(nodeUpdated, nodeCT) end
 end
 
 function onCTDelete(nodeCT)
@@ -1744,7 +1744,7 @@ function onRecordTypeEventWtW(sRecordType, tCustom, ...)
 
 	if SpeedManager then SpeedManager.parseBaseSpeed(nodeCT, true) end
 
-	if MovementManager then
+	if StepManager then
 		if not tCustom['nodeRecord'] then
 			tCustom['nodeRecord'] = DB.findNode(tCustom['sRecord']);
 		end

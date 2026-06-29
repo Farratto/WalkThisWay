@@ -47,7 +47,7 @@ The extension updates all the speeds on the speed field in the combat tracker.  
 
 Option setting (for GM and players) to change the units that speed is displayed in.  Current choices are feet, meters, and tiles.  Automatically rounds final speed down to nearest half tile.  Typing /distunits followed by either ft, m, or tiles will change the units that the effects are processed in.  This is advanced usage and I don't recommend unless all your effects are not in feet (unusual).
 
-Current Extension/Module Support: [Better Combat Effects](https://www.fantasygrounds.com/forums/showthread.php?68831), [Pets](https://www.fantasygrounds.com/forums/showthread.php?83084), [5e Automatic Effects](https://www.fantasygrounds.com/forums/showthread.php?67481), Team Twohy's 5e Effects Coding, [Assistant GM](https://www.fantasygrounds.com/forums/showthread.php?66158), [Mad Nomad's Character Sheet Effects Display](https://www.fantasygrounds.com/forums/showthread.php?62341), [5E Auto Encumbrance](https://www.fantasygrounds.com/forums/showthread.php?68694), [Exhausted](https://www.fantasygrounds.com/forums/showthread.php?69623), [Initiative-Nanny](https://www.fantasygrounds.com/forums/showthread.php?84346), [Step Counter](https://www.fantasygrounds.com/forums/showthread.php?84497), [Map Parcels](https://www.fantasygrounds.com/forums/showthread.php?62134)
+Current Extension/Module Support: [Better Combat Effects](https://www.fantasygrounds.com/forums/showthread.php?68831), [Pets](https://www.fantasygrounds.com/forums/showthread.php?83084), [5e Automatic Effects](https://www.fantasygrounds.com/forums/showthread.php?67481), Team Twohy's 5e Effects Coding, [Assistant GM](https://www.fantasygrounds.com/forums/showthread.php?66158), [Mad Nomad's Character Sheet Effects Display](https://www.fantasygrounds.com/forums/showthread.php?84346), [Step Counter](https://www.fantasygrounds.com/forums/showthread.php?84497), [Map Parcels](https://www.fantasygrounds.com/forums/showthread.php?62134)
 
 ### Known Limitations
 
@@ -92,6 +92,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v3.3.3: FIXED: main script name MovementManager renamed to StepManager because SavageWorlds ruleset uses that name.
 * v3.3.2: FIXED: rounded speeds were sometimes rounded incorrectly.
 * v3.3.1: FIXED: Stable condition was flagged as a root. Support added for SavageWorlds-based rulesets to include inches and correct conversions for those rulesets. New option to set rounding on creature speeds, default unchanged at 1/2 grid
 * v3.3.0: FIXED: Wasn't rechecking strength after effect removal. Encumbrance Speed rules support added for 5e. For non-5e rulesets: replaced Dash button with Double-Move button. Added Run button for 3.5e-based rulesets (it doesn't affect AC). Support added for global effects window. Reworked background effect processing to use new ruleset effect system and end reliance on BCEG. Added more user-friendly syntax messages.
