@@ -92,6 +92,7 @@ headerpoweratwill.webp and headerpowerenc.webp copied from included Smiteworks t
 
 ### Change Log
 
+* v3.3.4: FIXED: ruleset update broke using Dash more than once. Changed reported versioning for new FG launcher.
 * v3.3.3: FIXED: main script name MovementManager renamed to StepManager because SavageWorlds ruleset uses that name.
 * v3.3.2: FIXED: rounded speeds were sometimes rounded incorrectly.
 * v3.3.1: FIXED: Stable condition was flagged as a root. Support added for SavageWorlds-based rulesets to include inches and correct conversions for those rulesets. New option to set rounding on creature speeds, default unchanged at 1/2 grid

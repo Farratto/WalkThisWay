@@ -10,6 +10,7 @@
 				<script>
 					function onDoubleClick(x,y)
 						local nodeCT = ActorManager.getCTNode(window.getDatabaseNode())
+						--[[
 						if Session.IsHost then
 							EffectManager.addEffect("", "", nodeCT, { sName = 'Dash', nDuration = 1
 								, sChangeState = "rts" }, ""
@@ -19,7 +20,8 @@
 								, sChangeState = "rts"
 							});
 						end
-						--EffectManager.addEffectByTable(nodeCT, {sName = 'Dash', nDuration = 1, sChangeState = "rts"});
+						]]
+						EffectManager.addEffectByTable(nodeCT, {sName = 'Dash; STACK', nDuration = 1, sChangeState = "rts"});
 
 						if super and super.onDoubleClick then
 							return super.onDoubleClick(x,y);

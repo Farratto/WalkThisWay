@@ -4,7 +4,6 @@
 --luacheck: globals fcheckDataBuild checkDataBuildWtW
 --luacheck: globals getTextDataInLabel removeEffectsByClause getEffectNamesByText getCompsDataByPattern
 --luacheck: globals getRootData getRootList tRootList populateRootList
---luacheck: globals notifyApplyHostCommands handleApplyHostCommands
 --luacheck: globals getRootCommander getControllingClient getVisCtEntries getAllImageWindows hasExtension
 --luacheck: globals getEffectName cleanString tidyUnits isSavageWorlds
 --luacheck: globals clearTable printTable
@@ -20,7 +19,7 @@
 --luacheck: globals getLimitingSpeed getSpeedTypes tSpeedTypes populateSpeedtypes t5ESpeedTypes tRulesetSpeedTypes
 --luacheck: globals notifyEmpty handleNotifyEmpty cleanDatabase handleRemoveTag
 
-OOB_MSGTYPE_APPLYHCMDS = 'applyhcmds';
+--OOB_MSGTYPE_APPLYHCMDS = 'applyhcmds';
 OOB_MSGTYPE_REGPREF = 'regpreference';
 OOB_MSGTYPE_REQPREF = 'request_preference';
 OOB_MSGTYPE_RESET_RIGHTCLICK = 'reset_right_click';
@@ -76,7 +75,7 @@ aEffectVarMap = {
 };
 
 function onInit()
-	OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
+	--OOBManager.registerOOBMsgHandler(OOB_MSGTYPE_APPLYHCMDS, handleApplyHostCommands);
 	if isSavageWorlds() then
 		OptionsManager.registerOptionData({	sKey = 'DDLU', bLocal = true,
 			tCustom = { labelsres = "option_val_inches|option_val_meters", values = "tiles|m",
@@ -423,10 +422,12 @@ function removeEffectsByClause(rActor, sInput, tData, bPattern)
 			local tCompRebuild = {};
 			for _, tComp in ipairs(tEffectData['tComps']) do
 				local bFoundComp;
-				for _, nComp in ipairs(tClausesUbiq[tEffectData['node']]) do
-					if nComp == tComp['kComp'] then
-						bFoundComp = true;
-						break;
+				if tClausesUbiq[tEffectData['node']] then
+					for _, nComp in ipairs(tClausesUbiq[tEffectData['node']]) do
+						if nComp == tComp['kComp'] then
+							bFoundComp = true;
+							break;
+						end
 					end
 				end
 				if not bFoundComp then table.insert(tCompRebuild, tComp['original']) end
@@ -542,6 +543,7 @@ function getCompsDataByPattern(rActor, sInput, tData, bPattern, bHasOnly)
 	end
 end
 
+--[[
 function notifyApplyHostCommands(nodeCT, iAction, rValues)
 	local msgOOB = {};
 	msgOOB['type'] = OOB_MSGTYPE_APPLYHCMDS;
@@ -595,6 +597,7 @@ function handleApplyHostCommands(msgOOB)
 		);
 	end
 end
+]]
 
 --Returns nil for inactive identities and those owned by the GM
 function getControllingClient(nodeCT)
@@ -1546,14 +1549,14 @@ function onMenuSelectionToken(token, nSelection, nSub, nSubSub)
 	elseif nSub == RIGHT_CLICK_DASH then
 		local rValues = { sName = 'Double Move; SPEED: doubled', nDuration = 1, sChangeState = 'rts' };
 		if Session.RulesetName == "5E" then
-			rValues = { sName = 'Dash', nDuration = 1, sChangeState = 'rts' };
+			rValues = { sName = 'Dash; STACK', nDuration = 1, sChangeState = 'rts' };
 		end
-		if Session.IsHost then
+		--[[if Session.IsHost then
 			EffectManager.addEffect('', '', nodeCT, rValues, true);
 		else
 			notifyApplyHostCommands(nodeCT, 0, rValues);
-		end
-		--EffectManager.addEffectByTable(nodeCT, rValues)
+		end]]
+		EffectManager.addEffectByTable(nodeCT, rValues)
 	elseif nSub == RIGHT_CLICK_RUN then
 		local nodeChar = nodeCT;
 		if ActorManager.isPC(nodeCT) then nodeChar = ActorManager.getCreatureNode(nodeCT) end
